@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/juanfont/headscale/hscontrol/state"
-	"github.com/juanfont/headscale/hscontrol/types"
+	"github.com/manoharkakumani/orgscale/hscontrol/state"
+	"github.com/manoharkakumani/orgscale/hscontrol/types"
 	"github.com/rs/zerolog/log"
 	"gorm.io/gorm"
 	"tailscale.com/tailcfg"

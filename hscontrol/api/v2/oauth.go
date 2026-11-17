@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/juanfont/headscale/hscontrol/scope"
-	"github.com/juanfont/headscale/hscontrol/types"
+	"github.com/manoharkakumani/orgscale/hscontrol/scope"
+	"github.com/manoharkakumani/orgscale/hscontrol/types"
 )
 
 // accessTokenTTL is the fixed lifetime of a minted access token, matching

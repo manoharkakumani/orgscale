@@ -3,9 +3,9 @@ package integration
 import (
 	"testing"
 
-	"github.com/juanfont/headscale/integration/dockertestutil"
-	"github.com/juanfont/headscale/integration/hsic"
-	"github.com/juanfont/headscale/integration/tsic"
+	"github.com/manoharkakumani/orgscale/integration/dockertestutil"
+	"github.com/manoharkakumani/orgscale/integration/hsic"
+	"github.com/manoharkakumani/orgscale/integration/tsic"
 	"github.com/stretchr/testify/require"
 )
 

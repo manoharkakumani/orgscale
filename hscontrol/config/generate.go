@@ -6,7 +6,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/juanfont/headscale/hscontrol/types"
+	"github.com/manoharkakumani/orgscale/hscontrol/types"
 	"go.yaml.in/yaml/v3"
 )
 

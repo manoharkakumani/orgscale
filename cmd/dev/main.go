@@ -129,7 +129,7 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	build := exec.CommandContext(ctx, "go", "build", "-o", hsBin, "./cmd/headscale")
+	build := exec.CommandContext(ctx, "go", "build", "-o", hsBin, "./cmd/orgscale")
 	build.Stdout = os.Stdout
 	build.Stderr = os.Stderr
 

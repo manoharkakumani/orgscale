@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/juanfont/headscale/hscontrol/types"
-	"github.com/juanfont/headscale/hscontrol/util"
-	"github.com/juanfont/headscale/hscontrol/util/zlog/zf"
+	"github.com/manoharkakumani/orgscale/hscontrol/types"
+	"github.com/manoharkakumani/orgscale/hscontrol/util"
+	"github.com/manoharkakumani/orgscale/hscontrol/util/zlog/zf"
 	"github.com/rs/zerolog/log"
 	"gorm.io/gorm"
 	"tailscale.com/types/key"

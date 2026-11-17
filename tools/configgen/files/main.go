@@ -15,7 +15,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/juanfont/headscale/hscontrol/config"
+	"github.com/manoharkakumani/orgscale/hscontrol/config"
 )
 
 // exampleHeader marks the committed example; generate config output is

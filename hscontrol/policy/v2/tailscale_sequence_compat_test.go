@@ -7,7 +7,7 @@
 // Test data source: ../../servertest/testdata/steps/policy-generation.hujson,
 // loaded by name; TestPolicySequenceMapCompat in ../../servertest replays it
 // through real clients.
-// Source format:    github.com/juanfont/headscale/hscontrol/types/testcapture
+// Source format:    github.com/manoharkakumani/orgscale/hscontrol/types/testcapture
 
 package v2
 
@@ -24,8 +24,8 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/juanfont/headscale/hscontrol/types"
-	"github.com/juanfont/headscale/hscontrol/types/testcapture"
+	"github.com/manoharkakumani/orgscale/hscontrol/types"
+	"github.com/manoharkakumani/orgscale/hscontrol/types/testcapture"
 	"github.com/stretchr/testify/require"
 	"tailscale.com/tailcfg"
 )

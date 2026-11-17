@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/juanfont/headscale/hscontrol/templates"
+	"github.com/manoharkakumani/orgscale/hscontrol/templates"
 	"github.com/stretchr/testify/assert"
 )
 

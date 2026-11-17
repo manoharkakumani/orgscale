@@ -13,12 +13,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/juanfont/headscale/hscontrol/db"
-	"github.com/juanfont/headscale/hscontrol/derp"
-	"github.com/juanfont/headscale/hscontrol/policy"
-	"github.com/juanfont/headscale/hscontrol/state"
-	"github.com/juanfont/headscale/hscontrol/types"
-	"github.com/juanfont/headscale/hscontrol/types/change"
+	"github.com/manoharkakumani/orgscale/hscontrol/db"
+	"github.com/manoharkakumani/orgscale/hscontrol/derp"
+	"github.com/manoharkakumani/orgscale/hscontrol/policy"
+	"github.com/manoharkakumani/orgscale/hscontrol/state"
+	"github.com/manoharkakumani/orgscale/hscontrol/types"
+	"github.com/manoharkakumani/orgscale/hscontrol/types/change"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"tailscale.com/tailcfg"
@@ -2263,7 +2263,7 @@ func TestMapSessionOverlapLimitConcurrent(t *testing.T) {
 func waitInitialMapSendParked(t *testing.T) {
 	t.Helper()
 
-	const addNode = "github.com/juanfont/headscale/hscontrol/mapper.(*Batcher).AddNode("
+	const addNode = "github.com/manoharkakumani/orgscale/hscontrol/mapper.(*Batcher).AddNode("
 
 	buf := make([]byte, 1<<22)
 

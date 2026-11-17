@@ -4,7 +4,7 @@ import (
 	"github.com/chasefleming/elem-go"
 	"github.com/chasefleming/elem-go/attrs"
 	"github.com/chasefleming/elem-go/styles"
-	"github.com/juanfont/headscale/hscontrol/assets"
+	"github.com/manoharkakumani/orgscale/hscontrol/assets"
 )
 
 // mdTypesetBody creates a body element with md-typeset styling

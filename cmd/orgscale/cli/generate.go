@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"net/http"
 
-	clientv1 "github.com/juanfont/headscale/gen/client/v1"
+	clientv1 "github.com/manoharkakumani/orgscale/gen/client/v1"
 
-	"github.com/juanfont/headscale/hscontrol/config"
-	"github.com/juanfont/headscale/hscontrol/types"
+	"github.com/manoharkakumani/orgscale/hscontrol/config"
+	"github.com/manoharkakumani/orgscale/hscontrol/types"
 	"github.com/spf13/cobra"
 	"tailscale.com/types/key"
 )

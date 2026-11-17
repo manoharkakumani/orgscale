@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
-	"github.com/juanfont/headscale/hscontrol/types"
+	"github.com/manoharkakumani/orgscale/hscontrol/types"
 )
 
 // Default is the configuration before a file or variable sets

@@ -13,7 +13,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/juanfont/headscale/hscontrol/types/testcapture"
+	"github.com/manoharkakumani/orgscale/hscontrol/types/testcapture"
 	"github.com/libdns/cloudflare"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"

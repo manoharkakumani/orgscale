@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"testing"
 
-	clientv1 "github.com/juanfont/headscale/gen/client/v1"
-	"github.com/juanfont/headscale/integration/hsic"
-	"github.com/juanfont/headscale/integration/tsic"
+	clientv1 "github.com/manoharkakumani/orgscale/gen/client/v1"
+	"github.com/manoharkakumani/orgscale/integration/hsic"
+	"github.com/manoharkakumani/orgscale/integration/tsic"
 	"github.com/stretchr/testify/require"
 )
 

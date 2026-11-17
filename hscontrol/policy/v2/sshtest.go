@@ -7,7 +7,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/juanfont/headscale/hscontrol/types"
+	"github.com/manoharkakumani/orgscale/hscontrol/types"
 	"go4.org/netipx"
 	"tailscale.com/tailcfg"
 	"tailscale.com/types/views"

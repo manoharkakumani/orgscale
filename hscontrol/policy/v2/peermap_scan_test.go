@@ -7,8 +7,8 @@ import (
 	"net/netip"
 	"testing"
 
-	"github.com/juanfont/headscale/hscontrol/policy/matcher"
-	"github.com/juanfont/headscale/hscontrol/types"
+	"github.com/manoharkakumani/orgscale/hscontrol/policy/matcher"
+	"github.com/manoharkakumani/orgscale/hscontrol/types"
 	"github.com/stretchr/testify/require"
 	"go4.org/netipx"
 	"tailscale.com/tailcfg"

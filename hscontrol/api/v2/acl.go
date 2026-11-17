@@ -13,9 +13,9 @@ import (
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/juanfont/headscale/hscontrol/scope"
-	"github.com/juanfont/headscale/hscontrol/state"
-	"github.com/juanfont/headscale/hscontrol/types"
+	"github.com/manoharkakumani/orgscale/hscontrol/scope"
+	"github.com/manoharkakumani/orgscale/hscontrol/state"
+	"github.com/manoharkakumani/orgscale/hscontrol/types"
 	"github.com/tailscale/hujson"
 )
 

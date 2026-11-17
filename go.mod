@@ -1,4 +1,4 @@
-module github.com/juanfont/headscale
+module github.com/manoharkakumani/orgscale
 
 go 1.27.3
 

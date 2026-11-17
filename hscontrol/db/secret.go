@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/juanfont/headscale/hscontrol/types"
+	"github.com/manoharkakumani/orgscale/hscontrol/types"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/crypto/argon2"
 	"golang.org/x/crypto/bcrypt"

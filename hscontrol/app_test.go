@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/juanfont/headscale/hscontrol/config"
-	"github.com/juanfont/headscale/hscontrol/dns"
-	"github.com/juanfont/headscale/hscontrol/types"
+	"github.com/manoharkakumani/orgscale/hscontrol/config"
+	"github.com/manoharkakumani/orgscale/hscontrol/dns"
+	"github.com/manoharkakumani/orgscale/hscontrol/types"
 	"github.com/libdns/cloudflare"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"

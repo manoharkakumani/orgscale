@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/juanfont/headscale/hscontrol/types"
+	"github.com/manoharkakumani/orgscale/hscontrol/types"
 	"tailscale.com/util/rands"
 )
 

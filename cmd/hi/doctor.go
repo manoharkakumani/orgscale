@@ -9,8 +9,8 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/juanfont/headscale/integration/dockertestutil"
-	"github.com/juanfont/headscale/integration/k3sic"
+	"github.com/manoharkakumani/orgscale/integration/dockertestutil"
+	"github.com/manoharkakumani/orgscale/integration/k3sic"
 )
 
 const (

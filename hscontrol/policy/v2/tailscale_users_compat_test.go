@@ -10,7 +10,7 @@
 // constructor call) and at runtime (users and nodes added to a running
 // manager); each node check runs on every manager that loaded.
 //
-// Source format: github.com/juanfont/headscale/hscontrol/types/testcapture
+// Source format: github.com/manoharkakumani/orgscale/hscontrol/types/testcapture
 
 package v2
 
@@ -28,8 +28,8 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/juanfont/headscale/hscontrol/types"
-	"github.com/juanfont/headscale/hscontrol/types/testcapture"
+	"github.com/manoharkakumani/orgscale/hscontrol/types"
+	"github.com/manoharkakumani/orgscale/hscontrol/types/testcapture"
 	"github.com/stretchr/testify/require"
 	"tailscale.com/net/tsaddr"
 	"tailscale.com/tailcfg"

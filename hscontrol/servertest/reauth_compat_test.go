@@ -7,7 +7,7 @@
 // lifecycle_compat_test.go. tag-owner-chain's joins are replayed here; its
 // OAuth mints and the tag owner functions are checked in ../policy/v2. The
 // refused logins of ephemeral-lifecycle.hujson are rows here too.
-// Source format:    github.com/juanfont/headscale/hscontrol/types/testcapture
+// Source format:    github.com/manoharkakumani/orgscale/hscontrol/types/testcapture
 
 package servertest_test
 
@@ -24,9 +24,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/juanfont/headscale/hscontrol/servertest"
-	"github.com/juanfont/headscale/hscontrol/types"
-	"github.com/juanfont/headscale/hscontrol/types/testcapture"
+	"github.com/manoharkakumani/orgscale/hscontrol/servertest"
+	"github.com/manoharkakumani/orgscale/hscontrol/types"
+	"github.com/manoharkakumani/orgscale/hscontrol/types/testcapture"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
 	"tailscale.com/tailcfg"

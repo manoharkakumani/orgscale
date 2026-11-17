@@ -5,7 +5,7 @@
 //
 // Test data source: ../policy/v2/testdata/{acl,grant,routes}_results/, see
 // viaCompatTests, routesMapCompatTests and aclMapCompatTests
-// Source format:    github.com/juanfont/headscale/hscontrol/types/testcapture
+// Source format:    github.com/manoharkakumani/orgscale/hscontrol/types/testcapture
 package servertest_test
 
 import (
@@ -20,10 +20,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/juanfont/headscale/hscontrol/servertest"
-	"github.com/juanfont/headscale/hscontrol/state"
-	"github.com/juanfont/headscale/hscontrol/types"
-	"github.com/juanfont/headscale/hscontrol/types/testcapture"
+	"github.com/manoharkakumani/orgscale/hscontrol/servertest"
+	"github.com/manoharkakumani/orgscale/hscontrol/state"
+	"github.com/manoharkakumani/orgscale/hscontrol/types"
+	"github.com/manoharkakumani/orgscale/hscontrol/types/testcapture"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go4.org/netipx"

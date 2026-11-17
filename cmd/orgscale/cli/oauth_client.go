@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"strings"
 
-	clientv2 "github.com/juanfont/headscale/gen/client/v2"
+	clientv2 "github.com/manoharkakumani/orgscale/gen/client/v2"
 	"github.com/spf13/cobra"
 )
 

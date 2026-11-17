@@ -18,7 +18,7 @@ RUN go mod download
 COPY . .
 
 # Build debug binary with debug symbols for delve
-RUN CGO_ENABLED=0 GOOS=linux go build -gcflags="all=-N -l" -o /go/bin/headscale ./cmd/headscale
+RUN CGO_ENABLED=0 GOOS=linux go build -gcflags="all=-N -l" -o /go/bin/headscale ./cmd/orgscale
 
 # Runtime stage
 FROM debian:trixie-slim

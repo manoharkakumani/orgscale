@@ -4,7 +4,7 @@ import (
 	"errors"
 	"os"
 
-	"github.com/juanfont/headscale/hscontrol/types"
+	"github.com/manoharkakumani/orgscale/hscontrol/types"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )

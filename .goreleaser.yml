@@ -17,7 +17,7 @@ release:
 
 builds:
   - id: headscale
-    main: ./cmd/headscale
+    main: ./cmd/orgscale
     mod_timestamp: "{{ .CommitTimestamp }}"
     env:
       - CGO_ENABLED=0
@@ -114,7 +114,7 @@ kos:
     annotations:
       org.opencontainers.image.source: https://github.com/juanfont/headscale
     build: headscale
-    main: ./cmd/headscale
+    main: ./cmd/orgscale
     env:
       - CGO_ENABLED=0
     platforms:
@@ -147,7 +147,7 @@ kos:
     annotations:
       org.opencontainers.image.source: https://github.com/juanfont/headscale
     build: headscale
-    main: ./cmd/headscale
+    main: ./cmd/orgscale
     env:
       - CGO_ENABLED=0
     platforms:

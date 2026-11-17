@@ -1,6 +1,6 @@
 package hsic
 
-import "github.com/juanfont/headscale/hscontrol/types"
+import "github.com/manoharkakumani/orgscale/hscontrol/types"
 
 func MinimumConfigYAML() string {
 	return `

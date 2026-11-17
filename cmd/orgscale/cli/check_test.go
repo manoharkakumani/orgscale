@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/juanfont/headscale/hscontrol/config"
-	policyv2 "github.com/juanfont/headscale/hscontrol/policy/v2"
+	"github.com/manoharkakumani/orgscale/hscontrol/config"
+	policyv2 "github.com/manoharkakumani/orgscale/hscontrol/policy/v2"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"

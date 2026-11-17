@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/juanfont/headscale/hscontrol/util"
+	"github.com/manoharkakumani/orgscale/hscontrol/util"
 	"github.com/stretchr/testify/require"
 )
 

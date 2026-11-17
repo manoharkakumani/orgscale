@@ -62,7 +62,7 @@ jobs:
             --image-label=org.opencontainers.image.source=https://github.com/juanfont/headscale \
             --platform=linux/amd64,linux/arm64 \
             --tags=main-${GITHUB_SHA::7},development \
-            ./cmd/headscale
+            ./cmd/orgscale
 
       - name: Push to Docker Hub
         env:
@@ -76,7 +76,7 @@ jobs:
             --image-label=org.opencontainers.image.source=https://github.com/juanfont/headscale \
             --platform=linux/amd64,linux/arm64 \
             --tags=main-${GITHUB_SHA::7},development \
-            ./cmd/headscale
+            ./cmd/orgscale
 
   binaries:
     if: github.repository == 'juanfont/headscale'
@@ -104,7 +104,7 @@ jobs:
           CGO_ENABLED: "0"
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
-        run: go build -o headscale ./cmd/headscale
+        run: go build -o headscale ./cmd/orgscale
 
       - uses: actions/upload-artifact@v7.0.2
         with:

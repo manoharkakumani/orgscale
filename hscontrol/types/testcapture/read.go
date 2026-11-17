@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/juanfont/headscale/hscontrol/util"
+	"github.com/manoharkakumani/orgscale/hscontrol/util"
 )
 
 // ErrUnsupportedSchemaVersion is returned by [Read] when a capture

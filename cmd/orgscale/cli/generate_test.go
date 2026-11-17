@@ -17,9 +17,9 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	apiv1 "github.com/juanfont/headscale/hscontrol/api/v1"
-	"github.com/juanfont/headscale/hscontrol/config"
-	"github.com/juanfont/headscale/hscontrol/types"
+	apiv1 "github.com/manoharkakumani/orgscale/hscontrol/api/v1"
+	"github.com/manoharkakumani/orgscale/hscontrol/config"
+	"github.com/manoharkakumani/orgscale/hscontrol/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"

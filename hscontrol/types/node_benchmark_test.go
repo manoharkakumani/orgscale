@@ -6,7 +6,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/juanfont/headscale/hscontrol/policy/matcher"
+	"github.com/manoharkakumani/orgscale/hscontrol/policy/matcher"
 	"tailscale.com/tailcfg"
 )
 

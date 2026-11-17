@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/juanfont/headscale/hscontrol/db/sqliteconfig"
+	"github.com/manoharkakumani/orgscale/hscontrol/db/sqliteconfig"
 	"github.com/tailscale/tailsql/server/tailsql"
 	"tailscale.com/tsnet"
 	"tailscale.com/tsweb"

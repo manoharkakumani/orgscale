@@ -7,10 +7,10 @@ import (
 	"net/http"
 	"os"
 
-	clientv1 "github.com/juanfont/headscale/gen/client/v1"
-	"github.com/juanfont/headscale/hscontrol/config"
-	"github.com/juanfont/headscale/hscontrol/db"
-	"github.com/juanfont/headscale/hscontrol/policy"
+	clientv1 "github.com/manoharkakumani/orgscale/gen/client/v1"
+	"github.com/manoharkakumani/orgscale/hscontrol/config"
+	"github.com/manoharkakumani/orgscale/hscontrol/db"
+	"github.com/manoharkakumani/orgscale/hscontrol/policy"
 	"github.com/spf13/cobra"
 )
 

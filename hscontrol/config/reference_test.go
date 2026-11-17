@@ -10,7 +10,7 @@ import (
 	"unicode/utf8"
 
 	gocmp "github.com/google/go-cmp/cmp"
-	"github.com/juanfont/headscale/hscontrol/types"
+	"github.com/manoharkakumani/orgscale/hscontrol/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

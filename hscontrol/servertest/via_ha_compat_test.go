@@ -7,7 +7,7 @@
 //
 // Test data source: ../policy/v2/testdata/grant_results/via-grant-v{37..46,64,65}.hujson
 // and testdata/steps/via-ha-failover.hujson, loaded by name.
-// Source format:    github.com/juanfont/headscale/hscontrol/types/testcapture
+// Source format:    github.com/manoharkakumani/orgscale/hscontrol/types/testcapture
 
 package servertest_test
 
@@ -27,9 +27,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/juanfont/headscale/hscontrol/servertest"
-	"github.com/juanfont/headscale/hscontrol/types"
-	"github.com/juanfont/headscale/hscontrol/types/testcapture"
+	"github.com/manoharkakumani/orgscale/hscontrol/servertest"
+	"github.com/manoharkakumani/orgscale/hscontrol/types"
+	"github.com/manoharkakumani/orgscale/hscontrol/types/testcapture"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"tailscale.com/control/controlclient"

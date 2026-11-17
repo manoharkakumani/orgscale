@@ -7,7 +7,7 @@ trap 'rm -rf "$tmp"' EXIT
 export GOWORK=off CGO_ENABLED=0 LC_ALL=C
 unset GOFLAGS GOOS GOARCH
 
-mkdir -p "$tmp/headscale/cmd/headscale" "$tmp/headscale/tools"
+mkdir -p "$tmp/headscale/cmd/orgscale" "$tmp/headscale/tools"
 cp "$root/.goreleaser.yml" "$tmp/headscale/"
 cp "$root/tools/release-check.sh" "$root/tools/release-generate.sh" "$tmp/headscale/tools/"
 cd "$tmp/headscale"
@@ -21,7 +21,7 @@ require (
 )
 MOD
 # Prints a line for any arguments, so each generate command writes a file.
-printf 'package main\nimport "fmt"\nfunc main() { fmt.Println("generated") }\n' > cmd/headscale/main.go
+printf 'package main\nimport "fmt"\nfunc main() { fmt.Println("generated") }\n' > cmd/orgscale/main.go
 printf 'dist/\nvendor/\nrelease-assets/\n' > .gitignore
 git init -q
 git config user.name 'Release check test'
@@ -63,19 +63,19 @@ done
 printf 'PASS: release assets generated\n'
 
 git config status.showUntrackedFiles no
-printf '// dirty\n' >> cmd/headscale/main.go
+printf '// dirty\n' >> cmd/orgscale/main.go
 expect_failure 'unstaged change' 'working tree is dirty' bash "$check"
-go build -o dist/dirty ./cmd/headscale
-git add cmd/headscale/main.go
+go build -o dist/dirty ./cmd/orgscale
+git add cmd/orgscale/main.go
 expect_failure 'staged change' 'working tree is dirty' bash "$check"
-git restore --staged --worktree cmd/headscale/main.go
+git restore --staged --worktree cmd/orgscale/main.go
 expect_failure 'dirty binary after source cleanup' 'lacks clean VCS metadata' bash "$check" dist/dirty
 
 touch untracked
 expect_failure 'untracked file despite Git display settings' 'working tree is dirty' bash "$check"
 rm untracked
 
-go build -buildvcs=false -o dist/unstamped ./cmd/headscale
+go build -buildvcs=false -o dist/unstamped ./cmd/orgscale
 expect_failure 'missing VCS metadata' 'lacks clean VCS metadata' bash "$check" dist/unstamped
 expect_failure 'missing binary' 'no such file or directory' bash "$check" dist/missing
 

@@ -8,9 +8,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/juanfont/headscale/hscontrol/config"
-	policyv2 "github.com/juanfont/headscale/hscontrol/policy/v2"
-	"github.com/juanfont/headscale/hscontrol/types"
+	"github.com/manoharkakumani/orgscale/hscontrol/config"
+	policyv2 "github.com/manoharkakumani/orgscale/hscontrol/policy/v2"
+	"github.com/manoharkakumani/orgscale/hscontrol/types"
 	"github.com/spf13/cobra"
 )
 

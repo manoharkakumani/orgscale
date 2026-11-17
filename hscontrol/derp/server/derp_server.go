@@ -16,8 +16,8 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	"github.com/juanfont/headscale/hscontrol/types"
-	"github.com/juanfont/headscale/hscontrol/util"
+	"github.com/manoharkakumani/orgscale/hscontrol/types"
+	"github.com/manoharkakumani/orgscale/hscontrol/util"
 	"github.com/rs/zerolog/log"
 	"tailscale.com/derp"
 	"tailscale.com/derp/derpserver"

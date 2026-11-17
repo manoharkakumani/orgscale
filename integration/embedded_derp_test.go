@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/juanfont/headscale/integration/hsic"
-	"github.com/juanfont/headscale/integration/integrationutil"
-	"github.com/juanfont/headscale/integration/tsic"
+	"github.com/manoharkakumani/orgscale/integration/hsic"
+	"github.com/manoharkakumani/orgscale/integration/integrationutil"
+	"github.com/manoharkakumani/orgscale/integration/tsic"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"tailscale.com/tailcfg"

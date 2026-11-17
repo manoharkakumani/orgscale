@@ -1,7 +1,7 @@
 package config
 
 import (
-	"github.com/juanfont/headscale/hscontrol/types"
+	"github.com/manoharkakumani/orgscale/hscontrol/types"
 )
 
 // Marshal renders cfg in the file format of ext: ".yaml", ".yml", ".json"

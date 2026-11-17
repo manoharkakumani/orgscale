@@ -39,7 +39,7 @@ check-deps:
 .PHONY: build
 build: check-deps $(GO_SOURCES) go.mod go.sum
 	@echo "Building headscale..."
-	go build $(PIE_FLAGS) -ldflags "-X main.version=$(VERSION)" -o headscale ./cmd/headscale
+	go build $(PIE_FLAGS) -ldflags "-X main.version=$(VERSION)" -o headscale ./cmd/orgscale
 
 # Test targets
 .PHONY: test

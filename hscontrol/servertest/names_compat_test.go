@@ -5,7 +5,7 @@
 // names-svc ran on names' tailnet right after it, reusing its viewer and
 // keys, so the two replay in one server. TestNodeNameReplayCompat in
 // ../state replays names through State.
-// Source format:    github.com/juanfont/headscale/hscontrol/types/testcapture
+// Source format:    github.com/manoharkakumani/orgscale/hscontrol/types/testcapture
 
 package servertest_test
 
@@ -20,8 +20,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/juanfont/headscale/hscontrol/servertest"
-	"github.com/juanfont/headscale/hscontrol/types/testcapture"
+	"github.com/manoharkakumani/orgscale/hscontrol/servertest"
+	"github.com/manoharkakumani/orgscale/hscontrol/types/testcapture"
 	"github.com/stretchr/testify/require"
 	"tailscale.com/tailcfg"
 	"tailscale.com/types/netmap"

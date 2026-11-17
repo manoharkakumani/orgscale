@@ -67,7 +67,7 @@
             #   go run ./cmd/vendorhash update
             inherit vendorHash;
 
-            subPackages = [ "cmd/headscale" ];
+            subPackages = [ "cmd/orgscale" ];
 
             meta = {
               mainProgram = "headscale";
@@ -207,7 +207,7 @@
           ];
         };
         goChecks = {
-          build = fc.goBuild (common // { subPackages = [ "cmd/headscale" ]; });
+          build = fc.goBuild (common // { subPackages = [ "cmd/orgscale" ]; });
 
           # The pure unit subset. The root ./integration package (Docker) and
           # ./hscontrol/servertest (slow: 10s+ convergence plus race/stress/HA

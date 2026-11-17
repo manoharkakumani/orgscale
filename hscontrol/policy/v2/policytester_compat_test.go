@@ -11,7 +11,7 @@
 // Captures live in testdata/policytest_results/*.hujson; the sshTests ones
 // are replayed by sshtester_compat_test.go.
 //
-// Source format: github.com/juanfont/headscale/hscontrol/types/testcapture
+// Source format: github.com/manoharkakumani/orgscale/hscontrol/types/testcapture
 
 package v2
 
@@ -28,8 +28,8 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/juanfont/headscale/hscontrol/types"
-	"github.com/juanfont/headscale/hscontrol/types/testcapture"
+	"github.com/manoharkakumani/orgscale/hscontrol/types"
+	"github.com/manoharkakumani/orgscale/hscontrol/types/testcapture"
 	"github.com/stretchr/testify/require"
 	tsapi "tailscale.com/client/tailscale/v2"
 )

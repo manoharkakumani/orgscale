@@ -22,7 +22,7 @@ on:
       - "hscontrol/state/**"
       - "hscontrol/auth*.go"
       - "hscontrol/noise.go"
-      - "cmd/headscale/cli/oauth_client.go"
+      - "cmd/orgscale/cli/oauth_client.go"
       - "flake.*"
       - "go.mod"
 
