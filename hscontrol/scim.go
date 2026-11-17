@@ -811,7 +811,7 @@ func (s *scimServer) createGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.audit("scim.group.create", in.DisplayName, fmt.Sprintf("%d members", len(in.Members)))
+	s.audit("scim.group.create", in.DisplayName, plural(len(in.Members), "member"))
 	s.reloadGroup(w, http.StatusCreated, id)
 }
 
@@ -840,7 +840,7 @@ func (s *scimServer) replaceGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.audit("scim.group.replace", cmp.Or(in.DisplayName, g.DisplayName), fmt.Sprintf("%d members", len(in.Members)))
+	s.audit("scim.group.replace", cmp.Or(in.DisplayName, g.DisplayName), plural(len(in.Members), "member"))
 	s.reloadGroup(w, http.StatusOK, g.ID)
 }
 
@@ -876,14 +876,14 @@ func (s *scimServer) patchGroup(w http.ResponseWriter, r *http.Request) {
 					return err
 				}
 
-				summary = append(summary, fmt.Sprintf("+%d members", len(members)))
+				summary = append(summary, "+"+plural(len(members), "member"))
 			case strings.EqualFold(path, "members") && kind == "replace":
 				err := hsdb.SetDirectoryGroupMembers(tx, g.ID, memberIDs(known, members))
 				if err != nil {
 					return err
 				}
 
-				summary = append(summary, fmt.Sprintf("=%d members", len(members)))
+				summary = append(summary, "="+plural(len(members), "member"))
 			case strings.EqualFold(path, "members") && kind == "remove":
 				if len(members) == 0 {
 					err := hsdb.SetDirectoryGroupMembers(tx, g.ID, nil)
@@ -901,7 +901,7 @@ func (s *scimServer) patchGroup(w http.ResponseWriter, r *http.Request) {
 					return err
 				}
 
-				summary = append(summary, fmt.Sprintf("-%d members", len(members)))
+				summary = append(summary, "-"+plural(len(members), "member"))
 			case kind == "remove" && scimMemberPathRE.MatchString(path):
 				m := scimMemberPathRE.FindStringSubmatch(path)
 
@@ -949,7 +949,7 @@ func (s *scimServer) patchGroup(w http.ResponseWriter, r *http.Request) {
 						return err
 					}
 
-					summary = append(summary, fmt.Sprintf("%s %d members", kind, len(v.Members)))
+					summary = append(summary, kind+" "+plural(len(v.Members), "member"))
 				}
 			default:
 				log.Debug().Str("op", op.Op).Str("path", op.Path).Msg("scim: ignoring unsupported group patch")
@@ -992,4 +992,12 @@ func (s *scimServer) deleteGroup(w http.ResponseWriter, r *http.Request) {
 
 	s.audit("scim.group.delete", g.DisplayName, "")
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func plural(n int, word string) string {
+	if n == 1 {
+		return "1 " + word
+	}
+
+	return strconv.Itoa(n) + " " + word + "s"
 }

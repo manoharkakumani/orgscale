@@ -58,3 +58,6 @@ __debug_bin
 node_modules/
 package-lock.json
 package.json
+
+# admin console dependencies
+web/admin/node_modules/

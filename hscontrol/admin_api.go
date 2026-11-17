@@ -163,6 +163,18 @@ func (aa *adminAuth) handleOverview(w http.ResponseWriter, r *http.Request) {
 	nodes := st.ListNodes()
 	online, expired, tagged := 0, 0, 0
 
+	grants, err := st.ListDeviceAccess()
+	if err != nil {
+		adminJSONError(w, http.StatusInternalServerError, err.Error())
+
+		return
+	}
+
+	assigned := make(map[types.NodeID]bool)
+	for _, g := range grants {
+		assigned[g.NodeID] = true
+	}
+
 	for _, n := range nodes.All() {
 		if o := n.IsOnline(); o.Valid() && o.Get() {
 			online++
@@ -227,6 +239,7 @@ func (aa *adminAuth) handleOverview(w http.ResponseWriter, r *http.Request) {
 		"onlineDevices":     online,
 		"expiredDevices":    expired,
 		"taggedDevices":     tagged,
+		"assignedDevices":   len(assigned),
 		"groups":            len(groups),
 		"deviceRestriction": restrict,
 		"ssoConfigured":     aa.h.cfg.OIDC.Issuer != "",
@@ -989,7 +1002,7 @@ func (aa *adminAuth) handlePutDeviceAccess(w http.ResponseWriter, r *http.Reques
 				return
 			}
 
-			labels = append(labels, "directory group "+a.Principal)
+			labels = append(labels, aa.directoryGroupLabel(a.Principal))
 		case types.PrincipalPolicyGroup:
 			if strings.TrimSpace(strings.TrimPrefix(a.Principal, "group:")) == "" {
 				adminJSONError(w, http.StatusBadRequest, "empty group name")
@@ -1023,6 +1036,20 @@ func (aa *adminAuth) handlePutDeviceAccess(w http.ResponseWriter, r *http.Reques
 
 	aa.auditReq(r, "device.access.update", name, strings.Join(labels, ", "))
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// directoryGroupLabel names a directory group by its policy name.
+func (aa *adminAuth) directoryGroupLabel(id string) string {
+	groups, err := aa.h.state.ListDirectoryGroups()
+	if err == nil {
+		for _, g := range groups {
+			if strconv.FormatUint(g.ID, 10) == id {
+				return "group:" + g.Name
+			}
+		}
+	}
+
+	return "directory group " + id
 }
 
 func (aa *adminAuth) handleGetPolicy(w http.ResponseWriter, r *http.Request) {

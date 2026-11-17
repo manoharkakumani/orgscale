@@ -1,0 +1,233 @@
+// Client for the orgscale admin APIs. The session cookie is sent by the
+// browser; every request also carries the session's CSRF token.
+
+let csrfToken = "";
+
+export function setCSRFToken(token: string) {
+  csrfToken = token;
+}
+
+export class ApiError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+  }
+}
+
+async function errorMessage(res: Response): Promise<string> {
+  const text = await res.text();
+  try {
+    const body = JSON.parse(text);
+    // /admin/api: {"error"}; Huma (/api/v1): {"title","detail","errors"}.
+    const parts = [body.error, body.detail, ...(body.errors ?? []).map((e: { message?: string }) => e.message)];
+    const msg = parts.filter(Boolean).join(": ");
+    if (msg) return msg;
+    if (body.title) return body.title;
+  } catch {
+    /* not JSON */
+  }
+  return text.trim() || `${res.status} ${res.statusText}`;
+}
+
+export async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  const headers: Record<string, string> = { "X-Orgscale-CSRF": csrfToken };
+  if (body !== undefined) headers["Content-Type"] = "application/json";
+
+  const res = await fetch(path, {
+    method,
+    headers,
+    credentials: "same-origin",
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+
+  if (res.status === 401) {
+    window.dispatchEvent(new Event("orgscale:signed-out"));
+  }
+  if (!res.ok) throw new ApiError(res.status, await errorMessage(res));
+  if (res.status === 204) return undefined as T;
+
+  const text = await res.text();
+  return (text ? JSON.parse(text) : undefined) as T;
+}
+
+export const get = <T>(path: string) => request<T>("GET", path);
+export const post = <T>(path: string, body?: unknown) => request<T>("POST", path, body ?? {});
+export const put = <T>(path: string, body?: unknown) => request<T>("PUT", path, body ?? {});
+export const del = <T>(path: string, body?: unknown) => request<T>("DELETE", path, body);
+
+// Types returned by /admin/api.
+
+export type Role = "admin" | "viewer";
+
+export interface Me {
+  signedIn: boolean;
+  email: string;
+  name: string;
+  picture: string;
+  role: Role;
+  csrfToken: string;
+  expiresAt: string;
+  serverUrl: string;
+  version: string;
+}
+
+export interface Overview {
+  users: number;
+  disabledUsers: number;
+  devices: number;
+  onlineDevices: number;
+  expiredDevices: number;
+  taggedDevices: number;
+  assignedDevices: number;
+  groups: number;
+  deviceRestriction: boolean;
+  ssoConfigured: boolean;
+  ssoIssuer: string;
+  scimEnabled: boolean;
+  googleSync: boolean;
+  googleSyncStatus: GoogleSyncStatus;
+  warnings: string[] | null;
+}
+
+export interface AdminUser {
+  id: number;
+  name: string;
+  displayName: string;
+  email: string;
+  provider: string;
+  picture: string;
+  createdAt: string;
+  disabled: boolean;
+  disabledAt?: string;
+  disabledBy?: string;
+  groups: string[];
+  devices: number;
+  lastSeen?: string;
+}
+
+export interface DeviceGrant {
+  kind: "user" | "directory_group" | "policy_group";
+  principal: string;
+  label: string;
+}
+
+export interface AdminDevice {
+  id: number;
+  name: string;
+  hostname: string;
+  os: string;
+  clientVersion: string;
+  owner: string;
+  ownerId?: number;
+  tags: string[];
+  ips: string[];
+  online: boolean;
+  lastSeen?: string;
+  expiry?: string;
+  expired: boolean;
+  createdAt: string;
+  announcedRoutes: string[];
+  approvedRoutes: string[];
+  access: DeviceGrant[];
+}
+
+export interface AdminGroup {
+  id?: number;
+  name: string;
+  displayName: string;
+  source: "oidc" | "scim" | "google" | "policy";
+  members: string[];
+  memberIds: number[];
+}
+
+export interface ListSetting {
+  value: string[];
+  console: string[] | null;
+  config: string[];
+}
+
+export interface GoogleSyncSettings {
+  enabled: boolean;
+  adminEmail: string;
+  customer: string;
+  serviceAccountJson?: string;
+  intervalMinutes: number;
+}
+
+export interface GoogleSyncStatus {
+  lastRun: string;
+  ok: boolean;
+  error?: string;
+  users: number;
+  groups: number;
+  disabled: number;
+  created: number;
+}
+
+export interface Settings {
+  sso: {
+    issuer: string;
+    clientId: string;
+    redirectUrls: string[];
+    allowedDomains: ListSetting;
+    allowedUsers: ListSetting;
+    allowedGroups: ListSetting;
+  };
+  roles: {
+    adminUsers: ListSetting;
+    adminGroups: ListSetting;
+    viewerUsers: ListSetting;
+    viewerGroups: ListSetting;
+  };
+  deviceRestriction: boolean;
+  scim: { enabled: boolean; createdAt: string; baseUrl: string };
+  googleSync: { settings: GoogleSyncSettings; hasServiceAccount: boolean; status: GoogleSyncStatus };
+}
+
+export interface PolicyInfo {
+  policy: string;
+  effective: string;
+  mode: string;
+  editable: boolean;
+  allowsEverything: boolean;
+}
+
+export interface AuditEvent {
+  id: number;
+  createdAt: string;
+  actor: string;
+  actorKind: string;
+  action: string;
+  target: string;
+  detail: string;
+}
+
+// Types returned by /api/v1.
+
+export interface V1User {
+  id: string;
+  name: string;
+  email?: string;
+  displayName?: string;
+}
+
+export interface PreAuthKey {
+  id: string;
+  key: string;
+  user: V1User | null;
+  reusable: boolean;
+  ephemeral: boolean;
+  used: boolean;
+  expiration: string | null;
+  createdAt: string;
+  aclTags: string[];
+}
+
+export interface ApiKey {
+  id: string;
+  prefix: string;
+  expiration: string | null;
+  createdAt: string | null;
+  lastSeen: string | null;
+}
