@@ -391,9 +391,9 @@ func (s *scimServer) createUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	email := in.email()
-	if email == "" {
-		scimError(w, http.StatusBadRequest, "a user needs an email: send emails or an email userName")
+	email := strings.TrimSpace(in.email())
+	if email == "" || !validDirectoryEmail(email) {
+		scimError(w, http.StatusBadRequest, "a user needs a valid email: send emails or an email userName")
 
 		return
 	}
@@ -427,7 +427,11 @@ func (s *scimServer) createUser(w http.ResponseWriter, r *http.Request) {
 
 // applyUser updates u from a SCIM user and reports whether it was deactivated.
 func (s *scimServer) applyUser(u *types.User, in *scimUser) (*types.User, bool, error) {
-	email := in.email()
+	email := strings.TrimSpace(in.email())
+	if email != "" && !validDirectoryEmail(email) {
+		return nil, false, fmt.Errorf("%w: %q", errInvalidDirectoryEmail, email)
+	}
+
 	name := in.displayName()
 
 	updated, c, err := s.h.state.UpdateUser(types.UserID(u.ID), func(cur *types.User) error {

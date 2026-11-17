@@ -85,7 +85,7 @@ func (h *Orgscale) auditAPIMiddleware(next http.Handler) http.Handler {
 			actor = apiKeyActor(r)
 		case h.admin != nil:
 			if s, _ := h.admin.sessionFromRequest(r); s != nil {
-				actor = auditActor{Name: s.Email, Kind: types.AuditActorAdmin}
+				actor = auditActor{Name: s.label(), Kind: types.AuditActorAdmin}
 			}
 		}
 

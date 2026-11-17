@@ -190,6 +190,10 @@ func AllowsEverything(raw []byte) bool {
 			Src []string `json:"src"`
 			Dst []string `json:"dst"`
 		} `json:"acls"`
+		Grants []struct {
+			Src []string `json:"src"`
+			Dst []string `json:"dst"`
+		} `json:"grants"`
 	}
 
 	err = json.Unmarshal(std, &doc)
@@ -197,8 +201,18 @@ func AllowsEverything(raw []byte) bool {
 		return false
 	}
 
+	everyone := func(src []string) bool {
+		return slices.Contains(src, "*") || slices.Contains(src, "autogroup:member")
+	}
+
 	for _, a := range doc.ACLs {
-		if slices.Contains(a.Src, "*") && slices.Contains(a.Dst, "*:*") {
+		if everyone(a.Src) && slices.Contains(a.Dst, "*:*") {
+			return true
+		}
+	}
+
+	for _, g := range doc.Grants {
+		if everyone(g.Src) && slices.Contains(g.Dst, "*") {
 			return true
 		}
 	}

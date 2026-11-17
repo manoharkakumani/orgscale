@@ -98,6 +98,8 @@ func TestAllowsEverything(t *testing.T) {
 	assert.False(t, AllowsEverything(nil))
 	assert.True(t, AllowsEverything([]byte(`{"acls":[{"action":"accept","src":["*"],"dst":["*:*"]}]}`)))
 	assert.False(t, AllowsEverything([]byte(`{"acls":[{"action":"accept","src":["group:x"],"dst":["*:*"]}]}`)))
+	assert.True(t, AllowsEverything([]byte(`{"acls":[{"action":"accept","src":["autogroup:member"],"dst":["*:*"]}]}`)))
+	assert.True(t, AllowsEverything([]byte(`{"grants":[{"src":["*"],"dst":["*"],"ip":["*"]}]}`)))
 }
 
 func TestMergeDropsUndefinedGroupReferences(t *testing.T) {

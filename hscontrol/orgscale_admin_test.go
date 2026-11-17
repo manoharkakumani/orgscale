@@ -410,9 +410,16 @@ func TestSCIMProvisioning(t *testing.T) {
 	code, carol := scimDo(t, url, token, http.MethodPost, "/Users", `{"userName": "carol@example.com"}`)
 	require.Equal(t, http.StatusCreated, code)
 
+	require.Nil(t, provisionedUserForClaim(h.app.state, &types.OIDCClaims{Email: "carol@example.com"}, false),
+		"an unverified email never takes over a provisioned user")
+
 	claims := &types.OIDCClaims{Email: "carol@example.com", EmailVerified: true}
 	found := provisionedUserForClaim(h.app.state, claims, true)
 	require.NotNil(t, found)
+
+	// Malformed emails are refused.
+	code, _ = scimDo(t, url, token, http.MethodPost, "/Users", `{"userName": "not-an-email"}`)
+	assert.Equal(t, http.StatusBadRequest, code)
 	assert.Equal(t, carol["id"], strconv.FormatUint(uint64(found.ID), 10))
 }
 
@@ -421,7 +428,15 @@ func TestGoogleSyncApply(t *testing.T) {
 	app := h.app
 
 	// Someone who logged in earlier and has since been deleted in Workspace.
-	gone, _, err := app.state.CreateUser(types.User{Name: "gone", Email: "gone@corp.example"})
+	gone, _, err := app.state.CreateUser(types.User{Name: "gone", Email: "gone@corp.example", Provider: "oidc"})
+	require.NoError(t, err)
+
+	// Signed in with an alias of an active account: kept.
+	aliased, _, err := app.state.CreateUser(types.User{Name: "al", Email: "al@corp.example", Provider: "oidc"})
+	require.NoError(t, err)
+
+	// Provisioned by SCIM, not in Workspace: not this sync's to remove.
+	scimUser, _, err := app.state.CreateUser(types.User{Name: "scimmed", Email: "s@corp.example", Provider: "scim"})
 	require.NoError(t, err)
 
 	// A user outside the Workspace domains is never touched.
@@ -431,7 +446,7 @@ func TestGoogleSyncApply(t *testing.T) {
 	g := newGoogleSyncer(app)
 
 	users := []googleUser{
-		{ID: "1", PrimaryEmail: "alice@corp.example"},
+		{ID: "1", PrimaryEmail: "alice@corp.example", Aliases: []string{"AL@corp.example"}},
 		{ID: "2", PrimaryEmail: "bob@corp.example"},
 		{ID: "3", PrimaryEmail: "sus@corp.example", Suspended: true},
 	}
@@ -457,6 +472,12 @@ func TestGoogleSyncApply(t *testing.T) {
 	_, err = app.state.GetUserByID(types.UserID(outsider.ID))
 	require.NoError(t, err, "other domains are left alone")
 
+	_, err = app.state.GetUserByID(types.UserID(aliased.ID))
+	require.NoError(t, err, "an alias of an active account is not a leaver")
+
+	_, err = app.state.GetUserByID(types.UserID(scimUser.ID))
+	require.NoError(t, err, "SCIM users are not removed for a missing address")
+
 	dg, err := app.state.ListDirectoryGroups()
 	require.NoError(t, err)
 	require.Len(t, dg, 1)
@@ -465,7 +486,7 @@ func TestGoogleSyncApply(t *testing.T) {
 
 	// A run that would remove most users stops.
 	for _, n := range []string{"a", "b", "c"} {
-		_, _, err := app.state.CreateUser(types.User{Name: "x" + n, Email: n + "@corp.example"})
+		_, _, err := app.state.CreateUser(types.User{Name: "x" + n, Email: n + "@corp.example", Provider: "google"})
 		require.NoError(t, err)
 	}
 

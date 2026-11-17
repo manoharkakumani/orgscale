@@ -80,7 +80,7 @@ func (aa *adminAuth) requireSession(next http.Handler) http.Handler {
 			return
 		}
 
-		ctx := withAuditActor(r.Context(), auditActor{Name: sess.Email, Kind: types.AuditActorAdmin})
+		ctx := withAuditActor(r.Context(), auditActor{Name: sess.label(), Kind: types.AuditActorAdmin})
 		ctx = contextWithSession(ctx, sess)
 
 		next.ServeHTTP(w, r.WithContext(ctx))

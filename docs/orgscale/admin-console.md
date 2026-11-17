@@ -75,6 +75,15 @@ about it.
 A device grant names the device by its addresses. Deleting a device drops its
 rule immediately, before its address can be reused.
 
+Visibility is two-way: if a group may reach a server, the server also lists
+the group's devices as peers (it can't open connections to them unless a rule
+allows it).
+
+Directory group names are unique. Two IdP groups whose names normalize to the
+same name (e.g. "Eng Team" from SCIM and "eng-team" from sign-in claims) get
+`group:eng-team` and `group:eng-team-oidc`; check the Groups page for the
+exact names before writing them into the policy.
+
 ## Directory sync
 
 ### SCIM (Okta, Microsoft Entra ID, OneLogin, JumpCloud, Authentik)
@@ -95,6 +104,11 @@ rule immediately, before its address can be reused.
 
 Users are matched by email. A user provisioned before their first sign-in is
 taken over by that sign-in, so they keep their group memberships and grants.
+The takeover requires the identity provider to mark the email **verified**.
+
+Deactivating or deleting someone over SCIM removes them from orgscale. Turn on
+"assignment required" (Entra ID) or app assignment (Okta) in your IdP, so a
+person removed from the app cannot simply sign in again and be recreated.
 
 ### Google Workspace
 
@@ -110,9 +124,18 @@ schedule (every 15 minutes by default):
 3. **Settings → Google Workspace sync**: paste the key, enter a Workspace admin
    email to impersonate, turn sync on, **Save**, then **Sync now**.
 
-Suspended, archived and deleted Workspace accounts are offboarded. Users whose
-email is outside your Workspace domains are never touched. A run that would
-remove more than half of all users stops with an error instead.
+Removal rules for each run:
+
+- any user whose address Workspace marks **suspended or archived** is removed;
+- users created by this sync, or who signed in with SSO, are removed when
+  their address is in one of your Workspace domains but belongs to no active
+  account. Aliases count as belonging to the account, and Google keeps a
+  renamed account's old address as an alias;
+- SCIM, local and other-domain users are never removed for a missing address;
+- a run that would remove more than 25 users, or more than half of all users,
+  stops with an error instead.
+
+Impersonate a super admin, so the sync sees the whole directory.
 
 ## Security notes
 
@@ -120,10 +143,15 @@ remove more than half of all users stops with an error instead.
   `SameSite=Strict` cookie, and every API call also needs the session's CSRF
   token. The console is served with a strict Content-Security-Policy.
 - Console sessions live in memory: restarting orgscale signs admins out.
+- A console role is checked again on every request: removing someone from
+  the admin or viewer lists takes effect immediately.
+- Console roles by email, and the takeover of provisioned users, only trust
+  emails the identity provider marks verified.
 - A console session can call `/api/v1` and `/api/v2` with full rights
   (viewers: read-only). API keys keep working for scripts and Terraform.
 - The SCIM token and API keys are stored only as hashes. The Google service
-  account key is stored in the database; protect the database file.
+  account key is stored in the database (never returned by the API); protect
+  the database file. Its token is only ever sent to Google's token endpoint.
 - Removing a person from **Who can sign in** stops new sign-ins only; use
   **Disable** or **Remove** to cut off someone who is already connected.
 

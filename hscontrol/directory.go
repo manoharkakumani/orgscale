@@ -2,6 +2,7 @@ package hscontrol
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -96,9 +97,27 @@ func (h *Orgscale) userByEmail(email string) (*types.User, error) {
 	return found, nil
 }
 
+var errInvalidDirectoryEmail = errors.New("not a valid email address")
+
+// validDirectoryEmail reports whether email can name a user in policies:
+// one '@' with text on both sides, no whitespace or control characters.
+func validDirectoryEmail(email string) bool {
+	local, domain, ok := strings.Cut(email, "@")
+	if !ok || local == "" || domain == "" || strings.Contains(domain, "@") || !strings.Contains(domain, ".") {
+		return false
+	}
+
+	return !strings.ContainsFunc(email, func(r rune) bool { return unicode.IsSpace(r) || unicode.IsControl(r) || r == ',' || r == '"' })
+}
+
 // provisionUser returns the user with email, creating it for provider
 // when there is none.
 func (h *Orgscale) provisionUser(email, displayName, picture, provider string) (*types.User, bool, error) {
+	email = strings.TrimSpace(email)
+	if !validDirectoryEmail(email) {
+		return nil, false, fmt.Errorf("%w: %q", errInvalidDirectoryEmail, email)
+	}
+
 	u, err := h.userByEmail(email)
 	if err != nil || u != nil {
 		return u, false, err

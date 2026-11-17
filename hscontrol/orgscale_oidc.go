@@ -54,8 +54,12 @@ func effectiveOIDCConfig(st *state.State, cfg *types.OIDCConfig) *types.OIDCConf
 // provisionedUserForClaim finds the user a directory (SCIM or Google)
 // created for the person logging in, matched by verified email, so their
 // first login takes over that user instead of creating a second one.
-func provisionedUserForClaim(st *state.State, claims *types.OIDCClaims, emailVerifiedRequired bool) *types.User {
-	if claims.Email == "" || (emailVerifiedRequired && !bool(claims.EmailVerified)) {
+//
+// The email must be verified by the identity provider whatever
+// oidc.email_verified_required says: taking over a user takes over its
+// groups and device access.
+func provisionedUserForClaim(st *state.State, claims *types.OIDCClaims, _ bool) *types.User {
+	if claims.Email == "" || !bool(claims.EmailVerified) {
 		return nil
 	}
 

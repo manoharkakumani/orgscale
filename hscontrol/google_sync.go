@@ -16,6 +16,7 @@ import (
 
 	hsdb "github.com/manoharkakumani/orgscale/hscontrol/db"
 	"github.com/manoharkakumani/orgscale/hscontrol/types"
+	"github.com/manoharkakumani/orgscale/hscontrol/util"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/oauth2/jwt"
 	"gorm.io/gorm"
@@ -46,7 +47,10 @@ var googleDirectoryScopes = []string{
 	"https://www.googleapis.com/auth/admin.directory.group.member.readonly",
 }
 
-var errGoogleMassRemoval = errors.New("refusing to offboard more than half of the users in one run; check the Google sync settings")
+var errGoogleMassRemoval = errors.New("refusing to offboard more than half of the users, or more than 25, in one run; check the Google sync settings")
+
+// googleMaxRemovalsPerRun caps offboarding in one run.
+const googleMaxRemovalsPerRun = 25
 
 type googleServiceAccount struct {
 	Type        string `json:"type"`
@@ -170,9 +174,11 @@ type googleUser struct {
 	Name         struct {
 		FullName string `json:"fullName"`
 	} `json:"name"`
-	Suspended         bool   `json:"suspended"`
-	Archived          bool   `json:"archived"`
-	ThumbnailPhotoURL string `json:"thumbnailPhotoUrl"`
+	Aliases            []string `json:"aliases"`
+	NonEditableAliases []string `json:"nonEditableAliases"`
+	Suspended          bool     `json:"suspended"`
+	Archived           bool     `json:"archived"`
+	ThumbnailPhotoURL  string   `json:"thumbnailPhotoUrl"`
 }
 
 type googleGroup struct {
@@ -197,8 +203,10 @@ func (g *googleSyncer) client(ctx context.Context, s types.GoogleSyncSettings) (
 		Email:      sa.ClientEmail,
 		PrivateKey: []byte(sa.PrivateKey),
 		Scopes:     googleDirectoryScopes,
-		TokenURL:   cmp.Or(sa.TokenURI, googleTokenURL),
-		Subject:    s.AdminEmail,
+		// Pinned: the key file's token_uri is not trusted, the signed
+		// assertion must only ever go to Google.
+		TokenURL: googleTokenURL,
+		Subject:  s.AdminEmail,
 	}
 
 	return cfg.Client(ctx), nil
@@ -314,18 +322,23 @@ func (g *googleSyncer) apply(
 
 	active := make(map[string]googleUser)
 	inactive := make(map[string]bool)
-	domains := make(map[string]bool)
+	// known holds every address of an active account, aliases included, so
+	// someone signed in with an alias is not mistaken for a leaver.
+	known := make(map[string]bool)
 
 	for _, u := range gusers {
 		email := strings.ToLower(u.PrimaryEmail)
-		if _, d, ok := strings.Cut(email, "@"); ok {
-			domains[d] = true
-		}
+		addrs := append([]string{email}, append(u.Aliases, u.NonEditableAliases...)...)
 
 		if u.Suspended || u.Archived {
-			inactive[email] = true
+			for _, a := range addrs {
+				inactive[strings.ToLower(a)] = true
+			}
 		} else {
 			active[email] = u
+			for _, a := range addrs {
+				known[strings.ToLower(a)] = true
+			}
 		}
 	}
 
@@ -334,24 +347,37 @@ func (g *googleSyncer) apply(
 		return err
 	}
 
-	// Who to offboard: suspended/archived in Workspace, or in a Workspace
-	// domain and gone from the directory.
+	domains := make(map[string]bool)
+
+	for _, u := range gusers {
+		if _, d, ok := strings.Cut(strings.ToLower(u.PrimaryEmail), "@"); ok {
+			domains[d] = true
+		}
+	}
+
+	// Who to offboard:
+	//   - any user whose address Workspace marks suspended or archived;
+	//   - users from this sync or from SSO sign-in whose address is in a
+	//     Workspace domain but belongs to no active account (aliases count,
+	//     and Google keeps a renamed account's old address as an alias).
+	// SCIM and local users are never removed for a missing address.
 	var leavers []types.User
 
 	for _, u := range users {
 		email := strings.ToLower(u.Email)
-		if email == "" {
+		if email == "" || known[email] {
 			continue
 		}
 
 		_, d, _ := strings.Cut(email, "@")
+		syncable := u.Provider == userProviderGoogle || u.Provider == util.RegisterMethodOIDC
 
-		if inactive[email] || (domains[d] && active[email].PrimaryEmail == "") {
+		if inactive[email] || (syncable && domains[d]) {
 			leavers = append(leavers, u)
 		}
 	}
 
-	if len(users) >= 4 && len(leavers)*2 > len(users) {
+	if len(leavers) > googleMaxRemovalsPerRun || (len(users) >= 4 && len(leavers)*2 > len(users)) {
 		return errGoogleMassRemoval
 	}
 

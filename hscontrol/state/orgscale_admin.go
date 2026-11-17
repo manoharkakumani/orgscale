@@ -47,9 +47,9 @@ func policyUserTokens(users []types.User) map[types.UserID]string {
 		switch {
 		case u.ProviderIdentifier.Valid && u.ProviderIdentifier.String != "":
 			out[id] = strings.TrimSuffix(u.ProviderIdentifier.String, "@") + "@"
-		case u.Email != "" && emails[u.Email] == 1:
+		case usableToken(u.Email) && strings.Count(u.Email, "@") == 1 && emails[u.Email] == 1:
 			out[id] = u.Email
-		case u.Name != "" && emails[u.Name] == 0 && names[u.Name] == 1:
+		case usableToken(u.Name) && !strings.Contains(u.Name, "@") && emails[u.Name] == 0 && names[u.Name] == 1:
 			out[id] = u.Name + "@"
 		default:
 			log.Warn().Uint("user", u.ID).Str("name", u.Name).
@@ -58,6 +58,15 @@ func policyUserTokens(users []types.User) map[types.UserID]string {
 	}
 
 	return out
+}
+
+// usableToken reports whether s can appear in a policy as a user name:
+// non-empty, with no whitespace, control characters, quotes or ':' (which
+// would make it parse as something else).
+func usableToken(s string) bool {
+	return s != "" && !strings.ContainsFunc(s, func(r rune) bool {
+		return r <= ' ' || r == 0x7f || r == '"' || r == ':' || r == ',' || r == '*'
+	})
 }
 
 // managedPolicy builds what orgscale adds to the administrator's policy from

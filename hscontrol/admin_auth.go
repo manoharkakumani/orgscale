@@ -37,7 +37,7 @@ const (
 
 	adminCallbackPath = "/admin/auth/callback"
 
-	adminPendingLogins    = 256
+	adminPendingLogins    = 4096
 	adminPendingLoginTTL  = 10 * time.Minute
 	adminMaxSessions      = 1024
 	adminSessionTokenSize = 32
@@ -69,6 +69,12 @@ type adminSession struct {
 	// console ends the session at once.
 	roleEmail  string
 	roleGroups []string
+}
+
+// label names the session's person in the audit log: the email, or the
+// name or subject when the identity provider sends no email.
+func (s *adminSession) label() string {
+	return cmp.Or(s.Email, s.Name)
 }
 
 // adminPendingLogin is a login sent to the identity provider and not back yet.
@@ -320,10 +326,11 @@ func (aa *adminAuth) roleFor(claims *types.OIDCClaims) (AdminRole, bool) {
 	return aa.roleForIdentity(aa.trustedEmail(claims), claims.Groups)
 }
 
-// trustedEmail is the claim's email when it may decide a role: verified, or
-// with oidc.email_verified_required off.
+// trustedEmail is the claim's email when it may decide a role: only when the
+// identity provider marks it verified, whatever oidc.email_verified_required
+// says, since an unverified email could be anyone's.
 func (aa *adminAuth) trustedEmail(claims *types.OIDCClaims) string {
-	if claims.Email != "" && (!aa.oidc.cfg.EmailVerifiedRequired || bool(claims.EmailVerified)) {
+	if claims.Email != "" && bool(claims.EmailVerified) {
 		return strings.ToLower(claims.Email)
 	}
 
@@ -515,7 +522,7 @@ func (aa *adminAuth) APIMiddleware(next http.Handler) http.Handler {
 		}
 
 		trusted.ServeHTTP(w, r.WithContext(withAuditActor(r.Context(),
-			auditActor{Name: sess.Email, Kind: types.AuditActorAdmin})))
+			auditActor{Name: sess.label(), Kind: types.AuditActorAdmin})))
 	})
 }
 
