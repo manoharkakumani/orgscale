@@ -292,9 +292,9 @@ func (aa *adminAuth) handleGetSettings(w http.ResponseWriter, r *http.Request) {
 
 	adminJSON(w, http.StatusOK, map[string]any{
 		"sso": map[string]any{
-			"issuer":        oidc.Issuer,
-			"clientId":      oidc.ClientID,
-			"redirectUrls":  []string{oidcCallbackURL(aa.h.cfg.ServerURL), aa.oauth2.RedirectURL},
+			"issuer":         oidc.Issuer,
+			"clientId":       oidc.ClientID,
+			"redirectUrls":   []string{oidcCallbackURL(aa.h.cfg.ServerURL), aa.oauth2.RedirectURL},
 			"allowedDomains": aa.loginRule(types.SettingSSOAllowedDomains, oidc.AllowedDomains),
 			"allowedUsers":   aa.loginRule(types.SettingSSOAllowedUsers, oidc.AllowedUsers),
 			"allowedGroups":  aa.loginRule(types.SettingSSOAllowedGroups, oidc.AllowedGroups),

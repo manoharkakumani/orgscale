@@ -116,13 +116,13 @@ func (s *scimServer) base() string {
 
 func (s *scimServer) serviceProviderConfig(w http.ResponseWriter, _ *http.Request) {
 	scimJSON(w, http.StatusOK, map[string]any{
-		"schemas":          []string{"urn:ietf:params:scim:schemas:core:2.0:ServiceProviderConfig"},
-		"patch":            map[string]bool{"supported": true},
-		"bulk":             map[string]any{"supported": false, "maxOperations": 0, "maxPayloadSize": 0},
-		"filter":           map[string]any{"supported": true, "maxResults": 1000},
-		"changePassword":   map[string]bool{"supported": false},
-		"sort":             map[string]bool{"supported": false},
-		"etag":             map[string]bool{"supported": false},
+		"schemas":        []string{"urn:ietf:params:scim:schemas:core:2.0:ServiceProviderConfig"},
+		"patch":          map[string]bool{"supported": true},
+		"bulk":           map[string]any{"supported": false, "maxOperations": 0, "maxPayloadSize": 0},
+		"filter":         map[string]any{"supported": true, "maxResults": 1000},
+		"changePassword": map[string]bool{"supported": false},
+		"sort":           map[string]bool{"supported": false},
+		"etag":           map[string]bool{"supported": false},
 		"authenticationSchemes": []map[string]any{{
 			"type": "oauthbearertoken", "name": "Bearer token", "primary": true,
 			"description": "Token created in the orgscale admin console",
