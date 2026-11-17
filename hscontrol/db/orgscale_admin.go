@@ -242,7 +242,18 @@ func UpsertDirectoryGroup(tx *gorm.DB, source, externalID, displayName string) (
 	var g types.DirectoryGroup
 
 	err := tx.Where("source = ? AND external_id = ?", source, externalID).Take(&g).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, fmt.Errorf("reading directory group: %w", err)
+	}
+
+	// Names must be unique: two IdP groups that normalise to the same name
+	// would otherwise share one policy group and each other's access.
+	name, err = uniqueDirectoryGroupName(tx, name, source, g.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	if g.ID == 0 {
 		now := time.Now().UTC()
 		g = types.DirectoryGroup{
 			Source:      source,
@@ -261,10 +272,6 @@ func UpsertDirectoryGroup(tx *gorm.DB, source, externalID, displayName string) (
 		return &g, nil
 	}
 
-	if err != nil {
-		return nil, fmt.Errorf("reading directory group: %w", err)
-	}
-
 	if g.Name != name || g.DisplayName != displayName {
 		g.Name, g.DisplayName, g.UpdatedAt = name, displayName, time.Now().UTC()
 
@@ -277,6 +284,34 @@ func UpsertDirectoryGroup(tx *gorm.DB, source, externalID, displayName string) (
 	}
 
 	return &g, nil
+}
+
+// uniqueDirectoryGroupName returns base, or base suffixed with the source and
+// then a counter, whichever no group other than self holds.
+func uniqueDirectoryGroupName(tx *gorm.DB, base, source string, self uint64) (string, error) {
+	candidates := []string{base, base + "-" + source}
+
+	for i := 2; i < 1000; i++ {
+		var candidate string
+		if i-2 < len(candidates) {
+			candidate = candidates[i-2]
+		} else {
+			candidate = fmt.Sprintf("%s-%s-%d", base, source, i-len(candidates))
+		}
+
+		var n int64
+
+		err := tx.Model(&types.DirectoryGroup{}).Where("name = ? AND id <> ?", candidate, self).Count(&n).Error
+		if err != nil {
+			return "", fmt.Errorf("checking directory group name: %w", err)
+		}
+
+		if n == 0 {
+			return candidate, nil
+		}
+	}
+
+	return "", fmt.Errorf("no free name for directory group %q", base)
 }
 
 // GetDirectoryGroup returns a group with its members.

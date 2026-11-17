@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"strings"
 
 	"github.com/tailscale/hujson"
 )
@@ -75,15 +76,16 @@ func Merge(raw []byte, m Policy) ([]byte, error) {
 		}
 	}
 
-	if len(m.Groups) > 0 {
-		groups := map[string]json.RawMessage{}
+	groups := map[string]json.RawMessage{}
 
-		if g, ok := doc["groups"]; ok {
-			err := json.Unmarshal(g, &groups)
-			if err != nil {
-				return nil, fmt.Errorf("parsing policy groups: %w", err)
-			}
+	if g, ok := doc["groups"]; ok {
+		err := json.Unmarshal(g, &groups)
+		if err != nil {
+			return nil, fmt.Errorf("parsing policy groups: %w", err)
 		}
+	}
+
+	if len(m.Groups) > 0 {
 
 		for _, name := range slices.Sorted(maps.Keys(m.Groups)) {
 			key := "group:" + name
@@ -130,6 +132,14 @@ func Merge(raw []byte, m Policy) ([]byte, error) {
 		acls = append(acls, b)
 
 		for _, r := range m.Rules {
+			// A group the policy no longer defines would fail the whole
+			// compile; the grant to it grants nothing instead.
+			r.Src = slices.DeleteFunc(slices.Clone(r.Src), func(src string) bool {
+				_, defined := groups[src]
+
+				return strings.HasPrefix(src, "group:") && !defined
+			})
+
 			if len(r.Src) == 0 || len(r.Dst) == 0 {
 				continue
 			}

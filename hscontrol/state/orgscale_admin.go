@@ -12,18 +12,52 @@ import (
 	"github.com/manoharkakumani/orgscale/hscontrol/policy/managed"
 	"github.com/manoharkakumani/orgscale/hscontrol/types"
 	"github.com/manoharkakumani/orgscale/hscontrol/types/change"
+	"github.com/rs/zerolog/log"
 	"gorm.io/gorm"
 	"tailscale.com/types/views"
 )
 
-// PolicyUserToken is how orgscale names u in the policies it generates: the
-// email when there is one, the username with a trailing "@" otherwise.
-func PolicyUserToken(u types.User) string {
-	if u.Email != "" {
-		return u.Email
+// policyUserTokens returns, for each user that can be named without
+// ambiguity, the token the generated policy uses for them. The policy
+// rejects a token that matches more than one user, which would fail every
+// policy compile, so a user without a unique token is left out (and so gets
+// no generated access) rather than named ambiguously:
+//
+//   - a provider identifier is unique and matched first, before email or name;
+//   - an email is used when no other user has that email;
+//   - a username, with a trailing "@", when no user has it as email and no
+//     other user has that name.
+func policyUserTokens(users []types.User) map[types.UserID]string {
+	emails := make(map[string]int, len(users))
+	names := make(map[string]int, len(users))
+
+	for _, u := range users {
+		if u.Email != "" {
+			emails[u.Email]++
+		}
+
+		names[u.Name]++
 	}
 
-	return u.Name + "@"
+	out := make(map[types.UserID]string, len(users))
+
+	for _, u := range users {
+		id := types.UserID(u.ID)
+
+		switch {
+		case u.ProviderIdentifier.Valid && u.ProviderIdentifier.String != "":
+			out[id] = strings.TrimSuffix(u.ProviderIdentifier.String, "@") + "@"
+		case u.Email != "" && emails[u.Email] == 1:
+			out[id] = u.Email
+		case u.Name != "" && emails[u.Name] == 0 && names[u.Name] == 1:
+			out[id] = u.Name + "@"
+		default:
+			log.Warn().Uint("user", u.ID).Str("name", u.Name).
+				Msg("user cannot be named unambiguously in the policy; no managed access generated for them")
+		}
+	}
+
+	return out
 }
 
 // managedPolicy builds what orgscale adds to the administrator's policy from
@@ -38,31 +72,32 @@ func managedPolicy(db *hsdb.HSDatabase, users []types.User, nodes views.Slice[ty
 
 	m.RestrictDevices = restrict == "true"
 
-	byID := make(map[types.UserID]types.User, len(users))
-	for _, u := range users {
-		byID[types.UserID(u.ID)] = u
-	}
+	tokens := policyUserTokens(users)
 
 	groups, err := db.ListDirectoryGroups()
 	if err != nil {
 		return m, err
 	}
 
-	groupName := make(map[uint64]string, len(groups))
+	// Directory group names are unique (see [hsdb.UpsertDirectoryGroup]);
+	// a device grant to a group expands to that group's own members.
+	groupMembers := make(map[uint64][]string, len(groups))
 	m.Groups = make(map[string][]string, len(groups))
 
 	for _, g := range groups {
-		groupName[g.ID] = g.Name
+		var members []string
 
-		members := m.Groups[g.Name]
 		for _, uid := range g.MemberIDs {
-			if u, ok := byID[uid]; ok {
-				members = append(members, PolicyUserToken(u))
+			if t, ok := tokens[uid]; ok {
+				members = append(members, t)
 			}
 		}
 
 		slices.Sort(members)
-		m.Groups[g.Name] = slices.Compact(members)
+		members = slices.Compact(members)
+
+		groupMembers[g.ID] = members
+		m.Groups[g.Name] = members
 	}
 
 	if !m.RestrictDevices {
@@ -95,8 +130,8 @@ func managedPolicy(db *hsdb.HSDatabase, users []types.User, nodes views.Slice[ty
 					continue
 				}
 
-				if u, ok := byID[types.UserID(id)]; ok {
-					src = append(src, PolicyUserToken(u))
+				if t, ok := tokens[types.UserID(id)]; ok {
+					src = append(src, t)
 				}
 			case types.PrincipalDirectoryGroup:
 				id, err := strconv.ParseUint(g.Principal, 10, 64)
@@ -104,9 +139,7 @@ func managedPolicy(db *hsdb.HSDatabase, users []types.User, nodes views.Slice[ty
 					continue
 				}
 
-				if name, ok := groupName[id]; ok {
-					src = append(src, "group:"+name)
-				}
+				src = append(src, groupMembers[id]...)
 			case types.PrincipalPolicyGroup:
 				src = append(src, "group:"+strings.TrimPrefix(g.Principal, "group:"))
 			}
@@ -353,6 +386,24 @@ func (s *State) SetUserDisabled(uid types.UserID, disabled bool, by string) ([]c
 
 	if !disabled {
 		return nil, nil
+	}
+
+	// Expire the user's own pre-auth keys so they cannot register new
+	// devices. Tagged keys belong to their tags and stay.
+	keys, err := s.ListPreAuthKeys()
+	if err != nil {
+		return nil, fmt.Errorf("listing pre-auth keys: %w", err)
+	}
+
+	for _, k := range keys {
+		if k.UserID == nil || *k.UserID != uint(uid) || k.IsTagged() {
+			continue
+		}
+
+		err = s.ExpirePreAuthKey(k.ID)
+		if err != nil {
+			return nil, fmt.Errorf("expiring pre-auth key %d: %w", k.ID, err)
+		}
 	}
 
 	return s.deleteUserNodes(uid)

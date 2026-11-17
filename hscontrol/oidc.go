@@ -369,7 +369,7 @@ func (a *AuthProviderOIDC) OIDCCallbackHandler(
 
 	// The user claims are now updated from the userinfo endpoint so we can verify the user
 	// against allowed emails, email domains, and groups.
-	err = doOIDCAuthorization(a.cfg, &claims)
+	err = doOIDCAuthorization(effectiveOIDCConfig(a.h.state, a.cfg), &claims)
 	if err != nil {
 		httpUserError(writer, err)
 		return
@@ -394,6 +394,12 @@ func (a *AuthProviderOIDC) OIDCCallbackHandler(
 	}
 
 	a.h.Change(userChange)
+
+	err = a.afterOIDCLogin(user, &claims)
+	if err != nil {
+		httpUserError(writer, err)
+		return
+	}
 
 	a.beginConfirmation(writer, req, authInfo.AuthID, authInfo.Registration, user, nodeExpiry)
 }
@@ -663,6 +669,11 @@ func (a *AuthProviderOIDC) createOrUpdateUserFromClaim(
 	// if the user is still not found, create a new empty user.
 	// TODO(kradalby): This context is not inherited from the request, which is probably not ideal.
 	// However, we need a context to use the OIDC provider.
+	// A user a directory provisioned before their first login is taken over.
+	if user == nil {
+		user = provisionedUserForClaim(a.h.state, claims, a.cfg.EmailVerifiedRequired)
+	}
+
 	if user == nil {
 		newUser = true
 		user = &types.User{}

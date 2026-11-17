@@ -99,3 +99,18 @@ func TestAllowsEverything(t *testing.T) {
 	assert.True(t, AllowsEverything([]byte(`{"acls":[{"action":"accept","src":["*"],"dst":["*:*"]}]}`)))
 	assert.False(t, AllowsEverything([]byte(`{"acls":[{"action":"accept","src":["group:x"],"dst":["*:*"]}]}`)))
 }
+
+func TestMergeDropsUndefinedGroupReferences(t *testing.T) {
+	got, err := Merge([]byte(`{"groups": {"group:ops": ["o@x.com"]}}`), Policy{
+		RestrictDevices: true,
+		Rules: []Rule{
+			{Src: []string{"group:gone", "group:ops"}, Dst: []string{"100.64.0.5"}},
+			{Src: []string{"group:gone"}, Dst: []string{"100.64.0.6"}},
+		},
+	})
+	require.NoError(t, err)
+
+	acls := decode(t, got)["acls"].([]any)
+	require.Len(t, acls, 2, "baseline + the rule that still has a defined source")
+	assert.Equal(t, []any{"group:ops"}, acls[1].(map[string]any)["src"])
+}
