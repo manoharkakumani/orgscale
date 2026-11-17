@@ -1,18 +1,24 @@
-![orgscale logo](./docs/assets/logo/headscale3_header_stacked_left.png)
+# orgscale
 
-![ci](https://github.com/juanfont/headscale/actions/workflows/test.yml/badge.svg)
+orgscale is a self-hosted control server for Tailscale clients, built for
+running one organization's network without hand-managing users:
 
-An open source, self-hosted implementation of the Tailscale control server.
+- a **web admin console** at `/admin/` with single sign-on for administrators;
+- **SSO-driven users**: people join by signing in with your identity provider,
+  and leave automatically through **SCIM** (Okta, Entra ID, OneLogin,
+  Authentik) or **Google Workspace** sync;
+- **device access control**: with restriction on, each person only sees their
+  own devices and the devices assigned to them, directly or through an IdP
+  group;
+- **roles** (admin, read-only viewer) and an **audit log**.
 
-Join our [Discord server](https://discord.gg/c84AZQhmpx) for a chat.
+Set-up guide: [docs/orgscale/admin-console.md](docs/orgscale/admin-console.md).
 
-**Note:** Always select the same GitHub tag as the released version you use
-to ensure you have the correct example configuration. The `main` branch might
-contain unreleased changes. The documentation is available for stable and
-development versions:
-
-- [Documentation for the stable version](https://headscale.net/stable/)
-- [Documentation for the development version](https://headscale.net/development/)
+orgscale is a fork of [Headscale](https://github.com/juanfont/headscale)
+(BSD-3-Clause). The rest of this README and the reference documentation under
+`docs/` describe the Headscale core it builds on; read `headscale` there as
+`orgscale`. orgscale is not affiliated with Tailscale Inc. or the Headscale
+project.
 
 ## What is Tailscale
 
