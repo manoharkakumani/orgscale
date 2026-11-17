@@ -102,7 +102,7 @@ type TailscaleInContainer struct {
 
 	// optional config
 	caCerts           [][]byte
-	orgscaleHostname string
+	orgscaleHostname  string
 	withWebsocketDERP bool
 	withDERPOverHTTP  bool
 	withSSH           bool

@@ -8,8 +8,8 @@ import (
 	"testing/synctest"
 	"time"
 
-	"github.com/manoharkakumani/orgscale/hscontrol/dns/dnstest"
 	"github.com/libdns/libdns"
+	"github.com/manoharkakumani/orgscale/hscontrol/dns/dnstest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

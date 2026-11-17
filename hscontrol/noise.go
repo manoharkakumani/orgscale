@@ -108,7 +108,7 @@ func (h *Orgscale) NoiseUpgradeHandler(
 	}
 
 	ns := noiseServer{
-		orgscale: h,
+		orgscale:  h,
 		challenge: key.NewChallenge(),
 	}
 

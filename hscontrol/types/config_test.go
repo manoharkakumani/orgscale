@@ -13,8 +13,8 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/manoharkakumani/orgscale/hscontrol/types/testcapture"
 	"github.com/libdns/cloudflare"
+	"github.com/manoharkakumani/orgscale/hscontrol/types/testcapture"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -30,12 +30,12 @@ import (
 func TestConfigJSONOmitsSecrets(t *testing.T) {
 	const (
 		secretPostgresPass = "p0stgres-secret-marker"
-		secretClientSecret = "oidc-client-secret-marker"    //nolint:gosec // test marker, not a real credential
+		secretClientSecret = "oidc-client-secret-marker"   //nolint:gosec // test marker, not a real credential
 		secretAPIKey       = "orgscale-cli-api-key-marker" //nolint:gosec // test marker, not a real credential
-		secretDNSToken     = "dns-provider-token-marker"    //nolint:gosec // test marker, not a real credential
-		secretDERPUser     = "derp-url-username-marker"     //nolint:gosec // test marker, not a real credential
-		secretDERPPass     = "derp-url-password-marker"     //nolint:gosec // test marker, not a real credential
-		secretDERPToken    = "derp-url-token-marker"        //nolint:gosec // test marker, not a real credential
+		secretDNSToken     = "dns-provider-token-marker"   //nolint:gosec // test marker, not a real credential
+		secretDERPUser     = "derp-url-username-marker"    //nolint:gosec // test marker, not a real credential
+		secretDERPPass     = "derp-url-password-marker"    //nolint:gosec // test marker, not a real credential
+		secretDERPToken    = "derp-url-token-marker"       //nolint:gosec // test marker, not a real credential
 		derpMapMarker      = "go-only-derp-map-marker"
 		secretServerUser   = "server-url-username-marker" //nolint:gosec // test marker, not a real credential
 		secretServerPass   = "server-url-password-marker" //nolint:gosec // test marker, not a real credential

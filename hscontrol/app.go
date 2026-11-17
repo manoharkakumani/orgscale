@@ -85,7 +85,7 @@ func init() {
 const (
 	updateInterval     = 5 * time.Second
 	privateKeyFileMode = 0o600
-	orgscaleDirPerm   = 0o700
+	orgscaleDirPerm    = 0o700
 )
 
 // Orgscale represents the base app of the service.

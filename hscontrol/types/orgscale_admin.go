@@ -124,13 +124,13 @@ type GoogleSyncSettings struct {
 
 // GoogleSyncStatus is the outcome of the last Google directory sync.
 type GoogleSyncStatus struct {
-	LastRun   time.Time `json:"lastRun"`
-	OK        bool      `json:"ok"`
-	Error     string    `json:"error,omitempty"`
-	Users     int       `json:"users"`
-	Groups    int       `json:"groups"`
-	Disabled  int       `json:"disabled"`
-	Created   int       `json:"created"`
+	LastRun  time.Time `json:"lastRun"`
+	OK       bool      `json:"ok"`
+	Error    string    `json:"error,omitempty"`
+	Users    int       `json:"users"`
+	Groups   int       `json:"groups"`
+	Disabled int       `json:"disabled"`
+	Created  int       `json:"created"`
 }
 
 // Device access principal kinds.

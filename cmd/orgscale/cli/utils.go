@@ -28,7 +28,7 @@ import (
 
 const (
 	OrgscaleDateTimeFormat = "2006-01-02 15:04:05"
-	SocketWritePermissions  = 0o666
+	SocketWritePermissions = 0o666
 
 	outputFormatJSON     = "json"
 	outputFormatJSONLine = "json-line"
