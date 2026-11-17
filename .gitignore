@@ -61,3 +61,8 @@ package.json
 
 # admin console dependencies
 web/admin/node_modules/
+!web/admin/package.json
+!web/admin/package-lock.json
+# the built console is embedded in the binary, so it is committed
+!hscontrol/adminui/dist/
+web/admin/tsconfig.tsbuildinfo
