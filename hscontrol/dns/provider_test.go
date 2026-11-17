@@ -146,13 +146,13 @@ func TestNewProvider(t *testing.T) {
 			provider: "rfc2136",
 			settings: map[string]any{
 				"server":   "ns1.example.com:53",
-				"key_name": "headscale",
+				"key_name": "orgscale",
 				"key_alg":  "hmac-sha256",
 				"key":      "c2VjcmV0",
 			},
 			want: &rfc2136.Provider{
 				Server:  "ns1.example.com:53",
-				KeyName: "headscale",
+				KeyName: "orgscale",
 				KeyAlg:  "hmac-sha256",
 				Key:     "c2VjcmV0",
 			},

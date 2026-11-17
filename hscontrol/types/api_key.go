@@ -35,7 +35,7 @@ type APIKey struct {
 // SECURITY: Never log the full key or hash, only the masked prefix.
 func (k *APIKey) maskedPrefix() string {
 	if len(k.Prefix) == NewAPIKeyPrefixLength {
-		return "hskey-api-" + k.Prefix + "-***"
+		return "oskey-api-" + k.Prefix + "-***"
 	}
 
 	// TODO(kradalby): remove in 0.32 with legacy key formats (announced).

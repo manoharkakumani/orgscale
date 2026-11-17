@@ -63,15 +63,15 @@ var (
 		"unknown value for Lets Encrypt challenge type",
 	)
 	errEmptyInitialDERPMap = errors.New(
-		"initial DERPMap is empty, Headscale requires at least one entry",
+		"initial DERPMap is empty, Orgscale requires at least one entry",
 	)
 	errTailSQLDatabase = errors.New("tailsql only supports sqlite")
 	errTailSQLAuthKey  = errors.New("tailsql requires TS_AUTHKEY to be set")
 )
 
 var (
-	debugDeadlock        = envknob.Bool("HEADSCALE_DEBUG_DEADLOCK")
-	debugDeadlockTimeout = envknob.RegisterDuration("HEADSCALE_DEBUG_DEADLOCK_TIMEOUT")
+	debugDeadlock        = envknob.Bool("ORGSCALE_DEBUG_DEADLOCK")
+	debugDeadlockTimeout = envknob.RegisterDuration("ORGSCALE_DEBUG_DEADLOCK_TIMEOUT")
 )
 
 func init() {
@@ -85,11 +85,11 @@ func init() {
 const (
 	updateInterval     = 5 * time.Second
 	privateKeyFileMode = 0o600
-	headscaleDirPerm   = 0o700
+	orgscaleDirPerm   = 0o700
 )
 
-// Headscale represents the base app of the service.
-type Headscale struct {
+// Orgscale represents the base app of the service.
+type Orgscale struct {
 	cfg             *types.Config
 	state           *state.State
 	noisePrivateKey *key.MachinePrivate
@@ -115,18 +115,18 @@ type Headscale struct {
 }
 
 var (
-	profilingEnabled = envknob.Bool("HEADSCALE_DEBUG_PROFILING_ENABLED")
-	profilingPath    = envknob.String("HEADSCALE_DEBUG_PROFILING_PATH")
-	tailsqlEnabled   = envknob.Bool("HEADSCALE_DEBUG_TAILSQL_ENABLED")
-	tailsqlStateDir  = envknob.String("HEADSCALE_DEBUG_TAILSQL_STATE_DIR")
+	profilingEnabled = envknob.Bool("ORGSCALE_DEBUG_PROFILING_ENABLED")
+	profilingPath    = envknob.String("ORGSCALE_DEBUG_PROFILING_PATH")
+	tailsqlEnabled   = envknob.Bool("ORGSCALE_DEBUG_TAILSQL_ENABLED")
+	tailsqlStateDir  = envknob.String("ORGSCALE_DEBUG_TAILSQL_STATE_DIR")
 	tailsqlTSKey     = envknob.String("TS_AUTHKEY")
-	dumpConfig       = envknob.Bool("HEADSCALE_DEBUG_DUMP_CONFIG")
+	dumpConfig       = envknob.Bool("ORGSCALE_DEBUG_DUMP_CONFIG")
 )
 
-// NewHeadscale logs cfg's advisories, validates it and builds the server.
+// NewOrgscale logs cfg's advisories, validates it and builds the server.
 // An invalid cfg is returned as Validate's error before anything is read
 // or written.
-func NewHeadscale(cfg *types.Config) (*Headscale, error) {
+func NewOrgscale(cfg *types.Config) (*Orgscale, error) {
 	// First: an advisory can explain the error.
 	for _, w := range config.Warnings(cfg) {
 		log.Warn().Msg(w)
@@ -166,7 +166,7 @@ func NewHeadscale(cfg *types.Config) (*Headscale, error) {
 	}
 
 	// Only node certificates let a client pick what is published; a record
-	// shared by headscale's own certificate alone is harmless.
+	// shared by orgscale's own certificate alone is harmless.
 	if iso, ok := provider.(dns.Isolator); ok && cfg.DNSConfig.Certificates.Enabled {
 		err = iso.CheckIsolation()
 		if err != nil {
@@ -184,7 +184,7 @@ func NewHeadscale(cfg *types.Config) (*Headscale, error) {
 		return nil, fmt.Errorf("init state: %w", err)
 	}
 
-	app := Headscale{
+	app := Orgscale{
 		cfg:               cfg,
 		noisePrivateKey:   noisePrivateKey,
 		clientStreamsOpen: sync.WaitGroup{},
@@ -313,12 +313,12 @@ func NewHeadscale(cfg *types.Config) (*Headscale, error) {
 }
 
 // Redirect to our TLS url.
-func (h *Headscale) redirect(w http.ResponseWriter, req *http.Request) {
+func (h *Orgscale) redirect(w http.ResponseWriter, req *http.Request) {
 	target := h.cfg.ServerURL + req.URL.RequestURI()
 	http.Redirect(w, req, target, http.StatusFound) //nolint:gosec // G710: target prefixed by trusted ServerURL
 }
 
-func (h *Headscale) scheduledTasks(ctx context.Context) {
+func (h *Orgscale) scheduledTasks(ctx context.Context) {
 	expireTicker := time.NewTicker(updateInterval)
 	defer expireTicker.Stop()
 
@@ -431,7 +431,7 @@ func (h *Headscale) scheduledTasks(ctx context.Context) {
 
 // refreshDERPMap reloads the DERP map every derp.update_frequency until
 // ctx ends.
-func (h *Headscale) refreshDERPMap(ctx context.Context) {
+func (h *Orgscale) refreshDERPMap(ctx context.Context) {
 	ticker := time.NewTicker(h.cfg.DERP.UpdateFrequency)
 	defer ticker.Stop()
 
@@ -472,9 +472,9 @@ func (h *Headscale) refreshDERPMap(ctx context.Context) {
 	}
 }
 
-// ensureUnixSocketIsAbsent will check if the given path for headscales unix socket is clear
+// ensureUnixSocketIsAbsent will check if the given path for orgscales unix socket is clear
 // and will remove it if it is not.
-func (h *Headscale) ensureUnixSocketIsAbsent() error {
+func (h *Orgscale) ensureUnixSocketIsAbsent() error {
 	// File does not exist, all fine
 	if _, err := os.Stat(h.cfg.UnixSocket); errors.Is(err, os.ErrNotExist) { //nolint:noinlineerr
 		return nil
@@ -508,7 +508,7 @@ func serveHumaMux(mux http.Handler) http.HandlerFunc {
 	}
 }
 
-func (h *Headscale) createRouter(apiV1Mux, apiV2Mux http.Handler) *chi.Mux {
+func (h *Orgscale) createRouter(apiV1Mux, apiV2Mux http.Handler) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(metrics.Collector(metrics.CollectorOpts{
 		Host:  false,
@@ -562,8 +562,8 @@ func (h *Headscale) createRouter(apiV1Mux, apiV2Mux http.Handler) *chi.Mux {
 
 	// Auth is enforced inside each Huma mux per-operation, so the whole API
 	// mounts as one handler per version: operations need an API key while the
-	// OpenAPI document and docs UI stay public. v1 is the headscale-native admin
-	// API; v2 is Headscale's v2 API, which ports some endpoints from Tailscale.
+	// OpenAPI document and docs UI stay public. v1 is the orgscale-native admin
+	// API; v2 is Orgscale's v2 API, which ports some endpoints from Tailscale.
 	r.Route("/api", func(r chi.Router) {
 		r.Handle("/v1/*", serveHumaMux(apiV1Mux))
 		r.Handle("/v2/*", serveHumaMux(apiV2Mux))
@@ -578,12 +578,12 @@ func (h *Headscale) createRouter(apiV1Mux, apiV2Mux http.Handler) *chi.Mux {
 	return r
 }
 
-// Serve launches the HTTP servers that run Headscale and its API. It shuts
+// Serve launches the HTTP servers that run Orgscale and its API. It shuts
 // down gracefully when ctx is cancelled or any of its components fails, and
 // returns that component's error.
 //
 //nolint:gocyclo // complex server startup function
-func (h *Headscale) Serve(ctx context.Context) error {
+func (h *Orgscale) Serve(ctx context.Context) error {
 	var err error
 
 	capver.CanOldCodeBeCleanedUp()
@@ -621,7 +621,7 @@ func (h *Headscale) Serve(ctx context.Context) error {
 	}
 
 	versionInfo := types.GetVersionInfo()
-	log.Info().Str("version", versionInfo.Version).Str("commit", versionInfo.Commit).Msg("starting headscale")
+	log.Info().Str("version", versionInfo.Version).Str("commit", versionInfo.Commit).Msg("starting orgscale")
 	log.Info().
 		Str("minimum_version", capver.TailscaleVersion(capver.MinSupportedCapabilityVersion)).
 		Msg("Clients with a lower minimum version will be rejected")
@@ -739,7 +739,7 @@ func (h *Headscale) Serve(ctx context.Context) error {
 		Cfg:    h.cfg,
 	})
 
-	// The Headscale v2 API. Served behind Basic/Bearer auth on the remote
+	// The Orgscale v2 API. Served behind Basic/Bearer auth on the remote
 	// listener, and over the local unix socket (local trust) so the CLI can
 	// manage OAuth clients through the same v2 keys handler the Tailscale
 	// ecosystem uses.
@@ -833,7 +833,7 @@ func (h *Headscale) Serve(ctx context.Context) error {
 		if err != nil {
 			return &types.ListenerBindError{
 				Listener: "insecure TLS",
-				YAMLKey:  "HEADSCALE_DEBUG_INSECURE_TLS_LISTEN_ADDR",
+				YAMLKey:  "ORGSCALE_DEBUG_INSECURE_TLS_LISTEN_ADDR",
 				Addr:     addr,
 				Err:      err,
 			}
@@ -849,7 +849,7 @@ func (h *Headscale) Serve(ctx context.Context) error {
 
 		log.Warn().
 			Str("addr", addr).
-			Msg("serving TLS with a self-signed certificate (HEADSCALE_DEBUG_INSECURE_TLS_LISTEN_ADDR); for tests only")
+			Msg("serving TLS with a self-signed certificate (ORGSCALE_DEBUG_INSECURE_TLS_LISTEN_ADDR); for tests only")
 	}
 
 	if tlsBundle.ACMEServer != nil {
@@ -1055,7 +1055,7 @@ func (h *Headscale) Serve(ctx context.Context) error {
 				}
 
 				log.Info().
-					Msg("Headscale stopped")
+					Msg("Orgscale stopped")
 
 				return nil
 			}
@@ -1103,10 +1103,10 @@ type tlsBundle struct {
 // Tests point it at their CA.
 var acmeTrustedRoots *x509.CertPool
 
-// acmeTLSSettings gets headscale's own certificate with certmagic, which
+// acmeTLSSettings gets orgscale's own certificate with certmagic, which
 // keeps it renewed. DNS-01 publishes the challenge through the same DNS
 // provider as node certificates.
-func (h *Headscale) acmeTLSSettings(ctx context.Context) (*tlsBundle, error) {
+func (h *Orgscale) acmeTLSSettings(ctx context.Context) (*tlsBundle, error) {
 	acmeCfg := h.cfg.TLS.ACME
 	logger := zlog.Zap(log.Logger).Named("acme")
 
@@ -1226,7 +1226,7 @@ func (s dns01Solver) Wait(ctx context.Context, ch acme.Challenge) error {
 	return s.wait(ctx, ch.DNS01TXTRecordName()+".", ch.DNS01KeyAuthorization())
 }
 
-func (h *Headscale) getTLSSettings(ctx context.Context) (*tlsBundle, error) {
+func (h *Orgscale) getTLSSettings(ctx context.Context) (*tlsBundle, error) {
 	tlsEnabled := h.cfg.TLS.ACME.Hostname != "" || h.cfg.TLS.CertPath != ""
 	if tlsEnabled && !strings.HasPrefix(h.cfg.ServerURL, "https://") {
 		log.Warn().Msg("listening with TLS but ServerURL does not start with https://")
@@ -1312,7 +1312,7 @@ func selfSignedTLSConfig() (*tls.Config, error) {
 	now := time.Now()
 	template := &x509.Certificate{
 		SerialNumber: big.NewInt(1),
-		Subject:      pkix.Name{CommonName: "headscale"},
+		Subject:      pkix.Name{CommonName: "orgscale"},
 		NotBefore:    now.Add(-time.Hour),
 		NotAfter:     now.AddDate(10, 0, 0),
 	}
@@ -1369,7 +1369,7 @@ func readOrCreatePrivateKey(path string) (*key.MachinePrivate, error) {
 // Change is used to send changes to nodes.
 // All change should be enqueued here and empty will be automatically
 // ignored.
-func (h *Headscale) Change(cs ...change.Change) {
+func (h *Orgscale) Change(cs ...change.Change) {
 	// Every delete path publishes its removal here; a deleted node's
 	// inactivity timer has nothing left to collect.
 	for _, c := range cs {
@@ -1381,10 +1381,10 @@ func (h *Headscale) Change(cs ...change.Change) {
 	h.mapBatcher.AddWork(slices.Concat(cs, h.state.DrainSelfRefreshes())...)
 }
 
-// HTTPHandler returns an [http.Handler] for the [Headscale] control server.
+// HTTPHandler returns an [http.Handler] for the [Orgscale] control server.
 // The handler serves the Tailscale control protocol including the /key
 // endpoint and /ts2021 Noise upgrade path.
-func (h *Headscale) HTTPHandler() http.Handler {
+func (h *Orgscale) HTTPHandler() http.Handler {
 	humaMux, _ := apiv1.Handler(apiv1.Backend{
 		State:  h.state,
 		Change: h.Change,
@@ -1402,13 +1402,13 @@ func (h *Headscale) HTTPHandler() http.Handler {
 }
 
 // NoisePublicKey returns the server's Noise protocol public key.
-func (h *Headscale) NoisePublicKey() key.MachinePublic {
+func (h *Orgscale) NoisePublicKey() key.MachinePublic {
 	return h.noisePrivateKey.Public()
 }
 
 // GetState returns the server's state manager for programmatic access
 // to users, nodes, policies, and other server state.
-func (h *Headscale) GetState() *state.State {
+func (h *Orgscale) GetState() *state.State {
 	return h.state
 }
 
@@ -1416,7 +1416,7 @@ func (h *Headscale) GetState() *state.State {
 // This is needed for test servers where the URL is not known until
 // the HTTP test server starts.
 // It panics when called outside of tests.
-func (h *Headscale) SetServerURLForTest(tb testing.TB, url string) {
+func (h *Orgscale) SetServerURLForTest(tb testing.TB, url string) {
 	tb.Helper()
 
 	h.cfg.ServerURL = url
@@ -1425,7 +1425,7 @@ func (h *Headscale) SetServerURLForTest(tb testing.TB, url string) {
 // StartBatcherForTest initialises and starts the map response batcher.
 // It registers a cleanup function on tb to stop the batcher and wait for map sessions.
 // It panics when called outside of tests.
-func (h *Headscale) StartBatcherForTest(tb testing.TB) {
+func (h *Orgscale) StartBatcherForTest(tb testing.TB) {
 	tb.Helper()
 
 	h.mapBatcher = mapper.NewBatcherAndMapper(h.cfg, h.state)
@@ -1437,20 +1437,20 @@ func (h *Headscale) StartBatcherForTest(tb testing.TB) {
 }
 
 // MapBatcher returns the map response batcher (for test use).
-func (h *Headscale) MapBatcher() *mapper.Batcher {
+func (h *Orgscale) MapBatcher() *mapper.Batcher {
 	return h.mapBatcher
 }
 
 // isConnected reads mapBatcher on each call: tests build the HTTP handler
 // before they start the batcher.
-func (h *Headscale) isConnected(id types.NodeID) bool {
+func (h *Orgscale) isConnected(id types.NodeID) bool {
 	return h.mapBatcher.IsConnected(id)
 }
 
 // StartEphemeralGCForTest starts the ephemeral node garbage collector.
 // It registers a cleanup function on tb to stop the collector.
 // It panics when called outside of tests.
-func (h *Headscale) StartEphemeralGCForTest(tb testing.TB) {
+func (h *Orgscale) StartEphemeralGCForTest(tb testing.TB) {
 	tb.Helper()
 
 	go h.ephemeralGC.Start()

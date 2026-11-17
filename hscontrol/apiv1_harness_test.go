@@ -22,11 +22,11 @@ import (
 
 // apiV1Harness drives a request through the Huma service and compares the result
 // against a golden keyed by the test name. Goldens neutralise timestamps so they
-// stay stable across runs; refresh with HEADSCALE_UPDATE_GOLDEN=1 after an
+// stay stable across runs; refresh with ORGSCALE_UPDATE_GOLDEN=1 after an
 // intentional contract change. assertParity suits reads/errors; mutations use
 // assertParityIsolated against a freshly-seeded app.
 type apiV1Harness struct {
-	app  *Headscale
+	app  *Orgscale
 	huma http.Handler
 }
 
@@ -45,7 +45,7 @@ func newAPIV1Harness(t *testing.T) *apiV1Harness {
 // bearer-key middleware — the same local-trust the unix socket gets — so these
 // tests can exercise response shapes. Auth itself is covered against the full
 // router in TestAPIV1AuthMiddleware.
-func newHumaTestHandler(app *Headscale) http.Handler {
+func newHumaTestHandler(app *Orgscale) http.Handler {
 	mux, _ := apiv1.Handler(apiv1.Backend{
 		State:  app.state,
 		Change: app.Change,
@@ -100,7 +100,7 @@ func (h *apiV1Harness) assertParity(t *testing.T, method, path string, body []by
 // be nil) and compares to the golden. Use for mutations.
 func assertParityIsolated(
 	t *testing.T,
-	seed func(t *testing.T, app *Headscale),
+	seed func(t *testing.T, app *Orgscale),
 	method, path string,
 	body []byte,
 ) httpResult {
@@ -144,7 +144,7 @@ func goldenPath(t *testing.T) string {
 	t.Helper()
 
 	// Go module zips refuse names with characters such as '>', and one
-	// such file stops go get from fetching headscale.
+	// such file stops go get from fetching orgscale.
 	name := strings.Map(func(r rune) rune {
 		if r == '-' || r == '.' || unicode.IsLetter(r) || unicode.IsDigit(r) {
 			return r
@@ -163,7 +163,7 @@ func assertAgainstGolden(t *testing.T, method, path string, hum httpResult) {
 
 	gpath := goldenPath(t)
 
-	if os.Getenv("HEADSCALE_UPDATE_GOLDEN") != "" {
+	if os.Getenv("ORGSCALE_UPDATE_GOLDEN") != "" {
 		writeGolden(t, gpath, hum)
 
 		return
@@ -171,7 +171,7 @@ func assertAgainstGolden(t *testing.T, method, path string, hum httpResult) {
 
 	raw, err := os.ReadFile(gpath)
 	require.NoErrorf(t, err,
-		"missing golden %s for %s %s — run with HEADSCALE_UPDATE_GOLDEN=1 to generate",
+		"missing golden %s for %s %s — run with ORGSCALE_UPDATE_GOLDEN=1 to generate",
 		gpath, method, path)
 
 	var golden goldenRecord
@@ -191,7 +191,7 @@ func assertAgainstGolden(t *testing.T, method, path string, hum httpResult) {
 	}
 }
 
-// writeGolden persists the response under HEADSCALE_UPDATE_GOLDEN. Success
+// writeGolden persists the response under ORGSCALE_UPDATE_GOLDEN. Success
 // bodies are normalised the same way the comparison path does, so the file stays
 // stable across runs. Error responses are stored status-only, since the reader
 // never compares error bodies.
@@ -222,11 +222,11 @@ func writeGolden(t *testing.T, gpath string, hum httpResult) {
 
 // nonDeterministicRe matches values that embed per-app random material and so
 // cannot match byte-for-byte across apps: masked key/secret prefixes
-// (hskey-auth-<prefix>-***, hskey-api-<prefix>-***) and Tailscale key material
+// (oskey-auth-<prefix>-***, oskey-api-<prefix>-***) and Tailscale key material
 // (mkey:/nodekey:/discokey:<hex>). Neutralised to a sentinel when neutralise is
 // true.
 var nonDeterministicRe = regexp.MustCompile(
-	`^(hskey-(auth|api)-[0-9a-f]+-\*\*\*|(mkey|nodekey|discokey):[0-9a-f]+)$`,
+	`^(oskey-(auth|api)-[0-9a-f]+-\*\*\*|(mkey|nodekey|discokey):[0-9a-f]+)$`,
 )
 
 // normalizeJSON decodes JSON for order-independent, type-aware comparison.

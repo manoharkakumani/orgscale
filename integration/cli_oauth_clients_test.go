@@ -23,7 +23,7 @@ type cliOAuthClient struct {
 	Description string   `json:"description"`
 }
 
-// TestOAuthClientCommand exercises the `headscale oauth-clients` CLI end to end:
+// TestOAuthClientCommand exercises the `orgscale oauth-clients` CLI end to end:
 // create (with scopes and tags) -> list (secret hidden) -> delete. The CLI talks
 // to the v2 keys handler over the local unix socket, so this also proves the v2
 // API is reachable over the socket with local trust.
@@ -35,16 +35,16 @@ func TestOAuthClientCommand(t *testing.T) {
 
 	defer scenario.ShutdownAssertNoPanics(t)
 
-	err = scenario.CreateHeadscaleEnv([]tsic.Option{}, hsic.WithTestName("cli-oauthclient"))
+	err = scenario.CreateOrgscaleEnv([]tsic.Option{}, hsic.WithTestName("cli-oauthclient"))
 	require.NoError(t, err)
 
-	headscale, err := scenario.Headscale()
+	orgscale, err := scenario.Orgscale()
 	require.NoError(t, err)
 
 	// Create an OAuth client with scopes and a tag. devices:core/auth_keys
 	// require a tag, which is supplied.
-	createOut, err := headscale.Execute([]string{
-		"headscale", "oauth-clients", "create",
+	createOut, err := orgscale.Execute([]string{
+		"orgscale", "oauth-clients", "create",
 		"--scope", "auth_keys",
 		"--scope", "devices:core",
 		"--tag", "tag:k8s-operator",
@@ -65,8 +65,8 @@ func TestOAuthClientCommand(t *testing.T) {
 	var listed []cliOAuthClient
 
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		err := executeAndUnmarshal(headscale,
-			[]string{"headscale", "oauth-clients", "list", "--output", "json"}, &listed)
+		err := executeAndUnmarshal(orgscale,
+			[]string{"orgscale", "oauth-clients", "list", "--output", "json"}, &listed)
 		assert.NoError(c, err)
 		assert.Len(c, listed, 1)
 	}, integrationutil.ScaledTimeout(10*time.Second), integrationutil.FastPoll, "waiting for oauth client list")
@@ -77,14 +77,14 @@ func TestOAuthClientCommand(t *testing.T) {
 	assert.Equal(t, "operator", listed[0].Description)
 
 	// Delete it.
-	_, err = headscale.Execute([]string{"headscale", "oauth-clients", "delete", "--id", created.ID})
+	_, err = orgscale.Execute([]string{"orgscale", "oauth-clients", "delete", "--id", created.ID})
 	require.NoError(t, err)
 
 	var afterDelete []cliOAuthClient
 
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		err := executeAndUnmarshal(headscale,
-			[]string{"headscale", "oauth-clients", "list", "--output", "json"}, &afterDelete)
+		err := executeAndUnmarshal(orgscale,
+			[]string{"orgscale", "oauth-clients", "list", "--output", "json"}, &afterDelete)
 		assert.NoError(c, err)
 		assert.Empty(c, afterDelete)
 	}, integrationutil.ScaledTimeout(10*time.Second), integrationutil.FastPoll, "waiting for oauth client list after delete")
@@ -100,10 +100,10 @@ func TestOAuthClientCommandValidation(t *testing.T) {
 
 	defer scenario.ShutdownAssertNoPanics(t)
 
-	err = scenario.CreateHeadscaleEnv([]tsic.Option{}, hsic.WithTestName("cli-oauthclientval"))
+	err = scenario.CreateOrgscaleEnv([]tsic.Option{}, hsic.WithTestName("cli-oauthclientval"))
 	require.NoError(t, err)
 
-	headscale, err := scenario.Headscale()
+	orgscale, err := scenario.Orgscale()
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -119,7 +119,7 @@ func TestOAuthClientCommandValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := headscale.Execute(append([]string{"headscale"}, tt.args...))
+			_, err := orgscale.Execute(append([]string{"orgscale"}, tt.args...))
 			require.ErrorContains(t, err, tt.wantErr)
 		})
 	}

@@ -356,10 +356,10 @@ type UpdateTailnetSettingsJSONBody = interface{}
 
 // ListUsersParams defines parameters for ListUsers.
 type ListUsersParams struct {
-	// Type Filter by user type; Headscale users are all "member".
+	// Type Filter by user type; Orgscale users are all "member".
 	Type *string `form:"type,omitempty" json:"type,omitempty"`
 
-	// Role Filter by user role; Headscale users are all "member".
+	// Role Filter by user role; Orgscale users are all "member".
 	Role *string `form:"role,omitempty" json:"role,omitempty"`
 }
 

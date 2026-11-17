@@ -170,7 +170,7 @@ func setupBatcherWithTestData(
 
 	// Create database and populate with test data first
 	tmpDir := tb.TempDir()
-	dbPath := tmpDir + "/headscale_test.db"
+	dbPath := tmpDir + "/orgscale_test.db"
 
 	prefixV4 := netip.MustParsePrefix("100.64.0.0/10")
 	prefixV6 := netip.MustParsePrefix("fd7a:115c:a1e0::/48")
@@ -183,7 +183,7 @@ func setupBatcherWithTestData(
 			},
 		},
 		Prefixes:  types.PrefixesConfig{V4: &prefixV4, V6: &prefixV6, Allocation: types.IPAllocationStrategySequential},
-		DNSConfig: types.DNSConfig{BaseDomain: "headscale.test"},
+		DNSConfig: types.DNSConfig{BaseDomain: "orgscale.test"},
 		Policy: types.PolicyConfig{
 			Mode: types.PolicyModeDB,
 		},
@@ -205,7 +205,7 @@ func setupBatcherWithTestData(
 	}
 
 	// Create database and populate it with test data
-	database, err := db.NewHeadscaleDatabase(cfg)
+	database, err := db.NewOrgscaleDatabase(cfg)
 	if err != nil {
 		tb.Fatalf("setting up database: %s", err)
 	}

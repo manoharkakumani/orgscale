@@ -1,6 +1,6 @@
 // This file replays Tailscale SaaS captures of a policy derpMap and checks
-// headscale accepts and rejects the same ones. Where SaaS words the error
-// itself rather than passing on a JSON decode error, headscale must use the
+// orgscale accepts and rejects the same ones. Where SaaS words the error
+// itself rather than passing on a JSON decode error, orgscale must use the
 // same words.
 //
 // Test data source: testdata/nodeattrs_results/nodeattrs-derpmap-*.hujson
@@ -18,8 +18,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// derpMapSkipReasons lists the policies SaaS rejects for a reason headscale
-// cannot check. An entry headscale starts to reject fails, so a fix must
+// derpMapSkipReasons lists the policies SaaS rejects for a reason orgscale
+// cannot check. An entry orgscale starts to reject fails, so a fix must
 // delete it.
 //
 //	TAILSCALE_DERP_IPS — SaaS rejects a custom node on the IP of one of its
@@ -44,7 +44,7 @@ func TestDERPMapPolicyCompat(t *testing.T) {
 			}
 
 			if reason, ok := derpMapSkipReasons[tf.TestID]; ok {
-				require.NoError(t, err, "headscale refuses this policy; delete derpMapSkipReasons[%q]", tf.TestID)
+				require.NoError(t, err, "orgscale refuses this policy; delete derpMapSkipReasons[%q]", tf.TestID)
 				t.Skip(reason)
 			}
 
@@ -58,7 +58,7 @@ func TestDERPMapPolicyCompat(t *testing.T) {
 
 			require.Error(t, err)
 
-			// SaaS names its own DERP servers by host; headscale has no list of
+			// SaaS names its own DERP servers by host; orgscale has no list of
 			// them and rejects them by their domain.
 			msg = strings.Replace(msg, "Tailscale host name", "Tailscale hostname or subdomain", 1)
 

@@ -58,7 +58,7 @@ func generateClients(ctx context.Context, r *repo) error {
 		return err
 	}
 
-	tmp, err := os.CreateTemp("", "headscale-openapi-3.0.*.yaml")
+	tmp, err := os.CreateTemp("", "orgscale-openapi-3.0.*.yaml")
 	if err != nil {
 		return fmt.Errorf("creating temporary spec: %w", err)
 	}

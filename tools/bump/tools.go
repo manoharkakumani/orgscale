@@ -289,7 +289,7 @@ func currentProviders(r *repo) ([]string, error) {
 }
 
 // applyProviders moves the tested Terraform provider releases to the newest
-// ones, so a provider release that breaks headscale shows up here rather than
+// ones, so a provider release that breaks orgscale shows up here rather than
 // on whichever pull request runs first after it.
 func applyProviders(ctx context.Context, r *repo) (change, error) {
 	have, err := currentProviders(r)

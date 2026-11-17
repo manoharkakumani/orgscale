@@ -49,9 +49,9 @@ jobs:
         if: steps.changed-files.outputs.files == 'true'
         run: |
           # Build once for the native worker architecture. Static binaries
-          # also run in the minimal Headscale image without a Go toolchain.
+          # also run in the minimal Orgscale image without a Go toolchain.
           go build -o hi ./cmd/hi
-          CGO_ENABLED=0 GOOS=linux go build -o headscale ./cmd/orgscale
+          CGO_ENABLED=0 GOOS=linux go build -o orgscale ./cmd/orgscale
           CGO_ENABLED=0 GOOS=linux go test -c ./integration -o integration.test
       - name: Upload hi binary
         if: steps.changed-files.outputs.files == 'true'
@@ -87,14 +87,14 @@ jobs:
         with:
           username: ${{ env.DOCKERHUB_USERNAME }}
           password: ${{ env.DOCKERHUB_TOKEN }}
-      - name: Build headscale image
+      - name: Build orgscale image
         if: steps.changed-files.outputs.files == 'true'
         run: |
           docker build \
             --file Dockerfile.integration-ci \
-            --tag headscale:${{ github.sha }} \
+            --tag orgscale:${{ github.sha }} \
             .
-          docker save headscale:${{ github.sha }} | gzip > headscale-image.tar.gz
+          docker save orgscale:${{ github.sha }} | gzip > orgscale-image.tar.gz
       - name: Build tailscale HEAD image
         if: steps.changed-files.outputs.files == 'true'
         run: |
@@ -103,12 +103,12 @@ jobs:
             --tag tailscale-head:${{ github.sha }} \
             .
           docker save tailscale-head:${{ github.sha }} | gzip > tailscale-head-image.tar.gz
-      - name: Upload headscale image
+      - name: Upload orgscale image
         if: steps.changed-files.outputs.files == 'true'
         uses: actions/upload-artifact@v7.0.2
         with:
-          name: headscale-image
-          path: headscale-image.tar.gz
+          name: orgscale-image
+          path: orgscale-image.tar.gz
           retention-days: 10
       - name: Upload tailscale HEAD image
         if: steps.changed-files.outputs.files == 'true'
@@ -333,7 +333,7 @@ jobs:
           - TestHASubnetRouterFailoverBothOffline
           - TestHASubnetRouterFailoverBothOfflineCablePull
           - TestHASubnetRouterFailoverDockerDisconnect
-          - TestHeadscale
+          - TestOrgscale
           - TestTailscaleNodesJoiningHeadcale
           - TestSSHOneUserToAll
           - TestSSHMultipleUsersAllToAll

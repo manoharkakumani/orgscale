@@ -38,7 +38,7 @@ const maxErrorDetails = 20
 
 // tailscaleErrorTransformer rewrites Huma's RFC 9457 error model into the
 // Tailscale error shape. It is registered on the v2 API config only, so the
-// headscale-native v1 API keeps emitting problem+json. Non-error bodies pass
+// orgscale-native v1 API keeps emitting problem+json. Non-error bodies pass
 // through untouched.
 func tailscaleErrorTransformer(ctx huma.Context, _ string, v any) (any, error) {
 	em, ok := v.(*huma.ErrorModel)

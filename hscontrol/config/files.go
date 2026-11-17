@@ -1,4 +1,4 @@
-// Package config loads and validates headscale's configuration and checks
+// Package config loads and validates orgscale's configuration and checks
 // the files it names. It imports types; types, derp, dns and policy must
 // never import it.
 package config
@@ -122,7 +122,7 @@ func secretFiles(cfg *types.Config) []File {
 	return files
 }
 
-// CheckPolicyFile checks a policy file as "headscale check policy" does,
+// CheckPolicyFile checks a policy file as "orgscale check policy" does,
 // tests and sshTests included.
 func CheckPolicyFile(path string) error {
 	b, err := os.ReadFile(path)

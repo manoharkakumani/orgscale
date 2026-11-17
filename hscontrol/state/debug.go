@@ -66,7 +66,7 @@ func (s *State) DebugOverview() string {
 
 	var sb strings.Builder
 
-	sb.WriteString("=== Headscale State Overview ===\n\n")
+	sb.WriteString("=== Orgscale State Overview ===\n\n")
 
 	// Node statistics
 	fmt.Fprintf(&sb, "Nodes: %d total\n", info.Nodes.Total)

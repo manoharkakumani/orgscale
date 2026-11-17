@@ -264,7 +264,7 @@ func preAuthKeyToResponse(key *types.PreAuthKey) PreAuthKey {
 // maskedPreAuthKey renders a pre-auth key by its public identifier so the
 // secret is never returned.
 func maskedPreAuthKey(identifier string) string {
-	return "hskey-auth-" + identifier + "-***"
+	return "oskey-auth-" + identifier + "-***"
 }
 
 // nonNilTags ensures aclTags serializes as [] rather than null, matching

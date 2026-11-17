@@ -80,7 +80,7 @@ func TestDebugRegistrationCache(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg := persistTestConfig(t.TempDir() + "/headscale.db")
+			cfg := persistTestConfig(t.TempDir() + "/orgscale.db")
 			cfg.Tuning.RegisterCacheExpiration = tt.set
 
 			s, err := NewState(cfg)

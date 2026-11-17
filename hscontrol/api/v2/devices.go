@@ -23,8 +23,8 @@ func init() {
 	registrations = append(registrations, registerDevices, registerDeviceUpdates)
 }
 
-// Device is the Tailscale device response. Headscale nodes map onto it; fields
-// Headscale does not track are left out, apart from UpdateAvailable. The route
+// Device is the Tailscale device response. Orgscale nodes map onto it; fields
+// Orgscale does not track are left out, apart from UpdateAvailable. The route
 // slices and the host detail are only populated for the fields=all variant,
 // matching Tailscale.
 type Device struct {
@@ -53,7 +53,7 @@ type Device struct {
 	BlocksIncomingConnections bool `json:"blocksIncomingConnections"`
 
 	// OAuthClientID names the auth key the device joined with. For a key a
-	// token made, Tailscale names the token's OAuth client, which headscale
+	// token made, Tailscale names the token's OAuth client, which orgscale
 	// does not record, so it is left out.
 	OAuthClientID string `json:"oauthClientId,omitempty"`
 
@@ -74,7 +74,7 @@ type Distro struct {
 }
 
 // ClientConnectivity is how a device reaches the network, from what it reports.
-// Latency stays empty: headscale drops a client's DERP latency on arrival.
+// Latency stays empty: orgscale drops a client's DERP latency on arrival.
 type ClientConnectivity struct {
 	Endpoints             []string       `json:"endpoints"             nullable:"false"`
 	MappingVariesByDestIP bool           `json:"mappingVariesByDestIP"`
@@ -101,7 +101,7 @@ type DeviceRoutes struct {
 }
 
 // DevicePostureAttributes is the GET /device/{id}/attributes response. Of
-// Tailscale's attributes, headscale sets only ip:publicAddress, and like
+// Tailscale's attributes, orgscale sets only ip:publicAddress, and like
 // Tailscale leaves expiries out when no attribute has one.
 type DevicePostureAttributes struct {
 	Attributes map[string]any       `json:"attributes"         nullable:"false"`
@@ -128,7 +128,7 @@ type (
 	}
 	// setTagsRequest.Tags is intentionally not nullable:"false": the SDK sends
 	// "tags":null for "make untagged", which the handler accepts as a no-op
-	// rather than failing to decode (Headscale cannot untag a node).
+	// rather than failing to decode (Orgscale cannot untag a node).
 	setTagsRequest struct {
 		_ struct{} `additionalProperties:"true"`
 
@@ -305,12 +305,12 @@ func registerDevices(api huma.API, b Backend) {
 			return nil, err
 		}
 
-		// Headscale nodes are authorized the moment they register; there is no
+		// Orgscale nodes are authorized the moment they register; there is no
 		// de-authorize state. Accept authorized=true as a no-op; reject false so
 		// callers are not misled into thinking the device is fenced off.
 		if !in.Body.Authorized {
 			return nil, huma.Error400BadRequest(
-				"Headscale does not support de-authorizing a device; delete or expire it instead",
+				"Orgscale does not support de-authorizing a device; delete or expire it instead",
 			)
 		}
 
@@ -359,7 +359,7 @@ func registerDevices(api huma.API, b Backend) {
 			return nil, err
 		}
 
-		// Headscale cannot make a node untagged (tags-as-identity is one-way), so
+		// Orgscale cannot make a node untagged (tags-as-identity is one-way), so
 		// an empty/null tag set is accepted as a no-op rather than rejected. This
 		// keeps tooling lifecycles such as Terraform destroy working; the SDK
 		// sends "tags":null for "make untagged".
@@ -439,7 +439,7 @@ func registerDevices(api huma.API, b Backend) {
 		}
 
 		// Only disabling expiry maps cleanly (expiry=nil never expires).
-		// Re-enabling has no target expiry in the Tailscale request and Headscale
+		// Re-enabling has no target expiry in the Tailscale request and Orgscale
 		// stores no original, so it is accepted as a no-op (keeps Terraform
 		// destroy working) rather than guessing a lifetime.
 		if !in.Body.KeyExpiryDisabled {
@@ -630,7 +630,7 @@ func parseRoutes(routes []string) ([]netip.Prefix, error) {
 	return slices.Compact(approved), nil
 }
 
-// deviceFromView maps a Headscale node onto the Tailscale Device, reading
+// deviceFromView maps a Orgscale node onto the Tailscale Device, reading
 // through the [types.NodeView] accessors. allFields gates the route slices,
 // which Tailscale only returns for fields=all.
 func deviceFromView(view types.NodeView, allFields bool, baseDomain string) Device {
@@ -647,7 +647,7 @@ func deviceFromView(view types.NodeView, allFields bool, baseDomain string) Devi
 		Name:               name,
 		ID:                 id,
 		NodeID:             id,
-		Authorized:         true, // Headscale has no post-registration de-auth state.
+		Authorized:         true, // Orgscale has no post-registration de-auth state.
 		User:               deviceUser(view),
 		Tags:               emptyIfNil(view.Tags().AsSlice()),
 		KeyExpiryDisabled:  !view.Expiry().Valid(),

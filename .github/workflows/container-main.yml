@@ -66,7 +66,7 @@ jobs:
 
       - name: Push to Docker Hub
         env:
-          KO_DOCKER_REPO: headscale/headscale
+          KO_DOCKER_REPO: orgscale/orgscale
           KO_DEFAULTBASEIMAGE: gcr.io/distroless/base-debian13
           CGO_ENABLED: "0"
         run: |
@@ -104,9 +104,9 @@ jobs:
           CGO_ENABLED: "0"
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
-        run: go build -o headscale ./cmd/orgscale
+        run: go build -o orgscale ./cmd/orgscale
 
       - uses: actions/upload-artifact@v7.0.2
         with:
-          name: headscale-${{ matrix.goos }}-${{ matrix.goarch }}
-          path: headscale
+          name: orgscale-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: orgscale

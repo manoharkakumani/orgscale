@@ -74,10 +74,10 @@ const (
 type PolicyMode string //nolint:recvcheck // UnmarshalText needs a pointer; the rest read the value
 
 const (
-	// PolicyModeDB keeps the policy in the database, set with `headscale
+	// PolicyModeDB keeps the policy in the database, set with `orgscale
 	// policy set` or the API. `policy.path` is not read.
 	PolicyModeDB PolicyMode = "database"
-	// PolicyModeFile reads the policy from `policy.path`. Send headscale
+	// PolicyModeFile reads the policy from `policy.path`. Send orgscale
 	// `SIGHUP` to reload it after an edit.
 	PolicyModeFile PolicyMode = "file"
 )
@@ -110,7 +110,7 @@ type HARouteConfig struct {
 // RouteConfig contains configuration for route behaviour.
 type RouteConfig struct {
 	// HA is health probing of HA subnet routers. When two or more nodes
-	// advertise the same route, headscale pings each over Noise and moves
+	// advertise the same route, orgscale pings each over Noise and moves
 	// the route away from one that does not answer in time. See
 	// [High availability](https://headscale.net/stable/ref/routes/#high-availability).
 	HA HARouteConfig `koanf:"ha"`
@@ -130,7 +130,7 @@ type NodeConfig struct {
 	// Expiry is the key expiry given to a non-tagged node that registers
 	// without one, whatever the method (auth key, CLI, web, OIDC). An
 	// expiry the client asks for, `oidc.use_expiry_from_token` and an
-	// admin's `headscale nodes expire` still apply. Tagged nodes never get
+	// admin's `orgscale nodes expire` still apply. Tagged nodes never get
 	// this default. Zero or negative disables the default.
 	Expiry time.Duration `example:"\"2160h\"" koanf:"expiry"`
 
@@ -144,15 +144,15 @@ type NodeConfig struct {
 	Routes RouteConfig `koanf:"routes"`
 }
 
-// Config is the Headscale configuration, nested like the configuration
+// Config is the Orgscale configuration, nested like the configuration
 // file; koanf tags name the keys. A duration needs a unit (30s, 3h, 90d),
 // except 0.
 type Config struct { //nolint:recvcheck // MarshalJSON reads a value, so a Config value is redacted too
 	// ServerURL is the URL clients connect to, with its `http://` or
-	// `https://` scheme, e.g. `https://headscale.example.com:443`. A
+	// `https://` scheme, e.g. `https://orgscale.example.com:443`. A
 	// trailing slash is trimmed on load. Its host must not be
 	// `dns.base_domain` or a name below it.
-	ServerURL string `example:"\"https://headscale.example.com\"" koanf:"server_url"`
+	ServerURL string `example:"\"https://orgscale.example.com\"" koanf:"server_url"`
 
 	// Addr is the host:port the server listens on for clients, the API and
 	// the web pages. It serves HTTPS when `tls.cert_path` or
@@ -167,7 +167,7 @@ type Config struct { //nolint:recvcheck // MarshalJSON reads a value, so a Confi
 	// UnixSocket is where the server serves the API without
 	// authentication, for the CLI on the same host. The CLI connects to it
 	// when `cli.address` is empty.
-	UnixSocket string `example:"\"/run/headscale/headscale.sock\"" koanf:"unix_socket" nix:"external"`
+	UnixSocket string `example:"\"/run/orgscale/orgscale.sock\"" koanf:"unix_socket" nix:"external"`
 
 	// UnixSocketPermission is the file mode of `unix_socket`, in quoted
 	// octal (`"0770"`): unquoted, YAML reads `0770` as the number 504.
@@ -179,7 +179,7 @@ type Config struct { //nolint:recvcheck // MarshalJSON reads a value, so a Confi
 	// clients can spoof their source IP in logs and the v2 API.
 	TrustedProxies []netip.Prefix `example:"[\"192.0.2.10/32\",\"2001:db8::10/128\"]" koanf:"trusted_proxies"`
 
-	// DisableUpdateCheck skips the check for a newer headscale release
+	// DisableUpdateCheck skips the check for a newer orgscale release
 	// that commands make at start.
 	DisableUpdateCheck bool `koanf:"disable_check_updates"`
 
@@ -193,11 +193,11 @@ type Config struct { //nolint:recvcheck // MarshalJSON reads a value, so a Confi
 	Prefixes PrefixesConfig `koanf:"prefixes"`
 
 	// Policy is where the access control policy is kept: in a file
-	// headscale reads, or in the database. See
+	// orgscale reads, or in the database. See
 	// [Policy](https://headscale.net/stable/ref/policy/).
 	Policy PolicyConfig `koanf:"policy"`
 
-	// Log is headscale's own log output. See
+	// Log is orgscale's own log output. See
 	// [Debugging](https://headscale.net/stable/ref/debug/#application-logging).
 	Log LogConfig `koanf:"log"`
 
@@ -214,7 +214,7 @@ type Config struct { //nolint:recvcheck // MarshalJSON reads a value, so a Confi
 	// same ID. See [DERP](https://headscale.net/stable/ref/derp/).
 	DERP DERPConfig `koanf:"derp"`
 
-	// Database is where headscale stores nodes, users and keys. SQLite is
+	// Database is where orgscale stores nodes, users and keys. SQLite is
 	// recommended; PostgreSQL is supported for legacy deployments only.
 	// `database.sqlite` is read only for SQLite, `database.postgres` only
 	// for PostgreSQL.
@@ -226,7 +226,7 @@ type Config struct { //nolint:recvcheck // MarshalJSON reads a value, so a Confi
 	// [DNS](https://headscale.net/stable/ref/dns/).
 	DNSConfig DNSConfig `koanf:"dns"`
 
-	// TLS is headscale's own HTTPS certificate on `listen_addr`: from the
+	// TLS is orgscale's own HTTPS certificate on `listen_addr`: from the
 	// files `tls.cert_path` and `tls.key_path`, or from ACME in
 	// `tls.acme`, not both. Without either, the server speaks plain HTTP.
 	// See [TLS](https://headscale.net/stable/ref/tls/).
@@ -247,12 +247,12 @@ type Config struct { //nolint:recvcheck // MarshalJSON reads a value, so a Confi
 	// AutoUpdate is the tailnet-wide default for client auto-updates.
 	AutoUpdate AutoUpdateConfig `koanf:"auto_update"`
 
-	// CLI is how the headscale CLI reaches the server: the local
+	// CLI is how the orgscale CLI reaches the server: the local
 	// `unix_socket` without authentication, or a remote `cli.address`
 	// with `cli.api_key`. The CLI reads these keys from its own
-	// configuration, such as `~/.config/headscale/config.yaml`, or from
-	// `HEADSCALE_CLI_*` variables; the server does not read them, so on
-	// NixOS they do not belong in `services.headscale.settings`. See
+	// configuration, such as `~/.config/orgscale/config.yaml`, or from
+	// `ORGSCALE_CLI_*` variables; the server does not read them, so on
+	// NixOS they do not belong in `services.orgscale.settings`. See
 	// [Remote control](https://headscale.net/stable/ref/api/#remote-control).
 	CLI CLIConfig `koanf:"cli"`
 
@@ -271,9 +271,9 @@ type Config struct { //nolint:recvcheck // MarshalJSON reads a value, so a Confi
 // NoiseConfig is the key of the Noise protocol clients connect over.
 type NoiseConfig struct {
 	// PrivateKeyPath is the file holding the Noise private key, which
-	// encrypts traffic between headscale and clients, relative to the
+	// encrypts traffic between orgscale and clients, relative to the
 	// configuration file. A missing file is created with a new key.
-	PrivateKeyPath string `example:"\"/opt/headscale/noise_private.key\"" koanf:"private_key_path" nix:"external"`
+	PrivateKeyPath string `example:"\"/opt/orgscale/noise_private.key\"" koanf:"private_key_path" nix:"external"`
 }
 
 // PrefixesConfig are the ranges node IPs are allocated from. At least one
@@ -302,7 +302,7 @@ type liveDNS struct {
 	provider hsdns.Provider
 }
 
-// DNSConfig is the DNS configuration clients get. To keep headscale out of
+// DNSConfig is the DNS configuration clients get. To keep orgscale out of
 // clients' DNS, set every field to its empty value.
 type DNSConfig struct {
 	// MagicDNS gives each node a name below `dns.base_domain`, e.g.
@@ -340,22 +340,22 @@ type DNSConfig struct {
 	// ExtraRecordsPath is a file of extra records, reloaded when it
 	// changes. The extension picks the format: `.json`, `.hujson`, `.yaml`
 	// or `.yml`. Mutually exclusive with `dns.extra_records`.
-	ExtraRecordsPath string `example:"\"/var/lib/headscale/extra-records.json\"" koanf:"extra_records_path" nix:"path"`
+	ExtraRecordsPath string `example:"\"/var/lib/orgscale/extra-records.json\"" koanf:"extra_records_path" nix:"path"`
 
 	// Certificates lets nodes get TLS certificates for their MagicDNS
-	// names with `tailscale cert`. The node runs ACME itself; headscale
+	// names with `tailscale cert`. The node runs ACME itself; orgscale
 	// publishes its DNS-01 challenge through `dns.challenge.provider`.
 	Certificates CertificatesConfig `koanf:"certificates"`
 
 	// Challenge is the DNS provider answering ACME DNS-01 challenges, for
-	// node certificates and for headscale's own certificate when
+	// node certificates and for orgscale's own certificate when
 	// `tls.acme.challenge_type` is `DNS-01`. See
 	// [DNS-01 challenge provider](https://headscale.net/stable/ref/dns/#dns-01-challenge-provider).
 	Challenge DNSChallengeConfig `koanf:"challenge"`
 }
 
 // CertificatesConfig lets nodes get TLS certificates for their MagicDNS
-// name with `tailscale cert`. The node runs ACME itself; headscale
+// name with `tailscale cert`. The node runs ACME itself; orgscale
 // publishes its DNS-01 challenge through [DNSChallengeConfig].
 type CertificatesConfig struct {
 	// Enabled lets nodes run `tailscale cert`. It requires
@@ -376,7 +376,7 @@ func (d DNSConfig) CertificateZone() string {
 }
 
 // DNSChallengeConfig is the DNS provider answering ACME DNS-01
-// challenges for node certificates and headscale's own certificate.
+// challenges for node certificates and orgscale's own certificate.
 type DNSChallengeConfig struct {
 	// PropagationTimeout is how long to wait for a challenge record to
 	// show up on every authoritative nameserver. Zero skips the check.
@@ -393,7 +393,7 @@ type DNSChallengeConfig struct {
 	// lowercased on load, at every depth; two that differ only in case
 	// are an error. Any setting may be `file:<path>` to read it from a
 	// file; a non-string one, such as acme-dns `config`, is the JSON in it.
-	// `headscale generate config --running` and `/debug/config`
+	// `orgscale generate config --running` and `/debug/config`
 	// show `name` and `file:` references; every other setting is
 	// `<redacted>`, as any may be a credential. See
 	// [DNS-01 challenge provider](https://headscale.net/stable/ref/dns/#dns-01-challenge-provider)
@@ -469,7 +469,7 @@ type Nameservers struct {
 	// Global are the nameservers for names `dns.nameservers.split` does not
 	// cover: IP addresses, or DNS-over-HTTPS URLs such as
 	// `https://dns.nextdns.io/<id>`. Empty by default, so clients keep
-	// their own DNS: headscale points them at no resolver you did not list.
+	// their own DNS: orgscale points them at no resolver you did not list.
 	Global []string `example:"[\"9.9.9.9\",\"149.112.112.112\",\"2620:fe::fe\",\"2620:fe::9\"]" koanf:"global"`
 
 	// Split maps a domain to the nameservers that answer for it (split
@@ -482,13 +482,13 @@ type Nameservers struct {
 type SqliteConfig struct {
 	// Path is the database file, relative to the configuration file;
 	// `:memory:` keeps the database in memory.
-	Path string `example:"\"/opt/headscale/db.sqlite\"" koanf:"path" nix:"external"`
+	Path string `example:"\"/opt/orgscale/db.sqlite\"" koanf:"path" nix:"external"`
 
 	// WriteAheadLog runs SQLite in write-ahead log (WAL) mode, applies
 	// `database.sqlite.wal_autocheckpoint` and compacts the database
 	// (`VACUUM`) on shutdown. False uses SQLite's rollback journal
 	// (`DELETE`) with `synchronous=FULL`, and converts a database left
-	// in WAL mode when headscale opens it.
+	// in WAL mode when orgscale opens it.
 	WriteAheadLog bool `koanf:"write_ahead_log"`
 
 	// WALAutoCheckPoint is the number of WAL frames after which the WAL
@@ -510,13 +510,13 @@ type PostgresConfig struct {
 	Port int `example:"5432" koanf:"port"`
 
 	// Name is the database name.
-	Name string `example:"\"headscale\"" koanf:"name"`
+	Name string `example:"\"orgscale\"" koanf:"name"`
 
 	// User is the user to connect as.
-	User string `example:"\"headscale\"" koanf:"user"`
+	User string `example:"\"orgscale\"" koanf:"user"`
 
 	// Pass is the password, or `file:<path>` to read it from a file, read
-	// only when `database.type` is `postgres`. `headscale generate config
+	// only when `database.type` is `postgres`. `orgscale generate config
 	// --running` and `/debug/config` show a literal password as
 	// `<redacted>` and a `file:` reference as written.
 	Pass Secret `example:"\"file:/run/secrets/postgres_password\"" json:"-" koanf:"pass"`
@@ -641,29 +641,29 @@ func (d DatabaseConfig) IsSQLite() bool {
 	return d.Type == DatabaseSqlite || d.Type == DatabaseSqliteShort
 }
 
-// TLSConfig is headscale's own certificate: from files, or from ACME. The
+// TLSConfig is orgscale's own certificate: from files, or from ACME. The
 // two are mutually exclusive.
 type TLSConfig struct {
 	// CertPath is the PEM certificate file, relative to the configuration
 	// file. Setting it turns TLS on.
-	CertPath string `example:"\"/etc/headscale/tls/cert.pem\"" koanf:"cert_path" nix:"path"`
+	CertPath string `example:"\"/etc/orgscale/tls/cert.pem\"" koanf:"cert_path" nix:"path"`
 
 	// KeyPath is the PEM private key file of `tls.cert_path`, relative to
 	// the configuration file.
-	KeyPath string `example:"\"/etc/headscale/tls/key.pem\"" koanf:"key_path" nix:"external"`
+	KeyPath string `example:"\"/etc/orgscale/tls/key.pem\"" koanf:"key_path" nix:"external"`
 
 	// ACME gets the certificate from an ACME CA such as Let's Encrypt,
 	// and renews it. Setting `tls.acme.hostname` turns it on.
 	ACME ACMEConfig `koanf:"acme"`
 }
 
-// ACMEConfig gets headscale's own certificate from an ACME CA.
+// ACMEConfig gets orgscale's own certificate from an ACME CA.
 type ACMEConfig struct {
 	// Hostname is the domain to request a certificate for. Setting it
 	// turns ACME on.
-	Hostname string `example:"\"headscale.example.com\"" koanf:"hostname"`
+	Hostname string `example:"\"orgscale.example.com\"" koanf:"hostname"`
 
-	// ChallengeType is how the CA verifies that headscale controls
+	// ChallengeType is how the CA verifies that orgscale controls
 	// `tls.acme.hostname`.
 	ChallengeType ACMEChallenge `example:"\"TLS-ALPN-01\"" koanf:"challenge_type"`
 
@@ -680,7 +680,7 @@ type ACMEConfig struct {
 
 	// CacheDir is where certificates and ACME account data are stored,
 	// relative to the configuration file.
-	CacheDir string `example:"\"/var/cache/headscale/acme\"" koanf:"cache_dir" nix:"external"`
+	CacheDir string `example:"\"/var/cache/orgscale/acme\"" koanf:"cache_dir" nix:"external"`
 }
 
 // PKCEConfig configures PKCE (RFC 7636), which protects the OIDC
@@ -701,15 +701,15 @@ type OIDCConfig struct {
 	OnlyStartIfOIDCIsAvailable bool `koanf:"only_start_if_oidc_is_available"`
 
 	// Issuer is the provider's issuer URL. Setting it turns OIDC on.
-	Issuer HTTPURL `example:"\"https://idp.example.com/realms/headscale\"" koanf:"issuer"`
+	Issuer HTTPURL `example:"\"https://idp.example.com/realms/orgscale\"" koanf:"issuer"`
 
 	// ClientID is the client ID from the provider; required when
 	// `oidc.issuer` is set.
-	ClientID string `example:"\"headscale\"" koanf:"client_id"`
+	ClientID string `example:"\"orgscale\"" koanf:"client_id"`
 
 	// ClientSecret is the client secret from the provider, or
 	// `file:<path>` to read it from a file; required when `oidc.issuer` is
-	// set. `headscale generate config --running` and `/debug/config` show a
+	// set. `orgscale generate config --running` and `/debug/config` show a
 	// literal secret as `<redacted>` and a `file:` reference as written.
 	ClientSecret Secret `example:"\"file:/run/secrets/oidc_client_secret\"" json:"-" koanf:"client_secret"`
 
@@ -731,7 +731,7 @@ type OIDCConfig struct {
 	// AllowedGroups admits only members of at least one listed group,
 	// from the provider's `groups` claim: UserInfo first, the ID token as
 	// fallback. Empty admits any group.
-	AllowedGroups []string `example:"[\"headscale-users\"]" koanf:"allowed_groups"`
+	AllowedGroups []string `example:"[\"orgscale-users\"]" koanf:"allowed_groups"`
 
 	// EmailVerifiedRequired trusts an email only when the provider marks
 	// it verified: an unverified one fails `oidc.allowed_domains` and
@@ -755,20 +755,20 @@ type OIDCConfig struct {
 // embedded server); a region replaces an earlier one with the same ID.
 type DERPConfig struct {
 	// Server is the embedded DERP server, a relay and STUN server run by
-	// headscale itself. See
+	// orgscale itself. See
 	// [Enable embedded DERP](https://headscale.net/stable/ref/derp/#enable-embedded-derp).
 	Server DERPServerConfig `koanf:"server"`
 
 	// URLs are DERP maps in JSON to fetch. One that fails to load is
 	// logged and skipped; startup fails only when no region remains. The
-	// default is Tailscale's map: headscale fetches it from Tailscale and
+	// default is Tailscale's map: orgscale fetches it from Tailscale and
 	// clients relay through Tailscale's servers. `[]` keeps to your own.
 	URLs []HTTPURL `example:"[\"https://derp.example.com/derpmap.json\"]" koanf:"urls"`
 
 	// Paths are DERP map files. The extension picks the format: `.yaml` or
 	// `.yml`, or Tailscale JSON as `.json` or `.hujson`, both accepting
 	// comments and trailing commas.
-	Paths []string `example:"[\"/etc/headscale/derp.yaml\"]" koanf:"paths" nix:"path"`
+	Paths []string `example:"[\"/etc/orgscale/derp.yaml\"]" koanf:"paths" nix:"path"`
 
 	// AutoUpdate reloads `derp.urls` and `derp.paths` every
 	// `derp.update_frequency`.
@@ -796,10 +796,10 @@ type DERPServerConfig struct {
 	RegionID tailcfg.DERPRegionID `example:"999" koanf:"region_id"`
 
 	// RegionCode is the region's short code, shown by Tailscale clients.
-	RegionCode string `example:"\"headscale\"" koanf:"region_code"`
+	RegionCode string `example:"\"orgscale\"" koanf:"region_code"`
 
 	// RegionName is the region's name, shown by Tailscale clients.
-	RegionName string `example:"\"Headscale Embedded DERP\"" koanf:"region_name"`
+	RegionName string `example:"\"Orgscale Embedded DERP\"" koanf:"region_name"`
 
 	// VerifyClients admits only nodes registered with this server.
 	VerifyClients bool `koanf:"verify_clients"`
@@ -813,7 +813,7 @@ type DERPServerConfig struct {
 	// relative to the configuration file; required when
 	// `derp.server.enabled` is true. A missing file is created with a new
 	// key. It must differ from `noise.private_key_path`.
-	PrivateKeyPath string `example:"\"/var/lib/headscale/derp_server_private.key\"" koanf:"private_key_path" nix:"external"`
+	PrivateKeyPath string `example:"\"/var/lib/orgscale/derp_server_private.key\"" koanf:"private_key_path" nix:"external"`
 
 	// IPv4 is the server's public IPv4 address, published in the DERP map
 	// so clients reach it without DNS. Empty publishes none.
@@ -831,7 +831,7 @@ type DERPServerConfig struct {
 
 // LogTailConfig controls client logging to Tailscale.
 type LogTailConfig struct {
-	// Enabled lets nodes send their logs to Tailscale Inc.; headscale
+	// Enabled lets nodes send their logs to Tailscale Inc.; orgscale
 	// cannot point them at another log server. False tells nodes not to.
 	Enabled bool `koanf:"enabled"`
 }
@@ -845,7 +845,7 @@ type TaildropConfig struct {
 }
 
 // AutoUpdateConfig controls the tailnet-wide default for client
-// auto-update. When Enabled is true, headscale emits the
+// auto-update. When Enabled is true, orgscale emits the
 // [tailcfg.NodeAttrDefaultAutoUpdate] cap with value [true] on every
 // node's CapMap; clients fall back to that default unless they have
 // opted in or out locally.
@@ -856,16 +856,16 @@ type AutoUpdateConfig struct {
 	Enabled bool `koanf:"enabled"`
 }
 
-// CLIConfig is how the headscale CLI reaches the server: the local
+// CLIConfig is how the orgscale CLI reaches the server: the local
 // unix_socket without authentication, or a remote address with an API key.
 type CLIConfig struct {
 	// Address is the remote server's host:port or URL; `https://` is
 	// assumed without a scheme. Empty uses `unix_socket`.
-	Address string `example:"\"headscale.example.com:443\"" koanf:"address"`
+	Address string `example:"\"orgscale.example.com:443\"" koanf:"address"`
 
 	// APIKey is the API key the CLI sends to `cli.address`, or
 	// `file:<path>` to read it from a file. Read only by the CLI.
-	APIKey Secret `example:"\"file:/run/secrets/headscale_api_key\"" json:"-" koanf:"api_key"`
+	APIKey Secret `example:"\"file:/run/secrets/orgscale_api_key\"" json:"-" koanf:"api_key"`
 
 	// Timeout bounds each CLI command's requests to the server.
 	Timeout time.Duration `example:"\"30s\"" koanf:"timeout"`
@@ -880,7 +880,7 @@ type PolicyConfig struct {
 	// Path is the HuJSON policy file read when `policy.mode` is `file`,
 	// relative to the configuration file. Empty starts without a policy,
 	// which allows all traffic.
-	Path string `example:"\"/etc/headscale/policy.hujson\"" koanf:"path" nix:"path"`
+	Path string `example:"\"/etc/orgscale/policy.hujson\"" koanf:"path" nix:"path"`
 
 	// Mode is where the policy is kept: in the file `policy.path`, or in
 	// the database, edited through the CLI or API.
@@ -891,7 +891,7 @@ func (p *PolicyConfig) IsEmpty() bool {
 	return p.Mode == PolicyModeFile && p.Path == ""
 }
 
-// LogConfig configures headscale's own log output.
+// LogConfig configures orgscale's own log output.
 type LogConfig struct {
 	// Level is the lowest level logged.
 	Level LogLevel `example:"\"debug\"" koanf:"level"`
@@ -900,7 +900,7 @@ type LogConfig struct {
 	Format LogFormat `example:"\"json\"" koanf:"format"`
 }
 
-// Tuning contains advanced performance tuning parameters for Headscale.
+// Tuning contains advanced performance tuning parameters for Orgscale.
 // These settings control internal batching, timeouts, and resource allocation.
 // The defaults are carefully chosen for typical deployments and should rarely
 // need adjustment. Changes to these values can significantly impact performance

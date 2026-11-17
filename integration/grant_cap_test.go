@@ -127,12 +127,12 @@ func TestGrantCapRelay(t *testing.T) {
 		},
 	}
 
-	headscale, err := scenario.Headscale(
+	orgscale, err := scenario.Orgscale(
 		hsic.WithTestName("grant-cap-relay"),
 		hsic.WithACLPolicy(pol),
 		hsic.WithPolicyMode(types.PolicyModeDB),
 	)
-	requireNoErrGetHeadscale(t, err)
+	requireNoErrGetOrgscale(t, err)
 
 	usernet1, err := scenario.Network("usernet1")
 	require.NoError(t, err)
@@ -141,7 +141,7 @@ func TestGrantCapRelay(t *testing.T) {
 	usernet3, err := scenario.Network("usernet3")
 	require.NoError(t, err)
 
-	// Create users on headscale server.
+	// Create users on orgscale server.
 	_, err = scenario.CreateUser("relay")
 	require.NoError(t, err)
 	_, err = scenario.CreateUser("clienta")
@@ -149,7 +149,7 @@ func TestGrantCapRelay(t *testing.T) {
 	_, err = scenario.CreateUser("clientb")
 	require.NoError(t, err)
 
-	userMap, err := headscale.MapUsers()
+	userMap, err := orgscale.MapUsers()
 	require.NoError(t, err)
 
 	// --- Create Relay R on usernet3, dual-homed to usernet1+usernet2 ---
@@ -164,7 +164,7 @@ func TestGrantCapRelay(t *testing.T) {
 		mustParseID(userMap["relay"].Id), false, false, []string{"tag:relay"},
 	)
 	require.NoError(t, err)
-	err = relayR.Login(headscale.GetEndpoint(), pakRelay.Key)
+	err = relayR.Login(orgscale.GetEndpoint(), pakRelay.Key)
 	require.NoError(t, err)
 	err = relayR.WaitForRunning(30 * time.Second)
 	require.NoError(t, err)
@@ -197,7 +197,7 @@ func TestGrantCapRelay(t *testing.T) {
 		mustParseID(userMap["clienta"].Id), false, false, []string{"tag:client-a"},
 	)
 	require.NoError(t, err)
-	err = clientA.Login(headscale.GetEndpoint(), pakClientA.Key)
+	err = clientA.Login(orgscale.GetEndpoint(), pakClientA.Key)
 	require.NoError(t, err)
 	err = clientA.WaitForRunning(30 * time.Second)
 	require.NoError(t, err)
@@ -214,7 +214,7 @@ func TestGrantCapRelay(t *testing.T) {
 		mustParseID(userMap["clientb"].Id), false, false, []string{"tag:client-b"},
 	)
 	require.NoError(t, err)
-	err = clientB.Login(headscale.GetEndpoint(), pakClientB.Key)
+	err = clientB.Login(orgscale.GetEndpoint(), pakClientB.Key)
 	require.NoError(t, err)
 	err = clientB.WaitForRunning(30 * time.Second)
 	require.NoError(t, err)
@@ -607,17 +607,17 @@ func TestGrantCapDrive(t *testing.T) {
 		},
 	}
 
-	headscale, err := scenario.Headscale(
+	orgscale, err := scenario.Orgscale(
 		hsic.WithTestName("grant-cap-drive"),
 		hsic.WithACLPolicy(pol),
 		hsic.WithPolicyMode(types.PolicyModeDB),
 	)
-	requireNoErrGetHeadscale(t, err)
+	requireNoErrGetOrgscale(t, err)
 
 	usernet1, err := scenario.Network("usernet1")
 	require.NoError(t, err)
 
-	// Create users on headscale server.
+	// Create users on orgscale server.
 	_, err = scenario.CreateUser("sharer")
 	require.NoError(t, err)
 	_, err = scenario.CreateUser("rwclient")
@@ -627,7 +627,7 @@ func TestGrantCapDrive(t *testing.T) {
 	_, err = scenario.CreateUser("noaccess")
 	require.NoError(t, err)
 
-	userMap, err := headscale.MapUsers()
+	userMap, err := orgscale.MapUsers()
 	require.NoError(t, err)
 
 	// --- Create Sharer node ---
@@ -642,7 +642,7 @@ func TestGrantCapDrive(t *testing.T) {
 		mustParseID(userMap["sharer"].Id), false, false, []string{"tag:sharer"},
 	)
 	require.NoError(t, err)
-	err = sharer.Login(headscale.GetEndpoint(), pakSharer.Key)
+	err = sharer.Login(orgscale.GetEndpoint(), pakSharer.Key)
 	require.NoError(t, err)
 	err = sharer.WaitForRunning(30 * time.Second)
 	require.NoError(t, err)
@@ -659,7 +659,7 @@ func TestGrantCapDrive(t *testing.T) {
 		mustParseID(userMap["rwclient"].Id), false, false, []string{"tag:rw-client"},
 	)
 	require.NoError(t, err)
-	err = rwClient.Login(headscale.GetEndpoint(), pakRW.Key)
+	err = rwClient.Login(orgscale.GetEndpoint(), pakRW.Key)
 	require.NoError(t, err)
 	err = rwClient.WaitForRunning(30 * time.Second)
 	require.NoError(t, err)
@@ -676,7 +676,7 @@ func TestGrantCapDrive(t *testing.T) {
 		mustParseID(userMap["roclient"].Id), false, false, []string{"tag:ro-client"},
 	)
 	require.NoError(t, err)
-	err = roClient.Login(headscale.GetEndpoint(), pakRO.Key)
+	err = roClient.Login(orgscale.GetEndpoint(), pakRO.Key)
 	require.NoError(t, err)
 	err = roClient.WaitForRunning(30 * time.Second)
 	require.NoError(t, err)
@@ -693,7 +693,7 @@ func TestGrantCapDrive(t *testing.T) {
 		mustParseID(userMap["noaccess"].Id), false, false, []string{"tag:no-access"},
 	)
 	require.NoError(t, err)
-	err = noAccess.Login(headscale.GetEndpoint(), pakNA.Key)
+	err = noAccess.Login(orgscale.GetEndpoint(), pakNA.Key)
 	require.NoError(t, err)
 	err = noAccess.WaitForRunning(30 * time.Second)
 	require.NoError(t, err)

@@ -7,12 +7,12 @@ trap 'rm -rf "$tmp"' EXIT
 export GOWORK=off CGO_ENABLED=0 LC_ALL=C
 unset GOFLAGS GOOS GOARCH
 
-mkdir -p "$tmp/headscale/cmd/orgscale" "$tmp/headscale/tools"
-cp "$root/.goreleaser.yml" "$tmp/headscale/"
-cp "$root/tools/release-check.sh" "$root/tools/release-generate.sh" "$tmp/headscale/tools/"
-cd "$tmp/headscale"
+mkdir -p "$tmp/orgscale/cmd/orgscale" "$tmp/orgscale/tools"
+cp "$root/.goreleaser.yml" "$tmp/orgscale/"
+cp "$root/tools/release-check.sh" "$root/tools/release-generate.sh" "$tmp/orgscale/tools/"
+cd "$tmp/orgscale"
 cat > go.mod <<'MOD'
-module example.com/headscale
+module example.com/orgscale
 
 go 1.24.0
 
@@ -51,10 +51,10 @@ if ! goreleaser build --snapshot --clean > "$tmp/build.log" 2>&1; then
     cat "$tmp/build.log" >&2
     exit 1
 fi
-binaries=(dist/headscale_*/headscale)
+binaries=(dist/orgscale_*/orgscale)
 bash "$check" "${binaries[@]}"
 printf 'PASS: clean release builds, including cross-compiled binaries\n'
-for asset in config-example.yaml headscale-nixos-options.nix; do
+for asset in config-example.yaml orgscale-nixos-options.nix; do
     if [[ ! -s release-assets/$asset ]]; then
         printf 'FAIL: release-assets/%s not generated\n' "$asset" >&2
         exit 1

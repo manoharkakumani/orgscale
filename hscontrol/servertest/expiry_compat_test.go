@@ -26,7 +26,7 @@ import (
 	"tailscale.com/types/netmap"
 )
 
-// expirySkipReasons lists checks where headscale differs from SaaS, keyed
+// expirySkipReasons lists checks where orgscale differs from SaaS, keyed
 // <test_id>/<step>/<node>/<check>. A listed check that matches fails, so a
 // fix must delete its entry.
 var expirySkipReasons = map[string]string{
@@ -35,7 +35,7 @@ var expirySkipReasons = map[string]string{
 }
 
 const (
-	nameserversFromConfig = "NAMESERVERS_FROM_CONFIG: headscale reads nameservers from its config and cannot change them while running; SaaS pushes a change to every node, an expired one too"
+	nameserversFromConfig = "NAMESERVERS_FROM_CONFIG: orgscale reads nameservers from its config and cannot change them while running; SaaS pushes a change to every node, an expired one too"
 )
 
 // TestNodeExpiryCompat replays key expiry against SaaS: an expired router
@@ -76,7 +76,7 @@ func runNodeExpiryCompat(t *testing.T, id, observer string) {
 	r := newStepReplay(t, c, opts...)
 	r.paths = true
 
-	// The test server runs no scheduled tasks. Run headscale's expiry pass on
+	// The test server runs no scheduled tasks. Run orgscale's expiry pass on
 	// a short timer, so peers learn when an expiry a client asked for passes.
 	go func() {
 		tick := time.NewTicker(250 * time.Millisecond)
@@ -190,7 +190,7 @@ type expiryStep struct {
 	saasNames map[netip.Addr]string
 
 	// prevCaps holds SaaS's captures of the step before; start, historyStart
-	// and streams headscale's netmaps and map streams when the step began.
+	// and streams orgscale's netmaps and map streams when the step began.
 	prevCaps     map[string]testcapture.Node
 	start        map[string]*netmap.NetworkMap
 	historyStart map[string]int

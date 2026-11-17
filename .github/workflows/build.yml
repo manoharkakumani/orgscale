@@ -68,8 +68,8 @@ jobs:
       - uses: actions/upload-artifact@v7.0.2
         if: steps.changed-files.outputs.files == 'true'
         with:
-          name: headscale-linux
-          path: result/bin/headscale
+          name: orgscale-linux
+          path: result/bin/orgscale
   build-cross:
     runs-on: ubuntu-latest
     strategy:
@@ -87,9 +87,9 @@ jobs:
       - name: Run go cross compile
         env:
           CGO_ENABLED: 0
-        run: env ${{ matrix.env }} go build -o "headscale"
+        run: env ${{ matrix.env }} go build -o "orgscale"
           ./cmd/orgscale
       - uses: actions/upload-artifact@v7.0.2
         with:
-          name: "headscale-${{ matrix.env }}"
-          path: "headscale"
+          name: "orgscale-${{ matrix.env }}"
+          path: "orgscale"

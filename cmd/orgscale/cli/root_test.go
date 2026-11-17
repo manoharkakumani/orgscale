@@ -358,7 +358,7 @@ func TestOfflineSetPolicyRunsTests(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			dir := t.TempDir()
 			configPath := filepath.Join(dir, "config.yaml")
-			config := fmt.Sprintf(`server_url: https://headscale.example.com
+			config := fmt.Sprintf(`server_url: https://orgscale.example.com
 noise:
   private_key_path: noise_private.key
 prefixes:
@@ -372,11 +372,11 @@ policy:
 dns:
   magic_dns: false
   override_local_dns: false
-`, filepath.Join(dir, "headscale.db"))
+`, filepath.Join(dir, "orgscale.db"))
 			require.NoError(t, os.WriteFile(configPath, []byte(config), 0o600))
 			useLoaded(t, configPath)
 
-			database, err := db.NewHeadscaleDatabase(serverConfig())
+			database, err := db.NewOrgscaleDatabase(serverConfig())
 			require.NoError(t, err)
 
 			t.Cleanup(func() { _ = database.Close() })
@@ -441,7 +441,7 @@ func TestInitConfigSkippedLogLevel(t *testing.T) {
 		zerolog.SetGlobalLevel(oldLevel)
 	})
 
-	os.Args = []string{"headscale", "check", "policy", "-f", "p"}
+	os.Args = []string{"orgscale", "check", "policy", "-f", "p"}
 
 	zerolog.SetGlobalLevel(zerolog.TraceLevel)
 	initConfig()
@@ -465,12 +465,12 @@ func TestLoadConfig(t *testing.T) {
 	}{
 		{"path wins", flag, global, env, flag},
 		{"then -c", "", global, env, global},
-		{"then HEADSCALE_CONFIG", "", "", env, env},
+		{"then ORGSCALE_CONFIG", "", "", env, env},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Setenv("HEADSCALE_CONFIG", tt.env)
+			t.Setenv("ORGSCALE_CONFIG", tt.env)
 
 			old := cfgFile
 			cfgFile = tt.cfgFile
@@ -485,18 +485,18 @@ func TestLoadConfig(t *testing.T) {
 }
 
 // TestCLIOnlyConfig: a file with only what client commands read, such as
-// ~/.config/headscale/config.yaml, serves them; check config reports what
+// ~/.config/orgscale/config.yaml, serves them; check config reports what
 // the server lacks.
 func TestCLIOnlyConfig(t *testing.T) {
 	path := writeFile(t, t.TempDir(), "config.yaml", `cli:
-  address: headscale.example.com:443
+  address: orgscale.example.com:443
   api_key: abc
-unix_socket: /run/headscale/headscale.sock
+unix_socket: /run/orgscale/orgscale.sock
 `)
 
 	useLoaded(t, path)
 
-	_, _, cancel, err := newHeadscaleCLIWithConfig()
+	_, _, cancel, err := newOrgscaleCLIWithConfig()
 	require.NoError(t, err)
 	cancel()
 
@@ -504,14 +504,14 @@ unix_socket: /run/headscale/headscale.sock
 	require.ErrorContains(t, err, "server_url")
 }
 
-// runHeadscale runs the CLI as main does, in a child process: loading a
+// runOrgscale runs the CLI as main does, in a child process: loading a
 // config can exit it.
-func runHeadscale(t *testing.T, env []string, args ...string) (string, string, error) {
+func runOrgscale(t *testing.T, env []string, args ...string) (string, string, error) {
 	t.Helper()
 
-	cmd := exec.CommandContext(t.Context(), os.Args[0], "-test.run=^TestHeadscaleProcess$") //nolint:gosec // this test binary
+	cmd := exec.CommandContext(t.Context(), os.Args[0], "-test.run=^TestOrgscaleProcess$") //nolint:gosec // this test binary
 
-	cmd.Env = append([]string{"HEADSCALE_TEST_ARGS=" + strings.Join(args, "\n")}, env...)
+	cmd.Env = append([]string{"ORGSCALE_TEST_ARGS=" + strings.Join(args, "\n")}, env...)
 
 	var stdout, stderr bytes.Buffer
 
@@ -521,14 +521,14 @@ func runHeadscale(t *testing.T, env []string, args ...string) (string, string, e
 	return stdout.String(), stderr.String(), err
 }
 
-// TestHeadscaleProcess is the child of runHeadscale.
-func TestHeadscaleProcess(t *testing.T) {
-	args := os.Getenv("HEADSCALE_TEST_ARGS")
+// TestOrgscaleProcess is the child of runOrgscale.
+func TestOrgscaleProcess(t *testing.T) {
+	args := os.Getenv("ORGSCALE_TEST_ARGS")
 	if args == "" {
-		t.Skip("run by runHeadscale")
+		t.Skip("run by runOrgscale")
 	}
 
-	os.Args = append([]string{"headscale"}, strings.Split(args, "\n")...)
+	os.Args = append([]string{"orgscale"}, strings.Split(args, "\n")...)
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, NoColor: true})
 
 	zerolog.SetGlobalLevel(zerolog.TraceLevel)
@@ -540,9 +540,9 @@ func TestHeadscaleProcess(t *testing.T) {
 // TestInitConfigWarnings: what loading warns about follows log.format, never
 // reaches stdout under machine output, and is reported with a load error.
 func TestInitConfigWarnings(t *testing.T) {
-	const warning = "unknown environment variable HEADSCALE_BOGUS"
+	const warning = "unknown environment variable ORGSCALE_BOGUS"
 
-	env := []string{"HEADSCALE_BOGUS=1", "HEADSCALE_DISABLE_CHECK_UPDATES=true"}
+	env := []string{"ORGSCALE_BOGUS=1", "ORGSCALE_DISABLE_CHECK_UPDATES=true"}
 	dir := t.TempDir()
 	jsonLogs := writeFile(t, dir, "json.yaml", "log:\n  format: json\n")
 	invalid := writeFile(t, dir, "invalid.yaml", "bogus_key: 1\n")
@@ -567,7 +567,7 @@ func TestInitConfigWarnings(t *testing.T) {
 	}
 
 	t.Run("json log format", func(t *testing.T) {
-		stdout, stderr, err := runHeadscale(t, env, "-c", jsonLogs, "generate", "private-key")
+		stdout, stderr, err := runOrgscale(t, env, "-c", jsonLogs, "generate", "private-key")
 		require.NoError(t, err, stderr)
 		assert.Equal(t, "warn", warnLine(t, stdout+stderr)["level"])
 	})
@@ -578,7 +578,7 @@ func TestInitConfigWarnings(t *testing.T) {
 			{"-o", format}, {"--output", format}, {"--output=" + format}, {"-o=" + format}, {"-o" + format},
 		} {
 			t.Run("machine output "+strings.Join(flag, " "), func(t *testing.T) {
-				stdout, stderr, err := runHeadscale(t, env, append([]string{"-c", jsonLogs, "generate", "private-key"}, flag...)...)
+				stdout, stderr, err := runOrgscale(t, env, append([]string{"-c", jsonLogs, "generate", "private-key"}, flag...)...)
 				require.NoError(t, err, stderr)
 
 				// JSON is YAML too; the result is one object.
@@ -593,7 +593,7 @@ func TestInitConfigWarnings(t *testing.T) {
 	// version has its own --output, which shadows the root's.
 	for _, flag := range [][]string{{"-o", "json"}, {"--output=json"}} {
 		t.Run("version "+strings.Join(flag, " "), func(t *testing.T) {
-			stdout, stderr, err := runHeadscale(t, env, append([]string{"-c", jsonLogs, "version"}, flag...)...)
+			stdout, stderr, err := runOrgscale(t, env, append([]string{"-c", jsonLogs, "version"}, flag...)...)
 			require.NoError(t, err, stderr)
 
 			var out map[string]any
@@ -605,7 +605,7 @@ func TestInitConfigWarnings(t *testing.T) {
 
 	for _, output := range [][]string{nil, {"-o", "json"}} {
 		t.Run("load error "+strings.Join(output, " "), func(t *testing.T) {
-			stdout, stderr, err := runHeadscale(t, env, append([]string{"-c", invalid, "generate", "private-key"}, output...)...)
+			stdout, stderr, err := runOrgscale(t, env, append([]string{"-c", invalid, "generate", "private-key"}, output...)...)
 			require.Error(t, err)
 			assert.Empty(t, stdout)
 			warnLine(t, stderr)
@@ -636,12 +636,12 @@ func TestInitConfigWarnings(t *testing.T) {
 func TestClientCommandWithoutConfigFile(t *testing.T) {
 	env := []string{
 		"HOME=" + t.TempDir(),
-		"HEADSCALE_UNIX_SOCKET=" + filepath.Join(t.TempDir(), "absent.sock"),
-		"HEADSCALE_CLI_TIMEOUT=1s",
-		"HEADSCALE_DISABLE_CHECK_UPDATES=true",
+		"ORGSCALE_UNIX_SOCKET=" + filepath.Join(t.TempDir(), "absent.sock"),
+		"ORGSCALE_CLI_TIMEOUT=1s",
+		"ORGSCALE_DISABLE_CHECK_UPDATES=true",
 	}
 
-	_, stderr, err := runHeadscale(t, env, "users", "list")
+	_, stderr, err := runOrgscale(t, env, "users", "list")
 	require.Error(t, err, "no server listens on the socket")
 	assert.Contains(t, stderr, "listing users")
 	assert.NotContains(t, stderr, "loading config")

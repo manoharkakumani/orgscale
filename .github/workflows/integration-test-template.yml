@@ -41,10 +41,10 @@ jobs:
       - name: Setup SSH server for Actor
         if: ${{ env.HAS_TAILSCALE_SECRET }}
         uses: self-actuated/setup-sshd-for-actor@master
-      - name: Download headscale image
+      - name: Download orgscale image
         uses: actions/download-artifact@v8.0.2
         with:
-          name: headscale-image
+          name: orgscale-image
           path: /tmp/artifacts
       - name: Download tailscale HEAD image
         uses: actions/download-artifact@v8.0.2
@@ -96,7 +96,7 @@ jobs:
           password: ${{ env.DOCKERHUB_TOKEN }}
       - name: Load Docker images and prepare binaries
         run: |
-          gunzip -c /tmp/artifacts/headscale-image.tar.gz | docker load
+          gunzip -c /tmp/artifacts/orgscale-image.tar.gz | docker load
           gunzip -c /tmp/artifacts/tailscale-head-image.tar.gz | docker load
           gunzip -c /tmp/artifacts/tailscale-released-images.tar.gz | docker load
           if [ -f /tmp/artifacts/postgres-image.tar.gz ]; then
@@ -106,9 +106,9 @@ jobs:
           docker images
       - name: Run Integration Test
         env:
-          HEADSCALE_INTEGRATION_HEADSCALE_IMAGE: headscale:${{ github.sha }}
-          HEADSCALE_INTEGRATION_TAILSCALE_IMAGE: tailscale-head:${{ github.sha }}
-          HEADSCALE_INTEGRATION_POSTGRES_IMAGE: ${{ inputs.postgres_flag == '--postgres=1' && format('postgres:{0}', github.sha) || '' }}
+          ORGSCALE_INTEGRATION_ORGSCALE_IMAGE: orgscale:${{ github.sha }}
+          ORGSCALE_INTEGRATION_TAILSCALE_IMAGE: tailscale-head:${{ github.sha }}
+          ORGSCALE_INTEGRATION_POSTGRES_IMAGE: ${{ inputs.postgres_flag == '--postgres=1' && format('postgres:{0}', github.sha) || '' }}
           # Mirror the docker/login-action secrets into env so the
           # dockertestutil.Credentials resolver picks them up directly
           # (otherwise it falls back to parsing ~/.docker/config.json,

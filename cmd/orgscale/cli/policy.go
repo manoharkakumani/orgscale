@@ -33,7 +33,7 @@ func bypassDatabase() (*db.HSDatabase, error) {
 		return nil, fmt.Errorf("loading config: %w", err)
 	}
 
-	d, err := db.NewHeadscaleDatabase(cfg)
+	d, err := db.NewOrgscaleDatabase(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("opening database: %w", err)
 	}
@@ -60,7 +60,7 @@ func validateLocalPolicy(d *db.HSDatabase, policyBytes []byte) error {
 // openBypassDB confirms the destructive bypass action and opens the database
 // directly. The caller is responsible for closing the returned handle.
 func openBypassDB(cmd *cobra.Command) (*db.HSDatabase, error) {
-	if !confirmAction(cmd, "DO NOT run this command if an instance of headscale is running, are you sure headscale is not running?") {
+	if !confirmAction(cmd, "DO NOT run this command if an instance of orgscale is running, are you sure orgscale is not running?") {
 		return nil, errAborted
 	}
 
@@ -70,18 +70,18 @@ func openBypassDB(cmd *cobra.Command) (*db.HSDatabase, error) {
 func init() {
 	rootCmd.AddCommand(policyCmd)
 
-	getPolicy.Flags().BoolP(bypassFlag, "", false, "Uses the headscale config to directly access the database, bypassing the API and does not require the server to be running")
+	getPolicy.Flags().BoolP(bypassFlag, "", false, "Uses the orgscale config to directly access the database, bypassing the API and does not require the server to be running")
 	policyCmd.AddCommand(getPolicy)
 
 	setPolicy.Flags().StringP("file", "f", "", "Path to a policy file in HuJSON format")
-	setPolicy.Flags().BoolP(bypassFlag, "", false, "Uses the headscale config to directly access the database, bypassing the API and does not require the server to be running")
+	setPolicy.Flags().BoolP(bypassFlag, "", false, "Uses the orgscale config to directly access the database, bypassing the API and does not require the server to be running")
 	mustMarkRequired(setPolicy, "file")
 	policyCmd.AddCommand(setPolicy)
 }
 
 var policyCmd = &cobra.Command{
 	Use:   "policy",
-	Short: "Manage the Headscale ACL Policy",
+	Short: "Manage the Orgscale ACL Policy",
 }
 
 var getPolicy = &cobra.Command{

@@ -1,4 +1,4 @@
-// Command bump keeps headscale's pinned versions current and puts the result
+// Command bump keeps orgscale's pinned versions current and puts the result
 // in front of a maintainer as a single reviewable pull request.
 //
 // The pins are interlocked. flake.nix asks nixpkgs for the newest Go, so a lock
@@ -58,7 +58,7 @@ func main() {
 
 	root := command.C{
 		Name: "bump",
-		Help: "Keep headscale's pinned versions current",
+		Help: "Keep orgscale's pinned versions current",
 		Commands: []*command.C{
 			{
 				Name: "plan",

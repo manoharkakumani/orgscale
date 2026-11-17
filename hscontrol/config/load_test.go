@@ -96,31 +96,31 @@ func TestConfigSource(t *testing.T) {
 		},
 		{
 			name:  "removed env warns",
-			env:   []string{"HEADSCALE_EPHEMERAL_NODE_INACTIVITY_TIMEOUT=30m"},
-			warns: []string{"configuration variable HEADSCALE_EPHEMERAL_NODE_INACTIVITY_TIMEOUT was removed in 0.30; use HEADSCALE_NODE_EPHEMERAL_INACTIVITY_TIMEOUT"},
+			env:   []string{"ORGSCALE_EPHEMERAL_NODE_INACTIVITY_TIMEOUT=30m"},
+			warns: []string{"configuration variable ORGSCALE_EPHEMERAL_NODE_INACTIVITY_TIMEOUT was removed in 0.30; use ORGSCALE_NODE_EPHEMERAL_INACTIVITY_TIMEOUT"},
 		},
 		{
 			name:  "unknown env warns",
-			env:   []string{"HEADSCALE_SERVR_URL=x"},
-			warns: []string{"unknown environment variable HEADSCALE_SERVR_URL"},
+			env:   []string{"ORGSCALE_SERVR_URL=x"},
+			warns: []string{"unknown environment variable ORGSCALE_SERVR_URL"},
 		},
 		{
 			name: "reserved env is silent",
 			env: []string{
-				"HEADSCALE_PORT=tcp://10.0.0.1:8080", "HEADSCALE_SERVICE_HOST=x", "HEADSCALE_DEBUG_FOO=1",
-				"HEADSCALE_DNS_CHALLENGE_PROVIDER_API_TOKEN=x", "HEADSCALE_CONFIG=/x", "HEADSCALE_TEST_X=1",
-				"HEADSCALE_INTEGRATION_X=1", "HEADSCALE_UPDATE_GOLDEN=1",
+				"ORGSCALE_PORT=tcp://10.0.0.1:8080", "ORGSCALE_SERVICE_HOST=x", "ORGSCALE_DEBUG_FOO=1",
+				"ORGSCALE_DNS_CHALLENGE_PROVIDER_API_TOKEN=x", "ORGSCALE_CONFIG=/x", "ORGSCALE_TEST_X=1",
+				"ORGSCALE_INTEGRATION_X=1", "ORGSCALE_UPDATE_GOLDEN=1",
 			},
 		},
 		{
-			// What Kubernetes sets for a Service named headscale-db.
+			// What Kubernetes sets for a Service named orgscale-db.
 			name:  "service variable named like a removed key warns",
-			env:   []string{"HEADSCALE_DB_PORT=tcp://10.0.0.5:5432"},
-			warns: []string{"configuration variable HEADSCALE_DB_PORT was removed in 0.30; use HEADSCALE_DATABASE_POSTGRES_PORT"},
+			env:   []string{"ORGSCALE_DB_PORT=tcp://10.0.0.5:5432"},
+			warns: []string{"configuration variable ORGSCALE_DB_PORT was removed in 0.30; use ORGSCALE_DATABASE_POSTGRES_PORT"},
 		},
 		{
 			name: "env shared with a removed key still sets the new key",
-			env:  []string{"HEADSCALE_LOG_LEVEL=debug", "HEADSCALE_TLS_CERT_PATH=/c"},
+			env:  []string{"ORGSCALE_LOG_LEVEL=debug", "ORGSCALE_TLS_CERT_PATH=/c"},
 			check: func(t *testing.T, cfg *types.Config) {
 				t.Helper()
 				assert.Equal(t, types.LogLevel("debug"), cfg.Log.Level)
@@ -147,7 +147,7 @@ func TestConfigSource(t *testing.T) {
 		{
 			name: "empty env is unset, env beats file",
 			file: "server_url: http://file\nlisten_addr: 1.1.1.1:1\n",
-			env:  []string{"HEADSCALE_SERVER_URL=http://env", "HEADSCALE_LISTEN_ADDR="},
+			env:  []string{"ORGSCALE_SERVER_URL=http://env", "ORGSCALE_LISTEN_ADDR="},
 			check: func(t *testing.T, cfg *types.Config) {
 				t.Helper()
 				assert.Equal(t, "http://env", cfg.ServerURL)
@@ -157,8 +157,8 @@ func TestConfigSource(t *testing.T) {
 		{
 			name: "env lists and maps",
 			env: []string{
-				"HEADSCALE_DNS_NAMESERVERS_GLOBAL=1.1.1.1 8.8.8.8",
-				`HEADSCALE_OIDC_EXTRA_PARAMS={"domain_hint":"example.com"}`,
+				"ORGSCALE_DNS_NAMESERVERS_GLOBAL=1.1.1.1 8.8.8.8",
+				`ORGSCALE_OIDC_EXTRA_PARAMS={"domain_hint":"example.com"}`,
 			},
 			check: func(t *testing.T, cfg *types.Config) {
 				t.Helper()
@@ -268,26 +268,26 @@ func TestConfigSource(t *testing.T) {
 		},
 		{
 			name: "removed dns_config env warns",
-			env:  []string{"HEADSCALE_DNS_CONFIG_MAGIC_DNS=false", "HEADSCALE_DNS_CONFIG_NAMESERVERS=1.1.1.1"},
+			env:  []string{"ORGSCALE_DNS_CONFIG_MAGIC_DNS=false", "ORGSCALE_DNS_CONFIG_NAMESERVERS=1.1.1.1"},
 			warns: []string{
-				"variable HEADSCALE_DNS_CONFIG_MAGIC_DNS was removed in 0.30; use HEADSCALE_DNS_MAGIC_DNS",
-				"variable HEADSCALE_DNS_CONFIG_NAMESERVERS was removed in 0.30; use HEADSCALE_DNS_NAMESERVERS_GLOBAL",
+				"variable ORGSCALE_DNS_CONFIG_MAGIC_DNS was removed in 0.30; use ORGSCALE_DNS_MAGIC_DNS",
+				"variable ORGSCALE_DNS_CONFIG_NAMESERVERS was removed in 0.30; use ORGSCALE_DNS_NAMESERVERS_GLOBAL",
 			},
 		},
 		{
 			name: "removed block env names the variables replacing it",
-			env:  []string{`HEADSCALE_DNS_CONFIG={"magic_dns":true}`, "HEADSCALE_RANDOMIZE_CLIENT_PORT=true"},
+			env:  []string{`ORGSCALE_DNS_CONFIG={"magic_dns":true}`, "ORGSCALE_RANDOMIZE_CLIENT_PORT=true"},
 			warns: []string{
-				"variable HEADSCALE_DNS_CONFIG was removed in 0.30; use HEADSCALE_DNS_MAGIC_DNS, HEADSCALE_DNS_BASE_DOMAIN, " +
-					"HEADSCALE_DNS_OVERRIDE_LOCAL_DNS, HEADSCALE_DNS_NAMESERVERS_GLOBAL, HEADSCALE_DNS_NAMESERVERS_SPLIT, " +
-					"HEADSCALE_DNS_SEARCH_DOMAINS and HEADSCALE_DNS_EXTRA_RECORDS",
-				`variable HEADSCALE_RANDOMIZE_CLIENT_PORT was removed in 0.29; set "randomizeClientPort": true at the top level of the policy file`,
+				"variable ORGSCALE_DNS_CONFIG was removed in 0.30; use ORGSCALE_DNS_MAGIC_DNS, ORGSCALE_DNS_BASE_DOMAIN, " +
+					"ORGSCALE_DNS_OVERRIDE_LOCAL_DNS, ORGSCALE_DNS_NAMESERVERS_GLOBAL, ORGSCALE_DNS_NAMESERVERS_SPLIT, " +
+					"ORGSCALE_DNS_SEARCH_DOMAINS and ORGSCALE_DNS_EXTRA_RECORDS",
+				`variable ORGSCALE_RANDOMIZE_CLIENT_PORT was removed in 0.29; set "randomizeClientPort": true at the top level of the policy file`,
 			},
 		},
 		{
 			name:  "exact reserved names do not exempt near misses",
-			env:   []string{"HEADSCALE_CONFIG=/x", "HEADSCALE_UPDATE_GOLDEN=1", "HEADSCALE_DNS_CHALLENGE_PROVIDER={}", "HEADSCALE_CONFIG_TYPO=1", "HEADSCALE_UPDATE_GOLDEN_BOGUS=1"},
-			warns: []string{"HEADSCALE_CONFIG_TYPO", "HEADSCALE_UPDATE_GOLDEN_BOGUS"},
+			env:   []string{"ORGSCALE_CONFIG=/x", "ORGSCALE_UPDATE_GOLDEN=1", "ORGSCALE_DNS_CHALLENGE_PROVIDER={}", "ORGSCALE_CONFIG_TYPO=1", "ORGSCALE_UPDATE_GOLDEN_BOGUS=1"},
+			warns: []string{"ORGSCALE_CONFIG_TYPO", "ORGSCALE_UPDATE_GOLDEN_BOGUS"},
 		},
 		{
 			name:      "empty file",
@@ -391,15 +391,15 @@ func checkSameValues(t *testing.T, cfg *types.Config) {
 
 func TestConfigSearchDirs(t *testing.T) {
 	got := configSearchDirs([]string{"HOME=/h", "XDG_CONFIG_HOME=/xh", "XDG_CONFIG_DIRS=/a:/b"})
-	assert.Equal(t, []string{"/etc/headscale", "/xh/headscale", "/a/headscale", "/b/headscale", "/h/.headscale", "."}, got)
+	assert.Equal(t, []string{"/etc/orgscale", "/xh/orgscale", "/a/orgscale", "/b/orgscale", "/h/.orgscale", "."}, got)
 
 	got = configSearchDirs([]string{"HOME=/h"})
-	assert.Equal(t, []string{"/etc/headscale", "/h/.config/headscale", "/etc/xdg/headscale", "/h/.headscale", "."}, got)
+	assert.Equal(t, []string{"/etc/orgscale", "/h/.config/orgscale", "/etc/xdg/orgscale", "/h/.orgscale", "."}, got)
 
 	xdg := t.TempDir()
-	require.NoError(t, os.MkdirAll(filepath.Join(xdg, "headscale"), 0o700))
-	require.NoError(t, os.WriteFile(filepath.Join(xdg, "headscale", "config.yaml"), nil, 0o600))
-	assert.Equal(t, filepath.Join(xdg, "headscale", "config.yaml"), findConfigFile("", false, []string{"XDG_CONFIG_HOME=" + xdg}))
+	require.NoError(t, os.MkdirAll(filepath.Join(xdg, "orgscale"), 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(xdg, "orgscale", "config.yaml"), nil, 0o600))
+	assert.Equal(t, filepath.Join(xdg, "orgscale", "config.yaml"), findConfigFile("", false, []string{"XDG_CONFIG_HOME=" + xdg}))
 }
 
 func TestConfigSourceSearch(t *testing.T) {
@@ -558,8 +558,8 @@ func TestConfigSourceProviderEnv(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "config.yaml"),
 		[]byte("dns:\n  challenge:\n    provider:\n      name: file\n      other: x\n"), 0o600))
 
-	t.Setenv("HEADSCALE_DNS_CHALLENGE_PROVIDER", `{"api_token":"x"}`)
-	t.Setenv("HEADSCALE_DNS_CHALLENGE_PROVIDER_NAME", "cloudflare")
+	t.Setenv("ORGSCALE_DNS_CHALLENGE_PROVIDER", `{"api_token":"x"}`)
+	t.Setenv("ORGSCALE_DNS_CHALLENGE_PROVIDER_NAME", "cloudflare")
 
 	l, err := Load(dir, false, os.Environ())
 	require.NoError(t, err)
@@ -575,12 +575,12 @@ func TestConfigSourceProviderEnv(t *testing.T) {
 	assert.NotContains(t, got, "other")
 }
 
-// TestProviderEnvFold pins that HEADSCALE_DNS_CHALLENGE_PROVIDER_<SETTING>
+// TestProviderEnvFold pins that ORGSCALE_DNS_CHALLENGE_PROVIDER_<SETTING>
 // reaches the settings of the provider named anywhere, and that a variable
 // no provider setting has is ignored without a word.
 func TestProviderEnvFold(t *testing.T) {
 	base := `---
-server_url: https://headscale.example.com
+server_url: https://orgscale.example.com
 noise:
   private_key_path: noise_private.key
 prefixes:
@@ -602,30 +602,30 @@ dns:
 		{
 			name: "named in the file",
 			yaml: base + "  challenge:\n    provider:\n      name: cloudflare\n",
-			env:  map[string]string{"HEADSCALE_DNS_CHALLENGE_PROVIDER_API_TOKEN": "x"},
+			env:  map[string]string{"ORGSCALE_DNS_CHALLENGE_PROVIDER_API_TOKEN": "x"},
 			want: map[string]any{"name": "cloudflare", "api_token": "x"},
 		},
 		{
 			name: "named by its variable",
 			yaml: base,
 			env: map[string]string{
-				"HEADSCALE_DNS_CHALLENGE_PROVIDER_NAME":      "cloudflare",
-				"HEADSCALE_DNS_CHALLENGE_PROVIDER_API_TOKEN": "x",
+				"ORGSCALE_DNS_CHALLENGE_PROVIDER_NAME":      "cloudflare",
+				"ORGSCALE_DNS_CHALLENGE_PROVIDER_API_TOKEN": "x",
 			},
 			want: map[string]any{"name": "cloudflare", "api_token": "x"},
 		},
 		{
 			name: "named in the json variable",
 			yaml: base,
-			env:  map[string]string{"HEADSCALE_DNS_CHALLENGE_PROVIDER": `{"name":"cloudflare","api_token":"json"}`},
+			env:  map[string]string{"ORGSCALE_DNS_CHALLENGE_PROVIDER": `{"name":"cloudflare","api_token":"json"}`},
 			want: map[string]any{"name": "cloudflare", "api_token": "json"},
 		},
 		{
 			name: "setting variable beats the json variable",
 			yaml: base,
 			env: map[string]string{
-				"HEADSCALE_DNS_CHALLENGE_PROVIDER":           `{"name":"cloudflare","api_token":"json"}`,
-				"HEADSCALE_DNS_CHALLENGE_PROVIDER_API_TOKEN": "env",
+				"ORGSCALE_DNS_CHALLENGE_PROVIDER":           `{"name":"cloudflare","api_token":"json"}`,
+				"ORGSCALE_DNS_CHALLENGE_PROVIDER_API_TOKEN": "env",
 			},
 			want: map[string]any{"name": "cloudflare", "api_token": "env"},
 		},
@@ -633,21 +633,21 @@ dns:
 			name: "name variable beats the json variable",
 			yaml: base + "  challenge:\n    provider:\n      name: powerdns\n",
 			env: map[string]string{
-				"HEADSCALE_DNS_CHALLENGE_PROVIDER":      `{"name":"rfc2136","api_token":"json"}`,
-				"HEADSCALE_DNS_CHALLENGE_PROVIDER_NAME": "cloudflare",
+				"ORGSCALE_DNS_CHALLENGE_PROVIDER":      `{"name":"rfc2136","api_token":"json"}`,
+				"ORGSCALE_DNS_CHALLENGE_PROVIDER_NAME": "cloudflare",
 			},
 			want: map[string]any{"name": "cloudflare", "api_token": "json"},
 		},
 		{
 			name: "variable for no setting of the provider",
 			yaml: base + "  challenge:\n    provider:\n      name: cloudflare\n      api_token: tok\n",
-			env:  map[string]string{"HEADSCALE_DNS_CHALLENGE_PROVIDER_BOGUS": "1"},
+			env:  map[string]string{"ORGSCALE_DNS_CHALLENGE_PROVIDER_BOGUS": "1"},
 			want: map[string]any{"name": "cloudflare", "api_token": "tok"},
 		},
 		{
 			name: "setting variable without a provider",
 			yaml: base,
-			env:  map[string]string{"HEADSCALE_DNS_CHALLENGE_PROVIDER_API_TOKEN": "x"},
+			env:  map[string]string{"ORGSCALE_DNS_CHALLENGE_PROVIDER_API_TOKEN": "x"},
 		},
 	}
 
@@ -703,13 +703,13 @@ func TestDecodeScalars(t *testing.T) {
 	}{
 		{name: "yaml expiry 0", file: "node:\n  expiry: 0\n", check: func(t *testing.T, c *types.Config) { t.Helper(); assert.Zero(t, c.Node.Expiry) }},
 		{name: "json expiry 0", file: `{"node": {"expiry": 0}}`, check: func(t *testing.T, c *types.Config) { t.Helper(); assert.Zero(t, c.Node.Expiry) }},
-		{name: "env expiry 0", env: []string{"HEADSCALE_NODE_EXPIRY=0"}, check: func(t *testing.T, c *types.Config) { t.Helper(); assert.Zero(t, c.Node.Expiry) }},
+		{name: "env expiry 0", env: []string{"ORGSCALE_NODE_EXPIRY=0"}, check: func(t *testing.T, c *types.Config) { t.Helper(); assert.Zero(t, c.Node.Expiry) }},
 		{name: "prometheus duration", file: "node:\n  expiry: 90d\n", check: func(t *testing.T, c *types.Config) {
 			t.Helper()
 			assert.Equal(t, 2160*time.Hour, c.Node.Expiry)
 		}},
 		{name: "duration without unit", file: "node:\n  expiry: 90\n", wantErr: []string{"node.expiry needs a unit (", "config.yaml:2:3)"}},
-		{name: "env duration without unit", env: []string{"HEADSCALE_TUNING_BATCH_CHANGE_DELAY=800"}, wantErr: []string{"tuning.batch_change_delay needs a unit (env HEADSCALE_TUNING_BATCH_CHANGE_DELAY)"}},
+		{name: "env duration without unit", env: []string{"ORGSCALE_TUNING_BATCH_CHANGE_DELAY=800"}, wantErr: []string{"tuning.batch_change_delay needs a unit (env ORGSCALE_TUNING_BATCH_CHANGE_DELAY)"}},
 		{name: "unquoted file mode", file: "unix_socket_permission: 0770\n", wantErr: []string{"unix_socket_permission must be quoted"}},
 		{name: "quoted file mode", file: "unix_socket_permission: \"0770\"\n", check: func(t *testing.T, c *types.Config) {
 			t.Helper()
@@ -736,18 +736,18 @@ func TestDecodeScalars(t *testing.T) {
 		}},
 		{name: "number 0 for a bool", file: "taildrop:\n  enabled: 0\n", check: func(t *testing.T, c *types.Config) { t.Helper(); assert.False(t, c.Taildrop.Enabled) }},
 		{name: "number 2 for a bool", file: "taildrop:\n  enabled: 2\n", wantErr: []string{"taildrop.enabled is not a boolean"}},
-		{name: "env yes for a bool", env: []string{"HEADSCALE_TAILDROP_ENABLED=yes"}, wantErr: []string{"taildrop.enabled is not a boolean (env HEADSCALE_TAILDROP_ENABLED)"}},
+		{name: "env yes for a bool", env: []string{"ORGSCALE_TAILDROP_ENABLED=yes"}, wantErr: []string{"taildrop.enabled is not a boolean (env ORGSCALE_TAILDROP_ENABLED)"}},
 		{name: "empty prefix is unset", file: "prefixes:\n  v4: \"\"\n", check: func(t *testing.T, c *types.Config) { t.Helper(); assert.Nil(t, c.Prefixes.V4) }},
 		{name: "empty enum is unset", file: "log:\n  format: \"\"\n", check: func(t *testing.T, c *types.Config) { t.Helper(); assert.Empty(t, c.Log.Format) }},
-		{name: "env json list", env: []string{`HEADSCALE_DNS_SEARCH_DOMAINS=["a","b"]`}, check: func(t *testing.T, c *types.Config) {
+		{name: "env json list", env: []string{`ORGSCALE_DNS_SEARCH_DOMAINS=["a","b"]`}, check: func(t *testing.T, c *types.Config) {
 			t.Helper()
 			assert.Equal(t, []string{"a", "b"}, c.DNSConfig.SearchDomains)
 		}},
-		{name: "env whitespace list", env: []string{"HEADSCALE_DNS_SEARCH_DOMAINS=a  b"}, check: func(t *testing.T, c *types.Config) {
+		{name: "env whitespace list", env: []string{"ORGSCALE_DNS_SEARCH_DOMAINS=a  b"}, check: func(t *testing.T, c *types.Config) {
 			t.Helper()
 			assert.Equal(t, []string{"a", "b"}, c.DNSConfig.SearchDomains)
 		}},
-		{name: "env map not json", env: []string{"HEADSCALE_DNS_NAMESERVERS_SPLIT=x=y"}, wantErr: []string{"dns.nameservers.split is not a JSON object (env HEADSCALE_DNS_NAMESERVERS_SPLIT)"}},
+		{name: "env map not json", env: []string{"ORGSCALE_DNS_NAMESERVERS_SPLIT=x=y"}, wantErr: []string{"dns.nameservers.split is not a JSON object (env ORGSCALE_DNS_NAMESERVERS_SPLIT)"}},
 		{name: "level is case-insensitive", file: "log:\n  level: INFO\n", check: func(t *testing.T, c *types.Config) { t.Helper(); assert.Equal(t, types.LogLevel("info"), c.Log.Level) }},
 		{name: "unknown extra record field", file: "dns:\n  extra_records:\n    - {name: a.example.com, type: A, value: 100.64.0.1, ttl: 60}\n", wantErr: []string{
 			"dns.extra_records has invalid keys: ttl",
@@ -757,12 +757,12 @@ func TestDecodeScalars(t *testing.T) {
 		{name: "empty integer", file: "database:\n  postgres:\n    port: \"\"\n", wantErr: []string{"database.postgres.port is not an integer"}},
 		{name: "empty bool", file: "taildrop:\n  enabled: \"\"\n", wantErr: []string{"taildrop.enabled is not a boolean"}},
 		{name: "empty string is a value", file: "server_url: \"\"\n", check: func(t *testing.T, c *types.Config) { t.Helper(); assert.Empty(t, c.ServerURL) }},
-		{name: "env list not json", env: []string{"HEADSCALE_DNS_SEARCH_DOMAINS=[a"}, wantErr: []string{"dns.search_domains is not a JSON list", `hint: write the list as JSON, e.g. ["a", "b"]`}},
+		{name: "env list not json", env: []string{"ORGSCALE_DNS_SEARCH_DOMAINS=[a"}, wantErr: []string{"dns.search_domains is not a JSON list", `hint: write the list as JSON, e.g. ["a", "b"]`}},
 		{name: "dotted top-level key", file: "log.level: verbose\n", wantErr: []string{"log.level has an unsupported value (", "config.yaml:1:1)"}},
 		{name: "nested then dotted key", file: "dns:\n  magic_dns: false\n  certificates.enabled: maybe\n", wantErr: []string{"dns.certificates.enabled is not a boolean (", "config.yaml:3:3)"}},
 		{name: "dotted then nested key", file: "dns:\n  magic_dns: false\ndns.certificates:\n  enabled: maybe\n", wantErr: []string{"dns.certificates.enabled is not a boolean (", "config.yaml:4:3)"}},
 		{name: "dotted inner list", file: "dns:\n  nameservers.global: 1\n", wantErr: []string{"dns.nameservers.global ", "config.yaml:2:3)"}},
-		{name: "env extra records", env: []string{`HEADSCALE_DNS_EXTRA_RECORDS=[{"name":"a.example.com","type":"A","value":"100.64.0.1"}]`}, check: func(t *testing.T, c *types.Config) {
+		{name: "env extra records", env: []string{`ORGSCALE_DNS_EXTRA_RECORDS=[{"name":"a.example.com","type":"A","value":"100.64.0.1"}]`}, check: func(t *testing.T, c *types.Config) {
 			t.Helper()
 			assert.Equal(t, []tailcfg.DNSRecord{{Name: "a.example.com", Type: "A", Value: "100.64.0.1"}}, c.DNSConfig.ExtraRecords)
 		}},
@@ -815,14 +815,14 @@ func TestDecodeErrors(t *testing.T) {
 		"oidc client secret":    {file: "oidc:\n  client_secret: [marker-secret]\n", key: "oidc.client_secret"},
 		"cli api key":           {file: "cli:\n  api_key: [marker-secret]\n", key: "cli.api_key"},
 		"derp url with a token": {file: "derp:\n  urls: [\"https://marker-secret@:443\"]\n", key: "derp.urls"},
-		"derp url unparsable":   {env: []string{"HEADSCALE_DERP_URLS=https://alice:marker-secret?@h"}, key: "derp.urls"},
+		"derp url unparsable":   {env: []string{"ORGSCALE_DERP_URLS=https://alice:marker-secret?@h"}, key: "derp.urls"},
 		"oidc issuer":           {file: "oidc:\n  issuer: https://alice:marker-secret?@idp.example.com\n", key: "oidc.issuer"},
 		"acme url":              {file: "tls:\n  acme:\n    url: https://alice:marker-secret@acme.example.com:port\n", key: "tls.acme.url"},
 		"server url list":       {file: "server_url: [\"https://alice:marker-secret@h\"]\n", key: "server_url"},                                                         //nolint:gosec // a test marker, not a credential
 		"cli address list":      {file: "cli:\n  address: [\"https://alice:marker-secret@h\"]\n", key: "cli.address"},                                                   //nolint:gosec // a test marker, not a credential
 		"nameserver element":    {file: "dns:\n  nameservers:\n    global: [{url: \"https://alice:marker-secret@h\"}]\n", key: "dns.nameservers.global"},                //nolint:gosec // a test marker, not a credential
 		"split element":         {file: "dns:\n  nameservers:\n    split:\n      a.example.com: [[\"https://alice:marker-secret@h\"]]\n", key: "dns.nameservers.split"}, //nolint:gosec // a test marker, not a credential
-		"provider json":         {env: []string{`HEADSCALE_DNS_CHALLENGE_PROVIDER={"api_token":"marker-secret"`}, key: "dns.challenge.provider is not a JSON object (env HEADSCALE_DNS_CHALLENGE_PROVIDER)"},
+		"provider json":         {env: []string{`ORGSCALE_DNS_CHALLENGE_PROVIDER={"api_token":"marker-secret"`}, key: "dns.challenge.provider is not a JSON object (env ORGSCALE_DNS_CHALLENGE_PROVIDER)"},
 		"provider scalar":       {file: "dns:\n  challenge:\n    provider: marker-secret\n", key: "dns.challenge.provider"},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -906,7 +906,7 @@ func TestDefaultsFitTypes(t *testing.T) {
 // "" in the file or in a variable, and a list also with []. An empty
 // variable counts as unset.
 func TestDefaultsCanBeCleared(t *testing.T) {
-	const serverURL = "server_url: https://headscale.example.com\n"
+	const serverURL = "server_url: https://orgscale.example.com\n"
 
 	d := Default()
 
@@ -939,17 +939,17 @@ func TestDefaultsCanBeCleared(t *testing.T) {
 		},
 		{
 			name:  "env derp urls",
-			env:   []string{"HEADSCALE_DERP_URLS=[]"},
+			env:   []string{"ORGSCALE_DERP_URLS=[]"},
 			check: func(t *testing.T, c *types.Config) { t.Helper(); assert.Empty(t, c.DERP.URLs) },
 		},
 		{
 			name:  "empty env keeps the default",
-			env:   []string{"HEADSCALE_DERP_URLS="},
+			env:   []string{"ORGSCALE_DERP_URLS="},
 			check: func(t *testing.T, c *types.Config) { t.Helper(); assert.Equal(t, d.DERP.URLs, c.DERP.URLs) },
 		},
 		{
 			name: "empty env keeps a prefix",
-			env:  []string{"HEADSCALE_PREFIXES_V6="},
+			env:  []string{"ORGSCALE_PREFIXES_V6="},
 			check: func(t *testing.T, c *types.Config) {
 				t.Helper()
 				require.NotNil(t, c.Prefixes.V6)
@@ -958,12 +958,12 @@ func TestDefaultsCanBeCleared(t *testing.T) {
 		},
 		{
 			name:  "env base domain",
-			env:   []string{"HEADSCALE_DNS_MAGIC_DNS=false", `HEADSCALE_DNS_BASE_DOMAIN=""`},
+			env:   []string{"ORGSCALE_DNS_MAGIC_DNS=false", `ORGSCALE_DNS_BASE_DOMAIN=""`},
 			check: func(t *testing.T, c *types.Config) { t.Helper(); assert.Empty(t, c.DNSConfig.BaseDomain) },
 		},
 		{
 			name: "env prefix v6",
-			env:  []string{`HEADSCALE_PREFIXES_V6=""`},
+			env:  []string{`ORGSCALE_PREFIXES_V6=""`},
 			check: func(t *testing.T, c *types.Config) {
 				t.Helper()
 				assert.Nil(t, c.Prefixes.V6)
@@ -973,12 +973,12 @@ func TestDefaultsCanBeCleared(t *testing.T) {
 		},
 		{
 			name:  "env derp urls quotes",
-			env:   []string{`HEADSCALE_DERP_URLS=""`},
+			env:   []string{`ORGSCALE_DERP_URLS=""`},
 			check: func(t *testing.T, c *types.Config) { t.Helper(); assert.Empty(t, c.DERP.URLs) },
 		},
 		{
 			name:    "env base domain required by magic dns",
-			env:     []string{`HEADSCALE_DNS_BASE_DOMAIN=""`},
+			env:     []string{`ORGSCALE_DNS_BASE_DOMAIN=""`},
 			wantErr: "dns.base_domain is required when dns.magic_dns is true",
 		},
 	}
@@ -1004,7 +1004,7 @@ func TestDefaultsCanBeCleared(t *testing.T) {
 // TestEnvEmptyLikeFile: a variable set to "" means what `key: ""` means in
 // the file, for every kind of key, errors included.
 func TestEnvEmptyLikeFile(t *testing.T) {
-	const serverURL = "server_url: https://headscale.example.com\n"
+	const serverURL = "server_url: https://orgscale.example.com\n"
 
 	// Where a load error says the value came from.
 	origin := regexp.MustCompile(` \((env [A-Z0-9_]+|/[^)]*)\)$`)
@@ -1022,21 +1022,21 @@ func TestEnvEmptyLikeFile(t *testing.T) {
 		file string
 		env  []string
 	}{
-		{name: "text", file: "dns:\n  magic_dns: false\n  base_domain: \"\"\n", env: []string{"HEADSCALE_DNS_MAGIC_DNS=false", `HEADSCALE_DNS_BASE_DOMAIN=""`}},
-		{name: "prefix", file: "prefixes:\n  v6: \"\"\n", env: []string{`HEADSCALE_PREFIXES_V6=""`}},
-		{name: "list", file: "derp:\n  urls: \"\"\n", env: []string{`HEADSCALE_DERP_URLS=""`}},
-		{name: "list of objects", file: "dns:\n  extra_records: \"\"\n", env: []string{`HEADSCALE_DNS_EXTRA_RECORDS=""`}},
-		{name: "enum", file: "log:\n  level: \"\"\n", env: []string{`HEADSCALE_LOG_LEVEL=""`}},
-		{name: "integer", file: "database:\n  postgres:\n    port: \"\"\n", env: []string{`HEADSCALE_DATABASE_POSTGRES_PORT=""`}},
-		{name: "boolean", file: "dns:\n  magic_dns: \"\"\n", env: []string{`HEADSCALE_DNS_MAGIC_DNS=""`}},
-		{name: "duration", file: "node:\n  expiry: \"\"\n", env: []string{`HEADSCALE_NODE_EXPIRY=""`}},
-		{name: "map", file: "dns:\n  nameservers:\n    split: \"\"\n", env: []string{`HEADSCALE_DNS_NAMESERVERS_SPLIT=""`}},
-		{name: "secret", file: "oidc:\n  client_secret: \"\"\n", env: []string{`HEADSCALE_OIDC_CLIENT_SECRET=""`}},
-		{name: "dns provider", file: "dns:\n  challenge:\n    provider: \"\"\n", env: []string{`HEADSCALE_DNS_CHALLENGE_PROVIDER=""`}},
+		{name: "text", file: "dns:\n  magic_dns: false\n  base_domain: \"\"\n", env: []string{"ORGSCALE_DNS_MAGIC_DNS=false", `ORGSCALE_DNS_BASE_DOMAIN=""`}},
+		{name: "prefix", file: "prefixes:\n  v6: \"\"\n", env: []string{`ORGSCALE_PREFIXES_V6=""`}},
+		{name: "list", file: "derp:\n  urls: \"\"\n", env: []string{`ORGSCALE_DERP_URLS=""`}},
+		{name: "list of objects", file: "dns:\n  extra_records: \"\"\n", env: []string{`ORGSCALE_DNS_EXTRA_RECORDS=""`}},
+		{name: "enum", file: "log:\n  level: \"\"\n", env: []string{`ORGSCALE_LOG_LEVEL=""`}},
+		{name: "integer", file: "database:\n  postgres:\n    port: \"\"\n", env: []string{`ORGSCALE_DATABASE_POSTGRES_PORT=""`}},
+		{name: "boolean", file: "dns:\n  magic_dns: \"\"\n", env: []string{`ORGSCALE_DNS_MAGIC_DNS=""`}},
+		{name: "duration", file: "node:\n  expiry: \"\"\n", env: []string{`ORGSCALE_NODE_EXPIRY=""`}},
+		{name: "map", file: "dns:\n  nameservers:\n    split: \"\"\n", env: []string{`ORGSCALE_DNS_NAMESERVERS_SPLIT=""`}},
+		{name: "secret", file: "oidc:\n  client_secret: \"\"\n", env: []string{`ORGSCALE_OIDC_CLIENT_SECRET=""`}},
+		{name: "dns provider", file: "dns:\n  challenge:\n    provider: \"\"\n", env: []string{`ORGSCALE_DNS_CHALLENGE_PROVIDER=""`}},
 		{
 			name: "dns provider setting",
 			file: "dns:\n  challenge:\n    provider:\n      name: cloudflare\n      api_token: \"\"\n",
-			env:  []string{"HEADSCALE_DNS_CHALLENGE_PROVIDER_NAME=cloudflare", `HEADSCALE_DNS_CHALLENGE_PROVIDER_API_TOKEN=""`},
+			env:  []string{"ORGSCALE_DNS_CHALLENGE_PROVIDER_NAME=cloudflare", `ORGSCALE_DNS_CHALLENGE_PROVIDER_API_TOKEN=""`},
 		},
 	}
 
@@ -1072,7 +1072,7 @@ func TestEnvEmptyLikeFile(t *testing.T) {
 // default, so where that default is a non-empty text, list or prefix and
 // no variable sets the key, loading warns.
 func TestNullTakesDefault(t *testing.T) {
-	const serverURL = "server_url: https://headscale.example.com\n"
+	const serverURL = "server_url: https://orgscale.example.com\n"
 
 	tests := []struct {
 		name  string
@@ -1107,7 +1107,7 @@ func TestNullTakesDefault(t *testing.T) {
 		{
 			name:  "required",
 			file:  serverURL + "noise:\n  private_key_path:\n",
-			warns: []string{`noise.private_key_path has no value in $FILE, so it takes its default /var/lib/headscale/noise_private.key`},
+			warns: []string{`noise.private_key_path has no value in $FILE, so it takes its default /var/lib/orgscale/noise_private.key`},
 		},
 		{
 			name:  "required listen address",
@@ -1117,28 +1117,28 @@ func TestNullTakesDefault(t *testing.T) {
 		{
 			name:  "required unix socket",
 			file:  serverURL + "unix_socket:\n",
-			warns: []string{`unix_socket has no value in $FILE, so it takes its default /var/run/headscale/headscale.sock`},
+			warns: []string{`unix_socket has no value in $FILE, so it takes its default /var/run/orgscale/orgscale.sock`},
 		},
 		{
 			name:  "required sqlite path",
 			file:  serverURL + "database:\n  sqlite:\n    path:\n",
-			warns: []string{`database.sqlite.path has no value in $FILE, so it takes its default /var/lib/headscale/db.sqlite`},
+			warns: []string{`database.sqlite.path has no value in $FILE, so it takes its default /var/lib/orgscale/db.sqlite`},
 		},
 		{
 			name:  "sqlite path unused by postgres",
 			file:  serverURL + "database:\n  type: postgres\n  sqlite:\n    path:\n",
-			warns: []string{`database.sqlite.path has no value in $FILE, so it takes its default /var/lib/headscale/db.sqlite`},
+			warns: []string{`database.sqlite.path has no value in $FILE, so it takes its default /var/lib/orgscale/db.sqlite`},
 		},
 		{
 			name:  "json null",
-			file:  `{"server_url": "https://headscale.example.com", "dns": {"magic_dns": false, "base_domain": null}}`,
+			file:  `{"server_url": "https://orgscale.example.com", "dns": {"magic_dns": false, "base_domain": null}}`,
 			ext:   ".json",
 			warns: []string{`dns.base_domain has no value in $FILE, so it takes its default tailnet.internal`},
 		},
 		{
 			name: "set by a variable",
 			file: serverURL + "derp:\n  urls:\n",
-			env:  []string{`HEADSCALE_DERP_URLS=["https://d.example.com/m.json"]`},
+			env:  []string{`ORGSCALE_DERP_URLS=["https://d.example.com/m.json"]`},
 			check: func(t *testing.T, c *types.Config) {
 				t.Helper()
 				assert.Equal(t, []types.HTTPURL{"https://d.example.com/m.json"}, c.DERP.URLs)
@@ -1326,14 +1326,14 @@ func TestPlainMapLargeIntegers(t *testing.T) {
 
 // TestBadConfigs pins how a bad value is reported: its key, what is wrong
 // and where it was set. Every testdata/bad/<name>.{yaml,env} is one row;
-// refresh with HEADSCALE_UPDATE_GOLDEN=1.
+// refresh with ORGSCALE_UPDATE_GOLDEN=1.
 func TestBadConfigs(t *testing.T) {
 	dir := filepath.Join("testdata", "bad")
-	update := os.Getenv("HEADSCALE_UPDATE_GOLDEN") != ""
+	update := os.Getenv("ORGSCALE_UPDATE_GOLDEN") != ""
 
 	entries, err := os.ReadDir(dir)
 	require.NoError(t, err)
-	unsetHeadscaleEnv(t)
+	unsetOrgscaleEnv(t)
 
 	for _, e := range entries {
 		ext := filepath.Ext(e.Name())
@@ -1364,7 +1364,7 @@ func TestBadConfigs(t *testing.T) {
 			}
 
 			want, err := os.ReadFile(gpath)
-			require.NoErrorf(t, err, "missing golden %s: run with HEADSCALE_UPDATE_GOLDEN=1", gpath)
+			require.NoErrorf(t, err, "missing golden %s: run with ORGSCALE_UPDATE_GOLDEN=1", gpath)
 			assert.Equal(t, string(want), got)
 		})
 	}
@@ -1617,9 +1617,9 @@ func TestReadConfigFromEnv(t *testing.T) {
 		{
 			name: "test-random-base-settings-with-env",
 			configEnv: map[string]string{
-				"HEADSCALE_LOG_LEVEL":                       "trace",
-				"HEADSCALE_DATABASE_SQLITE_WRITE_AHEAD_LOG": "false",
-				"HEADSCALE_PREFIXES_V4":                     "100.64.0.0/10",
+				"ORGSCALE_LOG_LEVEL":                       "trace",
+				"ORGSCALE_DATABASE_SQLITE_WRITE_AHEAD_LOG": "false",
+				"ORGSCALE_PREFIXES_V4":                     "100.64.0.0/10",
 			},
 			setup: func(t *testing.T, cfg *types.Config) (any, error) { //nolint:thelper // inline test closure
 				assert.Equal(t, types.LogLevel("trace"), cfg.Log.Level)
@@ -1633,15 +1633,15 @@ func TestReadConfigFromEnv(t *testing.T) {
 		{
 			name: "unmarshal-dns-full-config",
 			configEnv: map[string]string{
-				"HEADSCALE_DNS_MAGIC_DNS":          "true",
-				"HEADSCALE_DNS_BASE_DOMAIN":        "example.com",
-				"HEADSCALE_DNS_OVERRIDE_LOCAL_DNS": "false",
-				"HEADSCALE_DNS_NAMESERVERS_GLOBAL": `1.1.1.1 8.8.8.8`,
-				"HEADSCALE_DNS_SEARCH_DOMAINS":     "test.com bar.com",
+				"ORGSCALE_DNS_MAGIC_DNS":          "true",
+				"ORGSCALE_DNS_BASE_DOMAIN":        "example.com",
+				"ORGSCALE_DNS_OVERRIDE_LOCAL_DNS": "false",
+				"ORGSCALE_DNS_NAMESERVERS_GLOBAL": `1.1.1.1 8.8.8.8`,
+				"ORGSCALE_DNS_SEARCH_DOMAINS":     "test.com bar.com",
 
 				// TODO(kradalby): Figure out how to pass these as env vars
-				// "HEADSCALE_DNS_NAMESERVERS_SPLIT":  `{foo.bar.com: ["1.1.1.1"]}`,
-				// "HEADSCALE_DNS_EXTRA_RECORDS":      `[{ name: "prometheus.myvpn.example.com", type: "A", value: "100.64.0.4" }]`,
+				// "ORGSCALE_DNS_NAMESERVERS_SPLIT":  `{foo.bar.com: ["1.1.1.1"]}`,
+				// "ORGSCALE_DNS_EXTRA_RECORDS":      `[{ name: "prometheus.myvpn.example.com", type: "A", value: "100.64.0.4" }]`,
 			},
 			setup: func(t *testing.T, cfg *types.Config) (any, error) { //nolint:thelper // inline test closure
 				return cfg.DNSConfig, nil
@@ -1759,7 +1759,7 @@ dns:
   override_local_dns: false
 oidc:
   issuer: https://idp.example.com
-  client_id: headscale
+  client_id: orgscale
   pkce:
     enabled: true
     method: S256-typo
@@ -1786,7 +1786,7 @@ func TestOIDCConfigValidation(t *testing.T) {
 			name: "non-http issuer",
 			oidcBlock: `
   issuer: ftp://idp.example.com
-  client_id: headscale
+  client_id: orgscale
   client_secret: sekret`,
 			wantErr: "oidc.issuer is not an http:// or https:// URL",
 		},
@@ -1801,14 +1801,14 @@ func TestOIDCConfigValidation(t *testing.T) {
 			name: "missing client_secret",
 			oidcBlock: `
   issuer: https://idp.example.com
-  client_id: headscale`,
+  client_id: orgscale`,
 			wantErr: "client_secret",
 		},
 		{
 			name: "valid",
 			oidcBlock: `
   issuer: https://idp.example.com
-  client_id: headscale
+  client_id: orgscale
   client_secret: sekret`,
 			wantErr: "",
 		},
@@ -1980,8 +1980,8 @@ func TestRemovedKeysAreRejected(t *testing.T) {
 		},
 		{
 			name:  "ephemeral timeout env",
-			env:   map[string]string{"HEADSCALE_EPHEMERAL_NODE_INACTIVITY_TIMEOUT": "30m"},
-			warns: []string{"HEADSCALE_EPHEMERAL_NODE_INACTIVITY_TIMEOUT was removed", "use HEADSCALE_NODE_EPHEMERAL_INACTIVITY_TIMEOUT"},
+			env:   map[string]string{"ORGSCALE_EPHEMERAL_NODE_INACTIVITY_TIMEOUT": "30m"},
+			warns: []string{"ORGSCALE_EPHEMERAL_NODE_INACTIVITY_TIMEOUT was removed", "use ORGSCALE_NODE_EPHEMERAL_INACTIVITY_TIMEOUT"},
 		},
 		{
 			name: "oidc client secret path",
@@ -1990,24 +1990,24 @@ func TestRemovedKeysAreRejected(t *testing.T) {
 		},
 		{
 			name:  "oidc client secret path env",
-			env:   map[string]string{"HEADSCALE_OIDC_CLIENT_SECRET_PATH": "/run/secret"},
-			warns: []string{"HEADSCALE_OIDC_CLIENT_SECRET_PATH was removed", "use HEADSCALE_OIDC_CLIENT_SECRET=file:<path>"},
+			env:   map[string]string{"ORGSCALE_OIDC_CLIENT_SECRET_PATH": "/run/secret"},
+			warns: []string{"ORGSCALE_OIDC_CLIENT_SECRET_PATH was removed", "use ORGSCALE_OIDC_CLIENT_SECRET=file:<path>"},
 		},
 		{
 			// The warning alone would let OIDC start without its secret; the
 			// consumer's own check stops it.
 			name:      "removed secret variable leaves the secret unset",
-			file:      "server_url: https://headscale.example.com\nnoise:\n  private_key_path: noise_private.key\nprefixes:\n  v4: 100.64.0.0/10\ndns:\n  magic_dns: false\noidc:\n  issuer: https://idp.example.com\n  client_id: headscale\n",
-			env:       map[string]string{"HEADSCALE_OIDC_CLIENT_SECRET_PATH": "/run/secret"},
-			warns:     []string{"HEADSCALE_OIDC_CLIENT_SECRET_PATH was removed in 0.30; use HEADSCALE_OIDC_CLIENT_SECRET=file:<path>"},
+			file:      "server_url: https://orgscale.example.com\nnoise:\n  private_key_path: noise_private.key\nprefixes:\n  v4: 100.64.0.0/10\ndns:\n  magic_dns: false\noidc:\n  issuer: https://idp.example.com\n  client_id: orgscale\n",
+			env:       map[string]string{"ORGSCALE_OIDC_CLIENT_SECRET_PATH": "/run/secret"},
+			warns:     []string{"ORGSCALE_OIDC_CLIENT_SECRET_PATH was removed in 0.30; use ORGSCALE_OIDC_CLIENT_SECRET=file:<path>"},
 			serverErr: "oidc.client_secret is required when oidc.issuer is set",
 		},
 		{
 			name:  "postgres password file env",
-			env:   map[string]string{"HEADSCALE_DATABASE_POSTGRES_PASSWORD_FILE": "/run/secret"},
-			warns: []string{"HEADSCALE_DATABASE_POSTGRES_PASSWORD_FILE was removed", "use HEADSCALE_DATABASE_POSTGRES_PASS=file:<path>"},
+			env:   map[string]string{"ORGSCALE_DATABASE_POSTGRES_PASSWORD_FILE": "/run/secret"},
+			warns: []string{"ORGSCALE_DATABASE_POSTGRES_PASSWORD_FILE was removed", "use ORGSCALE_DATABASE_POSTGRES_PASS=file:<path>"},
 		},
-		// The old NixOS module's settings, which headscale never read.
+		// The old NixOS module's settings, which orgscale never read.
 		{
 			name: "nixos db password file",
 			file: "db_password_file: /run/x\n",
@@ -2020,8 +2020,8 @@ func TestRemovedKeysAreRejected(t *testing.T) {
 		},
 		{
 			name:  "nixos dns split env",
-			env:   map[string]string{"HEADSCALE_DNS_SPLIT": `{"corp":["192.0.2.53"]}`},
-			warns: []string{"HEADSCALE_DNS_SPLIT was removed", "use HEADSCALE_DNS_NAMESERVERS_SPLIT"},
+			env:   map[string]string{"ORGSCALE_DNS_SPLIT": `{"corp":["192.0.2.53"]}`},
+			warns: []string{"ORGSCALE_DNS_SPLIT was removed", "use ORGSCALE_DNS_NAMESERVERS_SPLIT"},
 			check: func(t *testing.T, cfg *types.Config) {
 				t.Helper()
 				assert.Empty(t, cfg.DNSConfig.Nameservers.Split)
@@ -2030,14 +2030,14 @@ func TestRemovedKeysAreRejected(t *testing.T) {
 		{
 			name: "env hints name variables",
 			env: map[string]string{
-				"HEADSCALE_IP_PREFIXES":     "100.64.0.0/10",
-				"HEADSCALE_JSON_LOGS":       "true",
-				"HEADSCALE_METRICS_ENABLED": "true",
+				"ORGSCALE_IP_PREFIXES":     "100.64.0.0/10",
+				"ORGSCALE_JSON_LOGS":       "true",
+				"ORGSCALE_METRICS_ENABLED": "true",
 			},
 			warns: []string{
-				"use HEADSCALE_PREFIXES_V4 and HEADSCALE_PREFIXES_V6",
-				"use HEADSCALE_LOG_FORMAT=json",
-				"remove HEADSCALE_METRICS_ENABLED",
+				"use ORGSCALE_PREFIXES_V4 and ORGSCALE_PREFIXES_V6",
+				"use ORGSCALE_LOG_FORMAT=json",
+				"remove ORGSCALE_METRICS_ENABLED",
 			},
 		},
 		{
@@ -2062,29 +2062,29 @@ func TestRemovedKeysAreRejected(t *testing.T) {
 		},
 		{
 			name:  "provider path env without provider",
-			env:   map[string]string{"HEADSCALE_DNS_CHALLENGE_PROVIDER_API_TOKEN_PATH": "/run/secret"},
-			warns: []string{"HEADSCALE_DNS_CHALLENGE_PROVIDER_API_TOKEN_PATH was removed", "use HEADSCALE_DNS_CHALLENGE_PROVIDER_API_TOKEN=file:<path>"},
+			env:   map[string]string{"ORGSCALE_DNS_CHALLENGE_PROVIDER_API_TOKEN_PATH": "/run/secret"},
+			warns: []string{"ORGSCALE_DNS_CHALLENGE_PROVIDER_API_TOKEN_PATH was removed", "use ORGSCALE_DNS_CHALLENGE_PROVIDER_API_TOKEN=file:<path>"},
 		},
 		{
 			name: "provider path env for another provider",
 			env: map[string]string{
-				"HEADSCALE_DNS_CHALLENGE_PROVIDER_NAME":     "rfc2136",
-				"HEADSCALE_DNS_CHALLENGE_PROVIDER_KEY_PATH": "/run/secret",
+				"ORGSCALE_DNS_CHALLENGE_PROVIDER_NAME":     "rfc2136",
+				"ORGSCALE_DNS_CHALLENGE_PROVIDER_KEY_PATH": "/run/secret",
 			},
-			warns: []string{"HEADSCALE_DNS_CHALLENGE_PROVIDER_KEY_PATH was removed", "use HEADSCALE_DNS_CHALLENGE_PROVIDER_KEY=file:<path>"},
+			warns: []string{"ORGSCALE_DNS_CHALLENGE_PROVIDER_KEY_PATH was removed", "use ORGSCALE_DNS_CHALLENGE_PROVIDER_KEY=file:<path>"},
 		},
 		{
 			name:  "provider path in env json",
-			env:   map[string]string{"HEADSCALE_DNS_CHALLENGE_PROVIDER": `{"api_token_path":"/run/secret"}`},
-			warns: []string{"dns.challenge.provider.api_token_path in HEADSCALE_DNS_CHALLENGE_PROVIDER was removed", `dns.challenge.provider.api_token: "file:<path>"`},
+			env:   map[string]string{"ORGSCALE_DNS_CHALLENGE_PROVIDER": `{"api_token_path":"/run/secret"}`},
+			warns: []string{"dns.challenge.provider.api_token_path in ORGSCALE_DNS_CHALLENGE_PROVIDER was removed", `dns.challenge.provider.api_token: "file:<path>"`},
 		},
 		{
 			name: "provider path in env json with provider",
 			env: map[string]string{
-				"HEADSCALE_DNS_CHALLENGE_PROVIDER":      `{"API_Token_Path":"/run/secret"}`,
-				"HEADSCALE_DNS_CHALLENGE_PROVIDER_NAME": "cloudflare",
+				"ORGSCALE_DNS_CHALLENGE_PROVIDER":      `{"API_Token_Path":"/run/secret"}`,
+				"ORGSCALE_DNS_CHALLENGE_PROVIDER_NAME": "cloudflare",
 			},
-			warns: []string{"dns.challenge.provider.api_token_path in HEADSCALE_DNS_CHALLENGE_PROVIDER was removed", `dns.challenge.provider.api_token: "file:<path>"`},
+			warns: []string{"dns.challenge.provider.api_token_path in ORGSCALE_DNS_CHALLENGE_PROVIDER was removed", `dns.challenge.provider.api_token: "file:<path>"`},
 		},
 		{
 			name: "registration path key",
@@ -2101,21 +2101,21 @@ func TestRemovedKeysAreRejected(t *testing.T) {
 		},
 		{
 			name: "registration named like a path key in env json",
-			env:  map[string]string{"HEADSCALE_DNS_CHALLENGE_PROVIDER": `{"config":{"Node.Example_path":{"username":"user"}}}`},
+			env:  map[string]string{"ORGSCALE_DNS_CHALLENGE_PROVIDER": `{"config":{"Node.Example_path":{"username":"user"}}}`},
 		},
 		{
 			name: "path key in a registration named like one",
-			env:  map[string]string{"HEADSCALE_DNS_CHALLENGE_PROVIDER": `{"config":{"Node.Example_path":{"Password_Path":"/run/secret"}}}`},
+			env:  map[string]string{"ORGSCALE_DNS_CHALLENGE_PROVIDER": `{"config":{"Node.Example_path":{"Password_Path":"/run/secret"}}}`},
 			warns: []string{
-				"dns.challenge.provider.config.Node.Example_path.password_path in HEADSCALE_DNS_CHALLENGE_PROVIDER was removed",
+				"dns.challenge.provider.config.Node.Example_path.password_path in ORGSCALE_DNS_CHALLENGE_PROVIDER was removed",
 				`dns.challenge.provider.config.Node.Example_path.password: "file:<path>"`,
 			},
 		},
 		{
 			name: "registration path in env json",
-			env:  map[string]string{"HEADSCALE_DNS_CHALLENGE_PROVIDER": `{"config":{"laptop.example.com":{"password_path":"/run/secret"}}}`},
+			env:  map[string]string{"ORGSCALE_DNS_CHALLENGE_PROVIDER": `{"config":{"laptop.example.com":{"password_path":"/run/secret"}}}`},
 			warns: []string{
-				"dns.challenge.provider.config.laptop.example.com.password_path in HEADSCALE_DNS_CHALLENGE_PROVIDER was removed",
+				"dns.challenge.provider.config.laptop.example.com.password_path in ORGSCALE_DNS_CHALLENGE_PROVIDER was removed",
 				`dns.challenge.provider.config.laptop.example.com.password: "file:<path>"`,
 			},
 		},
@@ -2238,12 +2238,12 @@ func TestRemovedKeysAreRejected(t *testing.T) {
 
 // TestConfigSecrets pins that Load keeps each secret as written, a
 // value or file:<path>, and reads no file: its consumer does
-// (TestNewHeadscaleSecrets, TestCLIAPIKey).
+// (TestNewOrgscaleSecrets, TestCLIAPIKey).
 func TestConfigSecrets(t *testing.T) {
 	missing := "file:" + filepath.Join(t.TempDir(), "missing")
 
 	base := `---
-server_url: https://headscale.example.com
+server_url: https://orgscale.example.com
 noise:
   private_key_path: noise_private.key
 prefixes:
@@ -2254,16 +2254,16 @@ dns:
   magic_dns: false
   override_local_dns: false
 cli:
-  address: headscale.example.com:443
+  address: orgscale.example.com:443
 oidc:
   issuer: https://idp.example.com
-  client_id: headscale
+  client_id: orgscale
 `
 
 	for name, value := range map[string]string{"literal": "literal", "missing file": missing} {
 		t.Run(name, func(t *testing.T) {
-			t.Setenv("HEADSCALE_DATABASE_POSTGRES_PASS", value)
-			t.Setenv("HEADSCALE_CLI_API_KEY", value)
+			t.Setenv("ORGSCALE_DATABASE_POSTGRES_PASS", value)
+			t.Setenv("ORGSCALE_CLI_API_KEY", value)
 
 			tmpDir := t.TempDir()
 			require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "config.yaml"), []byte(base+"  client_secret: "+value+"\n"), 0o600))
@@ -2312,7 +2312,7 @@ func TestUnixSocketPermission(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.env != "" {
-				t.Setenv("HEADSCALE_UNIX_SOCKET_PERMISSION", tt.env)
+				t.Setenv("ORGSCALE_UNIX_SOCKET_PERMISSION", tt.env)
 			}
 
 			tmpDir := t.TempDir()
@@ -2445,7 +2445,7 @@ func TestTrustedProxies(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			values := map[string]any{
-				"server_url":             "https://headscale.example.com",
+				"server_url":             "https://orgscale.example.com",
 				"noise.private_key_path": "private_key.pem",
 				"prefixes.v4":            "100.64.0.0/10",
 				"database.type":          "sqlite3",
@@ -2484,7 +2484,7 @@ func TestTrustedProxies(t *testing.T) {
 // again.
 func TestNameserverWarnings(t *testing.T) {
 	yaml := `---
-server_url: https://headscale.example.com
+server_url: https://orgscale.example.com
 noise:
   private_key_path: noise_private.key
 prefixes:
@@ -2566,7 +2566,7 @@ func TestDNSChallengeConfig(t *testing.T) {
 	}
 
 	base := `---
-server_url: https://headscale.example.com
+server_url: https://orgscale.example.com
 noise:
   private_key_path: noise_private.key
 prefixes:
@@ -2626,10 +2626,10 @@ dns:
 			name: "env only",
 			yaml: base,
 			env: map[string]string{
-				"HEADSCALE_DNS_CERTIFICATES_ENABLED":         "true",
-				"HEADSCALE_DNS_CERTIFICATES_ZONE":            "example.com",
-				"HEADSCALE_DNS_CHALLENGE_PROVIDER_NAME":      "cloudflare",
-				"HEADSCALE_DNS_CHALLENGE_PROVIDER_API_TOKEN": "file:" + secret,
+				"ORGSCALE_DNS_CERTIFICATES_ENABLED":         "true",
+				"ORGSCALE_DNS_CERTIFICATES_ZONE":            "example.com",
+				"ORGSCALE_DNS_CHALLENGE_PROVIDER_NAME":      "cloudflare",
+				"ORGSCALE_DNS_CHALLENGE_PROVIDER_API_TOKEN": "file:" + secret,
 			},
 			wantZone:  "example.com",
 			wantToken: "file-token",
@@ -2671,9 +2671,9 @@ dns:
 			name: "acmedns registrations from file in env",
 			yaml: base,
 			env: map[string]string{
-				"HEADSCALE_DNS_CERTIFICATES_ENABLED":      "true",
-				"HEADSCALE_DNS_CHALLENGE_PROVIDER_NAME":   "acmedns",
-				"HEADSCALE_DNS_CHALLENGE_PROVIDER_CONFIG": "file:" + regs,
+				"ORGSCALE_DNS_CERTIFICATES_ENABLED":      "true",
+				"ORGSCALE_DNS_CHALLENGE_PROVIDER_NAME":   "acmedns",
+				"ORGSCALE_DNS_CHALLENGE_PROVIDER_CONFIG": "file:" + regs,
 			},
 			wantZone:     "ts.example.com",
 			wantIsolates: "laptop.ts.example.com",
@@ -2682,9 +2682,9 @@ dns:
 			name: "acmedns registrations from file in env json",
 			yaml: base,
 			env: map[string]string{
-				"HEADSCALE_DNS_CERTIFICATES_ENABLED":    "true",
-				"HEADSCALE_DNS_CHALLENGE_PROVIDER_NAME": "acmedns",
-				"HEADSCALE_DNS_CHALLENGE_PROVIDER":      `{"config":"file:` + regs + `"}`,
+				"ORGSCALE_DNS_CERTIFICATES_ENABLED":    "true",
+				"ORGSCALE_DNS_CHALLENGE_PROVIDER_NAME": "acmedns",
+				"ORGSCALE_DNS_CHALLENGE_PROVIDER":      `{"config":"file:` + regs + `"}`,
 			},
 			wantZone:     "ts.example.com",
 			wantIsolates: "laptop.ts.example.com",
@@ -2774,8 +2774,8 @@ dns:
 			name: "provider env json",
 			yaml: base,
 			env: map[string]string{
-				"HEADSCALE_DNS_CHALLENGE_PROVIDER_NAME": "cloudflare",
-				"HEADSCALE_DNS_CHALLENGE_PROVIDER":      `{"api_token":"good","zone_token":"zone"}`,
+				"ORGSCALE_DNS_CHALLENGE_PROVIDER_NAME": "cloudflare",
+				"ORGSCALE_DNS_CHALLENGE_PROVIDER":      `{"api_token":"good","zone_token":"zone"}`,
 			},
 			wantZone:  "ts.example.com",
 			wantToken: "good",
@@ -2785,20 +2785,20 @@ dns:
 			name: "provider env json that does not decode",
 			yaml: base,
 			env: map[string]string{
-				"HEADSCALE_DNS_CHALLENGE_PROVIDER_NAME": "cloudflare",
-				"HEADSCALE_DNS_CHALLENGE_PROVIDER":      `{"api_token":"marker-token","zone_token":1e1000}`,
+				"ORGSCALE_DNS_CHALLENGE_PROVIDER_NAME": "cloudflare",
+				"ORGSCALE_DNS_CHALLENGE_PROVIDER":      `{"api_token":"marker-token","zone_token":1e1000}`,
 			},
-			wantErr: "dns.challenge.provider is not a JSON object (env HEADSCALE_DNS_CHALLENGE_PROVIDER)",
+			wantErr: "dns.challenge.provider is not a JSON object (env ORGSCALE_DNS_CHALLENGE_PROVIDER)",
 		},
 		{
 			// The removed field warns and is dropped; the rest still loads.
 			name: "removed field in provider env json",
 			yaml: base,
 			env: map[string]string{
-				"HEADSCALE_DNS_CHALLENGE_PROVIDER_NAME": "cloudflare",
-				"HEADSCALE_DNS_CHALLENGE_PROVIDER":      `{"name":"cloudflare","api_token":"good","api_token_path":"/old"}`,
+				"ORGSCALE_DNS_CHALLENGE_PROVIDER_NAME": "cloudflare",
+				"ORGSCALE_DNS_CHALLENGE_PROVIDER":      `{"name":"cloudflare","api_token":"good","api_token_path":"/old"}`,
 			},
-			wantWarns: []string{"dns.challenge.provider.api_token_path in HEADSCALE_DNS_CHALLENGE_PROVIDER was removed"},
+			wantWarns: []string{"dns.challenge.provider.api_token_path in ORGSCALE_DNS_CHALLENGE_PROVIDER was removed"},
 			wantZone:  "ts.example.com",
 			wantToken: "good",
 		},
@@ -2806,12 +2806,12 @@ dns:
 			name: "removed field in a registration in provider env json",
 			yaml: base,
 			env: map[string]string{
-				"HEADSCALE_DNS_CERTIFICATES_ENABLED":    "true",
-				"HEADSCALE_DNS_CHALLENGE_PROVIDER_NAME": "acmedns",
-				"HEADSCALE_DNS_CHALLENGE_PROVIDER": `{"config":{"laptop.ts.example.com":{"username":"user","password":"pass",` +
+				"ORGSCALE_DNS_CERTIFICATES_ENABLED":    "true",
+				"ORGSCALE_DNS_CHALLENGE_PROVIDER_NAME": "acmedns",
+				"ORGSCALE_DNS_CHALLENGE_PROVIDER": `{"config":{"laptop.ts.example.com":{"username":"user","password":"pass",` +
 					`"subdomain":"reg-laptop","server_url":"https://auth.acme-dns.io","password_path":"/old"}}}`,
 			},
-			wantWarns:    []string{"dns.challenge.provider.config.laptop.ts.example.com.password_path in HEADSCALE_DNS_CHALLENGE_PROVIDER was removed"},
+			wantWarns:    []string{"dns.challenge.provider.config.laptop.ts.example.com.password_path in ORGSCALE_DNS_CHALLENGE_PROVIDER was removed"},
 			wantZone:     "ts.example.com",
 			wantIsolates: "laptop.ts.example.com",
 		},
@@ -2832,8 +2832,8 @@ dns:
       name: cloudflare
       zone_token: marker-zone-token
 `,
-			env:       map[string]string{"HEADSCALE_DNS_CHALLENGE_PROVIDER_API_TOKEN_PATH": "/run/token"},
-			wantWarns: []string{"HEADSCALE_DNS_CHALLENGE_PROVIDER_API_TOKEN_PATH was removed"},
+			env:       map[string]string{"ORGSCALE_DNS_CHALLENGE_PROVIDER_API_TOKEN_PATH": "/run/token"},
+			wantWarns: []string{"ORGSCALE_DNS_CHALLENGE_PROVIDER_API_TOKEN_PATH was removed"},
 			wantErr:   "cloudflare: missing api_token",
 		},
 		{
@@ -2890,7 +2890,7 @@ dns:
       name: cloudflare
       api_token: yaml-token
 `,
-			env:       map[string]string{"HEADSCALE_DNS_CHALLENGE_PROVIDER_API_TOKEN": "env-token"},
+			env:       map[string]string{"ORGSCALE_DNS_CHALLENGE_PROVIDER_API_TOKEN": "env-token"},
 			wantZone:  "ts.example.com",
 			wantToken: "env-token",
 		},
@@ -2969,7 +2969,7 @@ dns:
 			wantErr: "desktop.ts.example.com and laptop.ts.example.com share a registration",
 		},
 		{
-			name: "acmedns one account for headscale's own certificate",
+			name: "acmedns one account for orgscale's own certificate",
 			yaml: base + `  challenge:
     provider:
       name: acmedns
@@ -2979,13 +2979,13 @@ dns:
       server_url: https://auth.acme-dns.io
 tls:
   acme:
-    hostname: headscale.example.com
+    hostname: orgscale.example.com
     challenge_type: DNS-01
 `,
 			wantZone: "ts.example.com",
 		},
 		{
-			name: "acmedns registration shared with headscale's own name",
+			name: "acmedns registration shared with orgscale's own name",
 			yaml: base + `  certificates:
     enabled: true
   challenge:
@@ -2997,17 +2997,17 @@ tls:
           password: pass
           subdomain: reg
           server_url: https://auth.acme-dns.io
-        headscale.example.com:
+        orgscale.example.com:
           username: user
           password: pass
           subdomain: reg
           server_url: https://auth.acme-dns.io
 tls:
   acme:
-    hostname: headscale.example.com
+    hostname: orgscale.example.com
     challenge_type: DNS-01
 `,
-			wantErr: "headscale.example.com and laptop.ts.example.com share a registration",
+			wantErr: "laptop.ts.example.com and orgscale.example.com share a registration",
 		},
 		{
 			name: "enabled without magic dns",
@@ -3066,7 +3066,7 @@ tls:
 			name: "tls DNS-01 without provider",
 			yaml: base + `tls:
   acme:
-    hostname: headscale.example.com
+    hostname: orgscale.example.com
     challenge_type: DNS-01
 `,
 			wantErr: "dns.certificates and tls.acme DNS-01 require dns.challenge.provider",
@@ -3166,7 +3166,7 @@ tls:
 // rejected.
 func TestTLSConfig(t *testing.T) {
 	base := `---
-server_url: https://headscale.example.com
+server_url: https://orgscale.example.com
 noise:
   private_key_path: noise_private.key
 prefixes:
@@ -3191,15 +3191,15 @@ dns:
 			want: types.TLSConfig{ACME: types.ACMEConfig{
 				ChallengeType: types.HTTP01ChallengeType,
 				HTTPListen:    ":http",
-				CacheDir:      "/var/lib/headscale/cache",
+				CacheDir:      "/var/lib/orgscale/cache",
 			}},
 		},
 		{
 			name: "legacy keys",
-			yaml: base + `tls_letsencrypt_hostname: headscale.example.com
+			yaml: base + `tls_letsencrypt_hostname: orgscale.example.com
 tls_letsencrypt_challenge_type: TLS-ALPN-01
 tls_letsencrypt_listen: ":8080"
-tls_letsencrypt_cache_dir: /var/lib/headscale/cache
+tls_letsencrypt_cache_dir: /var/lib/orgscale/cache
 acme_url: https://acme.example.com/directory
 acme_email: admin@example.com
 `,
@@ -3225,7 +3225,7 @@ tls:
 			yaml: base + `tls_letsencrypt_hostname: ""
 tls_letsencrypt_challenge_type: HTTP-01
 tls_letsencrypt_listen: ":http"
-tls_letsencrypt_cache_dir: /var/lib/headscale/.cache
+tls_letsencrypt_cache_dir: /var/lib/orgscale/.cache
 `,
 			wantErr: []string{"tls_letsencrypt_hostname was removed", "tls_letsencrypt_cache_dir was removed"},
 		},
@@ -3233,8 +3233,8 @@ tls_letsencrypt_cache_dir: /var/lib/headscale/.cache
 			name: "env",
 			yaml: base,
 			env: map[string]string{
-				"HEADSCALE_TLS_CERT_PATH": "/env/cert.pem",
-				"HEADSCALE_TLS_KEY_PATH":  "/env/key.pem",
+				"ORGSCALE_TLS_CERT_PATH": "/env/cert.pem",
+				"ORGSCALE_TLS_KEY_PATH":  "/env/key.pem",
 			},
 			want: types.TLSConfig{
 				CertPath: "/env/cert.pem",
@@ -3242,7 +3242,7 @@ tls_letsencrypt_cache_dir: /var/lib/headscale/.cache
 				ACME: types.ACMEConfig{
 					ChallengeType: types.HTTP01ChallengeType,
 					HTTPListen:    ":http",
-					CacheDir:      "/var/lib/headscale/cache",
+					CacheDir:      "/var/lib/orgscale/cache",
 				},
 			},
 		},
@@ -3305,9 +3305,9 @@ func TestBoolConfigValidation(t *testing.T) {
 			}
 
 			t.Run(source+"/"+tt.value, func(t *testing.T) {
-				t.Setenv("HEADSCALE_OIDC_EMAIL_VERIFIED_REQUIRED", "")
+				t.Setenv("ORGSCALE_OIDC_EMAIL_VERIFIED_REQUIRED", "")
 
-				config := `server_url: https://headscale.example.com
+				config := `server_url: https://orgscale.example.com
 noise:
   private_key_path: noise_private.key
 prefixes:
@@ -3323,7 +3323,7 @@ dns:
 				}
 
 				if source == "env" {
-					t.Setenv("HEADSCALE_OIDC_EMAIL_VERIFIED_REQUIRED", tt.value)
+					t.Setenv("ORGSCALE_OIDC_EMAIL_VERIFIED_REQUIRED", tt.value)
 				}
 
 				path := filepath.Join(t.TempDir(), "config.yaml")
@@ -3348,7 +3348,7 @@ dns:
 // as the CLI config does, for Marshal and embedders.
 func TestServerConfigDisableUpdateCheck(t *testing.T) {
 	for _, want := range []bool{true, false} {
-		path := writeConfig(t, fmt.Sprintf(`server_url: https://headscale.example.com
+		path := writeConfig(t, fmt.Sprintf(`server_url: https://orgscale.example.com
 noise:
   private_key_path: noise_private.key
 prefixes:
@@ -3443,13 +3443,13 @@ func compatRows(t *testing.T) []compatRow {
 	return rows
 }
 
-// unsetHeadscaleEnv removes ambient HEADSCALE_* for the test, which would
+// unsetOrgscaleEnv removes ambient ORGSCALE_* for the test, which would
 // leak into the goldens.
-func unsetHeadscaleEnv(t *testing.T) {
+func unsetOrgscaleEnv(t *testing.T) {
 	t.Helper()
 
 	for _, kv := range os.Environ() {
-		if k, _, _ := strings.Cut(kv, "="); strings.HasPrefix(k, "HEADSCALE_") {
+		if k, _, _ := strings.Cut(kv, "="); strings.HasPrefix(k, "ORGSCALE_") {
 			t.Setenv(k, "") // registers the restore
 			require.NoError(t, os.Unsetenv(k))
 		}
@@ -3461,13 +3461,13 @@ func unsetHeadscaleEnv(t *testing.T) {
 // CHANGELOG entry. Every compat/<name>.{yaml,json,env} set is one row; a name
 // ending in -cli is loaded as client commands load it, unvalidated. Fixtures
 // are frozen inputs: to change one, add a new fixture. Refresh with
-// HEADSCALE_UPDATE_GOLDEN=1.
+// ORGSCALE_UPDATE_GOLDEN=1.
 //
 // Sources: example-<tag>.yaml is `git show <tag>:config-example.yaml`;
 // example-main.yaml is a frozen copy of main's root config-example.yaml;
 // nixos-*.yaml are the files `nix build` wrote for the flake module with
 // the since-deleted nix/example-configuration.nix
-// (services.headscale.configFile, environment.etc."headscale/config.yaml") and
+// (services.orgscale.configFile, environment.etc."orgscale/config.yaml") and
 // for the nixpkgs module with only server_url, dns.base_domain and
 // dns.nameservers.global set; nixos-module-minimal.yaml is the flake module's
 // configFile with only those three set, before the module moved to the
@@ -3479,14 +3479,14 @@ func unsetHeadscaleEnv(t *testing.T) {
 // MinimumConfigYAML and DefaultConfigEnv. <name>-strict is the same source
 // as updated for the strict loader, <name>-pruned without the keys removed
 // for having no effect. hsic-default-derp-urls is hsic-default-strict with
-// HEADSCALE_DERP_URLS=[], as hsic writes it to clear the default map.
+// ORGSCALE_DERP_URLS=[], as hsic writes it to clear the default map.
 // server-url-only and env-server-url-only set only server_url, in the file
 // and in a variable.
 func TestConfigCompat(t *testing.T) {
 	rows := compatRows(t)
-	update := os.Getenv("HEADSCALE_UPDATE_GOLDEN") != ""
+	update := os.Getenv("ORGSCALE_UPDATE_GOLDEN") != ""
 
-	unsetHeadscaleEnv(t)
+	unsetOrgscaleEnv(t)
 
 	for _, tt := range rows {
 		t.Run(tt.name, func(t *testing.T) {
@@ -3505,7 +3505,7 @@ func TestConfigCompat(t *testing.T) {
 			}
 
 			want, err := os.ReadFile(gpath)
-			require.NoErrorf(t, err, "missing golden %s: run with HEADSCALE_UPDATE_GOLDEN=1", gpath)
+			require.NoErrorf(t, err, "missing golden %s: run with ORGSCALE_UPDATE_GOLDEN=1", gpath)
 
 			if d := gocmp.Diff(string(want), string(out)); d != "" {
 				t.Errorf("config compat mismatch (-golden +got):\n%s", d)
@@ -3863,7 +3863,7 @@ func compatView(cfg *types.Config) compatConfig {
 	}
 }
 
-// loadCompat loads one fixture set the way headscale does, from a temp dir
+// loadCompat loads one fixture set the way orgscale does, from a temp dir
 // so relative paths and the error text do not depend on the checkout.
 func loadCompat(t *testing.T, file, envFile string, cli bool) compatRecord {
 	t.Helper()
@@ -4102,7 +4102,7 @@ func loadCLI(path string) (*types.Config, error) {
 func TestConfigDirRelativePaths(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "config.yaml"), []byte(`
-server_url: https://headscale.example.com
+server_url: https://orgscale.example.com
 noise:
   private_key_path: ./noise.key
 policy:
@@ -4133,13 +4133,13 @@ func TestSQLiteMemoryPath(t *testing.T) {
 	for _, withFile := range []bool{false, true} {
 		t.Run(fmt.Sprintf("file=%t", withFile), func(t *testing.T) {
 			for k, v := range map[string]string{
-				"HEADSCALE_SERVER_URL":             "https://headscale.example.com",
-				"HEADSCALE_NOISE_PRIVATE_KEY_PATH": "noise.key",
-				"HEADSCALE_PREFIXES_V4":            "100.64.0.0/10",
-				"HEADSCALE_DATABASE_TYPE":          "sqlite",
-				"HEADSCALE_DATABASE_SQLITE_PATH":   ":memory:",
-				"HEADSCALE_DNS_MAGIC_DNS":          "false",
-				"HEADSCALE_DNS_OVERRIDE_LOCAL_DNS": "false",
+				"ORGSCALE_SERVER_URL":             "https://orgscale.example.com",
+				"ORGSCALE_NOISE_PRIVATE_KEY_PATH": "noise.key",
+				"ORGSCALE_PREFIXES_V4":            "100.64.0.0/10",
+				"ORGSCALE_DATABASE_TYPE":          "sqlite",
+				"ORGSCALE_DATABASE_SQLITE_PATH":   ":memory:",
+				"ORGSCALE_DNS_MAGIC_DNS":          "false",
+				"ORGSCALE_DNS_OVERRIDE_LOCAL_DNS": "false",
 			} {
 				t.Setenv(k, v)
 			}
@@ -4160,7 +4160,7 @@ func TestSQLiteMemoryPath(t *testing.T) {
 // TestValidate pins the rules on loaded configs and the order they report
 // in.
 func TestValidate(t *testing.T) {
-	const valid = `server_url: https://headscale.example.com
+	const valid = `server_url: https://orgscale.example.com
 noise:
   private_key_path: noise_private.key
 prefixes:
@@ -4174,7 +4174,7 @@ dns:
 
 	// Breaks every rule once; a rule whose empty value has its own reason
 	// is broken by a set value here.
-	const everyRule = `server_url: headscale.example.com
+	const everyRule = `server_url: orgscale.example.com
 listen_addr: 0.0.0.0:8080
 metrics_listen_addr: 0.0.0.0:8080
 unix_socket: ""
@@ -4201,7 +4201,7 @@ tuning:
 derp:
   server:
     enabled: true
-    private_key_path: /var/lib/headscale/derp.key
+    private_key_path: /var/lib/orgscale/derp.key
 database:
   type: ""
 dns:
@@ -4209,20 +4209,20 @@ dns:
   base_domain: ""
   override_local_dns: true
   extra_records: [{name: a.example.com, type: A, value: 100.64.0.1}]
-  extra_records_path: /var/lib/headscale/records.json
+  extra_records_path: /var/lib/orgscale/records.json
   challenge:
     resolvers: [""]
     provider:
       name: bogus
 tls:
-  cert_path: /etc/headscale/cert.pem
+  cert_path: /etc/orgscale/cert.pem
   acme:
     hostname: example.com
     challenge_type: ""
     cache_dir: ""
 oidc:
   issuer: https://idp.example.com
-  client_id: headscale
+  client_id: orgscale
   client_secret: secret
   pkce:
     method: ""
@@ -4237,11 +4237,11 @@ oidc:
 		{
 			// What the NixOS module writes: an explicit empty default.
 			name: "empty extra records next to a path",
-			file: valid + "  extra_records: []\n  extra_records_path: /var/lib/headscale/records.json\n",
+			file: valid + "  extra_records: []\n  extra_records_path: /var/lib/orgscale/records.json\n",
 		},
 		{
 			name: "extra records next to a path",
-			file: valid + "  extra_records: [{name: a.example.com, type: A, value: 100.64.0.1}]\n  extra_records_path: /var/lib/headscale/records.json\n",
+			file: valid + "  extra_records: [{name: a.example.com, type: A, value: 100.64.0.1}]\n  extra_records_path: /var/lib/orgscale/records.json\n",
 			want: []string{"dns.extra_records and dns.extra_records_path are mutually exclusive"},
 		},
 		{
@@ -4280,7 +4280,7 @@ oidc:
 			// rule their set value broke.
 			name: "every rule, in order, required values empty",
 			file: strings.NewReplacer(
-				"server_url: headscale.example.com\nlisten_addr: 0.0.0.0:8080\n", "server_url: \"\"\nlisten_addr: \"\"\n",
+				"server_url: orgscale.example.com\nlisten_addr: 0.0.0.0:8080\n", "server_url: \"\"\nlisten_addr: \"\"\n",
 				"database:\n  type: \"\"\n", "database:\n  type: sqlite\n  sqlite:\n    path: \"\"\n",
 			).Replace(everyRule),
 			want: []string{
@@ -4333,7 +4333,7 @@ oidc:
 // TestProviderNameShape: a provider name that is a map or list is rejected
 // by its key alone, as its contents may be credentials, and never shown.
 func TestProviderNameShape(t *testing.T) {
-	const base = `server_url: https://headscale.example.com
+	const base = `server_url: https://orgscale.example.com
 noise:
   private_key_path: noise_private.key
 prefixes:
@@ -4354,7 +4354,7 @@ dns:
 	}{
 		"file map":  {yaml: base + "  challenge:\n    provider:\n      name: {api_token: marker-secret}\n"},
 		"file list": {yaml: base + "  challenge:\n    provider:\n      name: [marker-secret]\n"},
-		"env json":  {yaml: base, env: map[string]string{"HEADSCALE_DNS_CHALLENGE_PROVIDER": `{"name":{"api_token":"marker-secret"}}`}},
+		"env json":  {yaml: base, env: map[string]string{"ORGSCALE_DNS_CHALLENGE_PROVIDER": `{"name":{"api_token":"marker-secret"}}`}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			for k, v := range tt.env {
@@ -4396,13 +4396,13 @@ func TestDERPURLsMalformed(t *testing.T) {
 func TestLoadKeepsWarningsOnError(t *testing.T) {
 	path := writeConfig(t, "server_url: https://h\nbogus_key: 1\n")
 
-	l, err := Load(path, true, []string{"HEADSCALE_SERVR_URL=x"})
+	l, err := Load(path, true, []string{"ORGSCALE_SERVR_URL=x"})
 	require.ErrorContains(t, err, "unknown configuration key bogus_key")
 	require.NotNil(t, l)
 	assert.Nil(t, l.Config)
 	assert.Equal(t, path, l.File)
 	require.Len(t, l.Warnings, 1)
-	assert.Contains(t, l.Warnings[0], "unknown environment variable HEADSCALE_SERVR_URL")
+	assert.Contains(t, l.Warnings[0], "unknown environment variable ORGSCALE_SERVR_URL")
 }
 
 // TestEnvNames: every key has its own variable, and setting that variable
@@ -4514,7 +4514,7 @@ func FuzzLoad(f *testing.F) {
 // DNS provider settings, nested ones included, are lowercased. The config
 // then round-trips exactly.
 func TestMapKeyCase(t *testing.T) {
-	unsetHeadscaleEnv(t)
+	unsetOrgscaleEnv(t)
 
 	for name, tt := range map[string]struct {
 		ext, file string
@@ -4533,9 +4533,9 @@ func TestMapKeyCase(t *testing.T) {
 			"dns:\n  nameservers:\n    split: '{\"Corp.Example.COM\": [\"10.0.0.1\"]}'\n" +
 			"  challenge:\n    provider: '{\"Name\": \"acmedns\", \"Config\": {\"Laptop.Example.com\": {\"Password\": \"x\"}}}'\n"},
 		"env": {env: []string{
-			`HEADSCALE_OIDC_EXTRA_PARAMS={"Login_Hint":"a","login_hint":"b"}`,
-			`HEADSCALE_DNS_NAMESERVERS_SPLIT={"Corp.Example.COM":["10.0.0.1"]}`,
-			`HEADSCALE_DNS_CHALLENGE_PROVIDER={"Name":"acmedns","Config":{"Laptop.Example.com":{"Password":"x"}}}`,
+			`ORGSCALE_OIDC_EXTRA_PARAMS={"Login_Hint":"a","login_hint":"b"}`,
+			`ORGSCALE_DNS_NAMESERVERS_SPLIT={"Corp.Example.COM":["10.0.0.1"]}`,
+			`ORGSCALE_DNS_CHALLENGE_PROVIDER={"Name":"acmedns","Config":{"Laptop.Example.com":{"Password":"x"}}}`,
 		}},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -4597,12 +4597,12 @@ func TestMapKeyCollision(t *testing.T) {
 			want: `configuration keys "A.example.com" and "a.example.com" in dns.challenge.provider.config differ only in case (`,
 		},
 		"env split": {
-			env:  []string{`HEADSCALE_DNS_NAMESERVERS_SPLIT={"Corp.example.com":["marker-a"],"corp.example.com":["marker-b"]}`},
-			want: `configuration keys "Corp.example.com" and "corp.example.com" in dns.nameservers.split differ only in case (env HEADSCALE_DNS_NAMESERVERS_SPLIT)`,
+			env:  []string{`ORGSCALE_DNS_NAMESERVERS_SPLIT={"Corp.example.com":["marker-a"],"corp.example.com":["marker-b"]}`},
+			want: `configuration keys "Corp.example.com" and "corp.example.com" in dns.nameservers.split differ only in case (env ORGSCALE_DNS_NAMESERVERS_SPLIT)`,
 		},
 		"env provider": {
-			env:  []string{`HEADSCALE_DNS_CHALLENGE_PROVIDER={"Name":"marker-a","name":"marker-b"}`},
-			want: `configuration keys "Name" and "name" in dns.challenge.provider differ only in case (env HEADSCALE_DNS_CHALLENGE_PROVIDER)`,
+			env:  []string{`ORGSCALE_DNS_CHALLENGE_PROVIDER={"Name":"marker-a","name":"marker-b"}`},
+			want: `configuration keys "Name" and "name" in dns.challenge.provider differ only in case (env ORGSCALE_DNS_CHALLENGE_PROVIDER)`,
 		},
 	} {
 		t.Run(name, func(t *testing.T) {

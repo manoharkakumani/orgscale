@@ -1151,9 +1151,9 @@ func TestUnmarshalPolicy(t *testing.T) {
 `,
 			wantErr: `unknown field: "INVALID_AUTO_APPROVER_FIELD"`,
 		},
-		// headscale-admin uses # in some field names to add metadata, so we will ignore
+		// orgscale-admin uses # in some field names to add metadata, so we will ignore
 		// those to ensure it doesnt break.
-		// https://github.com/GoodiesHQ/headscale-admin/blob/214a44a9c15c92d2b42383f131b51df10c84017c/src/lib/common/acl.svelte.ts#L38
+		// https://github.com/GoodiesHQ/orgscale-admin/blob/214a44a9c15c92d2b42383f131b51df10c84017c/src/lib/common/acl.svelte.ts#L38
 		{
 			name: "hash-fields-are-allowed-but-ignored",
 			input: `
@@ -4728,7 +4728,7 @@ func TestSSHRuleSaaSValidation(t *testing.T) {
 		},
 		{
 			// SaaS rejects hosts-table aliases on SSH dst with
-			// `invalid dst "srv"`. headscale validates the same
+			// `invalid dst "srv"`. orgscale validates the same
 			// regardless of whether the alias resolves to a
 			// single IP or a CIDR.
 			name: "host alias as SSH dst rejected",
@@ -6534,7 +6534,7 @@ func TestValidateCapabilityName(t *testing.T) {
 }
 
 // TestPolicyMetadataFields covers https://github.com/juanfont/headscale/issues/3479:
-// the '#'-prefixed metadata escape hatch added for headscale-admin lives in
+// the '#'-prefixed metadata escape hatch added for orgscale-admin lives in
 // [ACL.UnmarshalJSON] only, so every other policy object still hits
 // RejectUnknownMembers and rejects the same metadata.
 func TestPolicyMetadataFields(t *testing.T) {

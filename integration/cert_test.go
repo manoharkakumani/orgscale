@@ -66,7 +66,7 @@ HTTPServer(("127.0.0.1", int(sys.argv[1])), Echo).serve_forever()
 `
 
 // TestTailscaleCert runs `tailscale cert` on every client version against
-// headscale's real rfc2136 provider, then runs every `tailscale serve`
+// orgscale's real rfc2136 provider, then runs every `tailscale serve`
 // mode on each and fetches it from another user's node. A TSIG-checked
 // DNS server and Pebble (Let's Encrypt's test CA) run inside this test
 // process; the containers reach them through the test suite's address in
@@ -89,11 +89,11 @@ func TestTailscaleCert(t *testing.T) {
 	suiteIP, err := suiteAddrIn(scenario.Networks()[0])
 	require.NoError(t, err)
 
-	tsigKey := base64.StdEncoding.EncodeToString([]byte("headscale-integration-tsig-key"))
-	zone := startUpdateDNS(t, "headscale.", tsigKey)
+	tsigKey := base64.StdEncoding.EncodeToString([]byte("orgscale-integration-tsig-key"))
+	zone := startUpdateDNS(t, "orgscale.", tsigKey)
 	directoryURL, pebbleCA, issuerRoot := startPebble(t, zone, suiteIP)
 
-	err = scenario.CreateHeadscaleEnv(
+	err = scenario.CreateOrgscaleEnv(
 		[]tsic.Option{
 			tsic.WithCACert(pebbleCA),
 			// So curl trusts certificates Pebble issues.
@@ -105,16 +105,16 @@ func TestTailscaleCert(t *testing.T) {
 		},
 		hsic.WithTestName("cert"),
 		hsic.WithConfigEnv(map[string]string{
-			"HEADSCALE_DNS_CERTIFICATES_ENABLED":          "true",
-			"HEADSCALE_DNS_CHALLENGE_PROVIDER_NAME":       "rfc2136",
-			"HEADSCALE_DNS_CHALLENGE_PROVIDER_SERVER":     net.JoinHostPort(suiteIP, zone.port),
-			"HEADSCALE_DNS_CHALLENGE_PROVIDER_KEY_NAME":   "headscale.",
-			"HEADSCALE_DNS_CHALLENGE_PROVIDER_KEY_ALG":    dns.HmacSHA256,
-			"HEADSCALE_DNS_CHALLENGE_PROVIDER_KEY":        tsigKey,
-			"HEADSCALE_DNS_CHALLENGE_PROPAGATION_TIMEOUT": "0s",
+			"ORGSCALE_DNS_CERTIFICATES_ENABLED":          "true",
+			"ORGSCALE_DNS_CHALLENGE_PROVIDER_NAME":       "rfc2136",
+			"ORGSCALE_DNS_CHALLENGE_PROVIDER_SERVER":     net.JoinHostPort(suiteIP, zone.port),
+			"ORGSCALE_DNS_CHALLENGE_PROVIDER_KEY_NAME":   "orgscale.",
+			"ORGSCALE_DNS_CHALLENGE_PROVIDER_KEY_ALG":    dns.HmacSHA256,
+			"ORGSCALE_DNS_CHALLENGE_PROVIDER_KEY":        tsigKey,
+			"ORGSCALE_DNS_CHALLENGE_PROPAGATION_TIMEOUT": "0s",
 		}),
 	)
-	requireNoErrHeadscaleEnv(t, err)
+	requireNoErrOrgscaleEnv(t, err)
 
 	allClients, err := scenario.ListTailscaleClients()
 	requireNoErrListClients(t, err)
@@ -160,16 +160,16 @@ func TestTailscaleCert(t *testing.T) {
 	// display name differs from its login, so the headers must name the
 	// requester rather than the serving node's owner, and login apart from
 	// name.
-	headscale, err := scenario.Headscale()
+	orgscale, err := scenario.Orgscale()
 	require.NoError(t, err)
 
-	_, err = headscale.Execute([]string{
-		"headscale", "users", "create", "user2",
+	_, err = orgscale.Execute([]string{
+		"orgscale", "users", "create", "user2",
 		"--email=user2@test.no", "--display-name=User Two",
 	})
 	require.NoError(t, err)
 
-	users, err := headscale.MapUsers()
+	users, err := orgscale.MapUsers()
 	require.NoError(t, err)
 
 	key, err := scenario.CreatePreAuthKey(mustParseID(users["user2"].Id), false, false)
@@ -184,7 +184,7 @@ func TestTailscaleCert(t *testing.T) {
 
 	scenario.GetOrCreateUser("user2").Clients[fetcher.Hostname()] = fetcher
 
-	require.NoError(t, fetcher.Login(headscale.GetEndpoint(), key.Key))
+	require.NoError(t, fetcher.Login(orgscale.GetEndpoint(), key.Key))
 	require.NoError(t, fetcher.WaitForRunning(integrationutil.PeerSyncTimeout()))
 
 	backend := fmt.Sprintf("127.0.0.1:%d", webserverPort)
@@ -269,7 +269,7 @@ func suiteAddrIn(network *dockertest.Network) (string, error) {
 
 // updateDNS is an authoritative DNS server for one zone that accepts
 // RFC 2136 updates signed with a TSIG key, like a BIND zone with an
-// update-policy, so an issued certificate proves headscale signs them. It
+// update-policy, so an issued certificate proves orgscale signs them. It
 // serves TCP only: both rfc2136 and Pebble use TCP.
 type updateDNS struct {
 	addr, port string
@@ -470,8 +470,8 @@ func TestTLSCertificateReload(t *testing.T) {
 	IntegrationSkip(t)
 
 	const (
-		certPath = "/etc/headscale/tls.cert"
-		keyPath  = "/etc/headscale/tls.key"
+		certPath = "/etc/orgscale/tls.cert"
+		keyPath  = "/etc/orgscale/tls.key"
 	)
 
 	scenario, err := NewScenario(ScenarioSpec{})
@@ -479,10 +479,10 @@ func TestTLSCertificateReload(t *testing.T) {
 
 	defer scenario.ShutdownAssertNoPanics(t)
 
-	headscale, err := scenario.Headscale(hsic.WithTestName("tlsreload"))
+	orgscale, err := scenario.Orgscale(hsic.WithTestName("tlsreload"))
 	require.NoError(t, err)
 
-	endpoint, err := url.Parse(headscale.GetEndpoint())
+	endpoint, err := url.Parse(orgscale.GetEndpoint())
 	require.NoError(t, err)
 
 	served := func() ([]byte, error) {
@@ -497,15 +497,15 @@ func TestTLSCertificateReload(t *testing.T) {
 		return conn.ConnectionState().PeerCertificates[0].Raw, nil
 	}
 
-	_, certPEM, keyPEM, err := integrationutil.CreateCertificate(headscale.GetHostname())
+	_, certPEM, keyPEM, err := integrationutil.CreateCertificate(orgscale.GetHostname())
 	require.NoError(t, err)
 
 	block, _ := pem.Decode(certPEM)
 	require.NotNil(t, block)
 
-	require.NoError(t, headscale.WriteFile(certPath, certPEM))
-	require.NoError(t, headscale.WriteFile(keyPath, keyPEM))
-	require.NoError(t, headscale.Reload())
+	require.NoError(t, orgscale.WriteFile(certPath, certPEM))
+	require.NoError(t, orgscale.WriteFile(keyPath, keyPEM))
+	require.NoError(t, orgscale.Reload())
 
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		der, err := served()
@@ -513,11 +513,11 @@ func TestTLSCertificateReload(t *testing.T) {
 		assert.Equal(c, block.Bytes, der)
 	}, 10*time.Second, 200*time.Millisecond, "a new connection should get the certificate now on disk")
 
-	require.NoError(t, headscale.WriteFile(keyPath, []byte("garbage")))
-	require.NoError(t, headscale.Reload())
+	require.NoError(t, orgscale.WriteFile(keyPath, []byte("garbage")))
+	require.NoError(t, orgscale.Reload())
 
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		stdout, stderr, err := headscale.ReadLog()
+		stdout, stderr, err := orgscale.ReadLog()
 		assert.NoError(c, err)
 		assert.Contains(c, stdout+stderr, "reloading TLS certificate failed")
 	}, 10*time.Second, 200*time.Millisecond, "the operator should see the failed reload in the log")

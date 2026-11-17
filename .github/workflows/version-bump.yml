@@ -109,8 +109,8 @@ jobs:
         if: steps.bump.outputs.handoff == 'true'
         id: app
         with:
-          client-id: ${{ vars.HEADSCALE_BOT_CLIENT_ID }}
-          private-key: ${{ secrets.HEADSCALE_BOT_PRIVATE_KEY }}
+          client-id: ${{ vars.ORGSCALE_BOT_CLIENT_ID }}
+          private-key: ${{ secrets.ORGSCALE_BOT_PRIVATE_KEY }}
           permission-contents: write
           permission-pull-requests: write
           permission-workflows: write

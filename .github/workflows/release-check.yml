@@ -31,5 +31,5 @@ jobs:
         run: goreleaser check
       - name: Test release guards
         run: bash tools/release-check-test.sh
-      - name: Build and verify Headscale release binary
+      - name: Build and verify Orgscale release binary
         run: goreleaser build --snapshot --clean --single-target

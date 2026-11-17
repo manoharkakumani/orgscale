@@ -49,9 +49,9 @@ func TestAPIV1Config(t *testing.T) {
 		},
 		{
 			name:   "url userinfo",
-			set:    func(c *types.Config) { c.ServerURL = "https://marker-user:marker-pass@headscale.example.com" }, //nolint:gosec // test markers, not credentials
+			set:    func(c *types.Config) { c.ServerURL = "https://marker-user:marker-pass@orgscale.example.com" }, //nolint:gosec // test markers, not credentials
 			hidden: []string{"marker-user", "marker-pass"},
-			shown:  []string{"https://headscale.example.com"},
+			shown:  []string{"https://orgscale.example.com"},
 		},
 	}
 
@@ -79,7 +79,7 @@ func TestAPIV1Config(t *testing.T) {
 		{name: "no docs", handler: h.huma, path: "/api/v1/config?docs=false", wantStatus: http.StatusOK},
 		{name: "remote with api key", handler: remote, path: "/api/v1/config?docs=false", auth: "Bearer " + apiKey, wantStatus: http.StatusOK},
 		{name: "remote without api key", handler: remote, path: "/api/v1/config", wantStatus: http.StatusUnauthorized},
-		{name: "remote with bad api key", handler: remote, path: "/api/v1/config", auth: "Bearer hskey-api-invalid", wantStatus: http.StatusUnauthorized},
+		{name: "remote with bad api key", handler: remote, path: "/api/v1/config", auth: "Bearer oskey-api-invalid", wantStatus: http.StatusUnauthorized},
 	}
 
 	for _, tt := range tests {

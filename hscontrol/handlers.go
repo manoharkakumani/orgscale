@@ -92,7 +92,7 @@ func httpUserError(w http.ResponseWriter, err error) {
 	w.WriteHeader(code)
 
 	page := templates.AuthError(templates.AuthErrorResult{
-		Title:   "Headscale - Error",
+		Title:   "Orgscale - Error",
 		Heading: http.StatusText(code),
 		Message: userMsg,
 	})
@@ -163,7 +163,7 @@ func parseCapabilityVersion(req *http.Request) (tailcfg.CapabilityVersion, error
 // OOMing the public router with arbitrarily large POSTs.
 const verifyBodyLimit int64 = 4 * 1024
 
-func (h *Headscale) handleVerifyRequest(
+func (h *Orgscale) handleVerifyRequest(
 	req *http.Request,
 	writer io.Writer,
 ) error {
@@ -191,7 +191,7 @@ func (h *Headscale) handleVerifyRequest(
 // VerifyHandler answers a DERP server's client-verification POST
 // ([tailcfg.DERPAdmitClientRequest]). A client is admitted while its NodeKey
 // belongs to a registered node; expiry, tags and ephemerality do not gate it.
-func (h *Headscale) VerifyHandler(
+func (h *Orgscale) VerifyHandler(
 	writer http.ResponseWriter,
 	req *http.Request,
 ) {
@@ -216,9 +216,9 @@ func (h *Headscale) VerifyHandler(
 	}
 }
 
-// KeyHandler provides the Headscale pub key
+// KeyHandler provides the Orgscale pub key
 // Listens in /key.
-func (h *Headscale) KeyHandler(
+func (h *Orgscale) KeyHandler(
 	writer http.ResponseWriter,
 	req *http.Request,
 ) {
@@ -253,7 +253,7 @@ func (h *Headscale) KeyHandler(
 	}
 }
 
-func (h *Headscale) HealthHandler(
+func (h *Orgscale) HealthHandler(
 	writer http.ResponseWriter,
 	req *http.Request,
 ) {
@@ -288,7 +288,7 @@ func (h *Headscale) HealthHandler(
 	respond(nil)
 }
 
-func (h *Headscale) RobotsHandler(
+func (h *Orgscale) RobotsHandler(
 	writer http.ResponseWriter,
 	req *http.Request,
 ) {
@@ -304,9 +304,9 @@ func (h *Headscale) RobotsHandler(
 	}
 }
 
-// VersionHandler returns version information about the Headscale server
+// VersionHandler returns version information about the Orgscale server
 // Listens in /version.
-func (h *Headscale) VersionHandler(
+func (h *Orgscale) VersionHandler(
 	writer http.ResponseWriter,
 	req *http.Request,
 ) {
@@ -363,8 +363,8 @@ func (a *AuthProviderWeb) AuthHandler(
 
 	_, err = writer.Write([]byte(templates.AuthWeb(
 		"Authentication check",
-		"Run the command below in the headscale server to approve this authentication request:",
-		"headscale auth approve --auth-id "+authID.String(),
+		"Run the command below in the orgscale server to approve this authentication request:",
+		"orgscale auth approve --auth-id "+authID.String(),
 	).Render()))
 	if err != nil {
 		log.Error().Err(err).Msg("failed to write auth response")
@@ -405,8 +405,8 @@ func (a *AuthProviderWeb) RegisterHandler(
 
 	_, err = writer.Write([]byte(templates.AuthWeb(
 		"Node registration",
-		"Run the command below in the headscale server to add this node to your network:",
-		fmt.Sprintf("headscale auth register --auth-id %s --user USERNAME", authId.String()),
+		"Run the command below in the orgscale server to add this node to your network:",
+		fmt.Sprintf("orgscale auth register --auth-id %s --user USERNAME", authId.String()),
 	).Render()))
 	if err != nil {
 		log.Error().Err(err).Msg("failed to write register response")

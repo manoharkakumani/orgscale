@@ -1,6 +1,6 @@
 # Debugging and troubleshooting
 
-Headscale and Tailscale provide debug and introspection capabilities that can be helpful when things don't work as
+Orgscale and Tailscale provide debug and introspection capabilities that can be helpful when things don't work as
 expected. This page explains some debugging techniques to help pinpoint problems.
 
 Please also have a look at [Tailscale's Troubleshooting guide](https://tailscale.com/docs/reference/troubleshooting). It
@@ -15,16 +15,16 @@ The Tailscale client itself offers many commands to introspect its state as well
 - [Get DNS status](https://tailscale.com/docs/reference/tailscale-cli#dns): `tailscale dns status --all`
 - Client logs: `tailscale debug daemon-logs`
 - Client netmap: `tailscale debug netmap`
-- Test DERP connection: `tailscale debug derp headscale`
+- Test DERP connection: `tailscale debug derp orgscale`
 - And many more, see: `tailscale debug --help`
 
-Many of the commands are helpful when trying to understand differences between Headscale and Tailscale SaaS.
+Many of the commands are helpful when trying to understand differences between Orgscale and Tailscale SaaS.
 
-## Headscale
+## Orgscale
 
 ### Application logging
 
-The log levels `debug` and `trace` can be useful to get more information from Headscale.
+The log levels `debug` and `trace` can be useful to get more information from Orgscale.
 
 ```yaml hl_lines="3"
 log:
@@ -34,7 +34,7 @@ log:
 
 ### Database logging
 
-The database debug mode logs all database queries. Enable it to see how Headscale interacts with its database. This also
+The database debug mode logs all database queries. Enable it to see how Orgscale interacts with its database. This also
 requires the application log level to be set to either `debug` or `trace`.
 
 ```yaml hl_lines="3 7"
@@ -49,7 +49,7 @@ log:
 
 ### Metrics and debug endpoint
 
-Headscale provides a metrics and debug endpoint. It allows to introspect different aspects such as:
+Orgscale provides a metrics and debug endpoint. It allows to introspect different aspects such as:
 
 - Information about the Go runtime, memory usage and statistics
 - Connected nodes and pending registrations
@@ -78,7 +78,7 @@ paths, including statsviz. `/metrics` accepts any Host.
 
 === "Direct access"
 
-    Access the debug interface directly on the server where Headscale is installed.
+    Access the debug interface directly on the server where Orgscale is installed.
 
     ```console
     curl http://localhost:9090/debug/
@@ -86,10 +86,10 @@ paths, including statsviz. `/metrics` accepts any Host.
 
 === "SSH port forwarding"
 
-    Use SSH port forwarding to forward Headscale's metrics and debug port to your device.
+    Use SSH port forwarding to forward Orgscale's metrics and debug port to your device.
 
     ```console
-    ssh <HEADSCALE_SERVER> -L 9090:localhost:9090
+    ssh <ORGSCALE_SERVER> -L 9090:localhost:9090
     ```
 
     Access the debug interface on your device by opening <http://localhost:9090/debug/> in your web browser.
@@ -103,21 +103,21 @@ paths, including statsviz. `/metrics` accepts any Host.
     ```console
     openssl rand -hex 32 | tee debugkey.txt
     export TS_DEBUG_KEY_PATH=debugkey.txt
-    headscale serve
+    orgscale serve
     ```
 
-    Access the debug interface on your device by opening `http://<IP_OF_HEADSCALE>:9090/debug/?debugkey=<DEBUG_KEY>` in
+    Access the debug interface on your device by opening `http://<IP_OF_ORGSCALE>:9090/debug/?debugkey=<DEBUG_KEY>` in
     your web browser. The `debugkey` parameter must be sent with every request.
 
 === "Via debug IP address"
 
     The debug endpoint expects traffic from localhost. A different debug IP address may be configured by setting the
-    `TS_ALLOW_DEBUG_IP` environment variable before starting Headscale. The debug IP address is ignored when the HTTP
+    `TS_ALLOW_DEBUG_IP` environment variable before starting Orgscale. The debug IP address is ignored when the HTTP
     header `X-Forwarded-For` is present.
 
     ```console
     export TS_ALLOW_DEBUG_IP=192.168.0.10       # IP address of your device
-    headscale serve
+    orgscale serve
     ```
 
-    Access the debug interface on your device by opening `http://<IP_OF_HEADSCALE>:9090/debug/` in your web browser.
+    Access the debug interface on your device by opening `http://<IP_OF_ORGSCALE>:9090/debug/` in your web browser.

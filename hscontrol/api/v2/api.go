@@ -1,12 +1,12 @@
-// Package apiv2 is Headscale's v2 HTTP API, served at /api/v2.
+// Package apiv2 is Orgscale's v2 HTTP API, served at /api/v2.
 //
-// Where the v1 API (hscontrol/api/v1) is the headscale-native admin surface, v2
+// Where the v1 API (hscontrol/api/v1) is the orgscale-native admin surface, v2
 // additionally ports selected endpoints from Tailscale's API, reusing
 // Tailscale's wire shapes (paths, request/response JSON, error body), so the
 // existing Tailscale ecosystem (the Terraform/OpenTofu provider, tscli, and
-// tailscale.com/client/tailscale/v2) can drive Headscale unchanged. Ported
-// operations carry the "Tailscale compat" tag; a headscale-native v2 operation
-// may use headscale's own conventions instead. See README.md for the porting
+// tailscale.com/client/tailscale/v2) can drive Orgscale unchanged. Ported
+// operations carry the "Tailscale compat" tag; a orgscale-native v2 operation
+// may use orgscale's own conventions instead. See README.md for the porting
 // guide.
 //
 // It depends only on the domain layer (hscontrol/state, hscontrol/types, and
@@ -71,8 +71,8 @@ func Register(api huma.API, b Backend) {
 // Tailscale error transform. Suppressing SchemasPath/CreateHooks keeps "$schema"
 // out of the emitted bodies, matching the Tailscale wire contract.
 func Config() huma.Config {
-	config := huma.DefaultConfig("Headscale API", "v2")
-	config.Info.Description = "Headscale v2 API. Some endpoints are ported from / compatible with the Tailscale API (tagged \"Tailscale compat\")."
+	config := huma.DefaultConfig("Orgscale API", "v2")
+	config.Info.Description = "Orgscale v2 API. Some endpoints are ported from / compatible with the Tailscale API (tagged \"Tailscale compat\")."
 
 	config.OpenAPIPath = "/api/v2/openapi"
 	config.DocsPath = "/api/v2/docs"
@@ -286,7 +286,7 @@ func principalTags(ctx context.Context) ([]string, bool) {
 	return tags, ok
 }
 
-// requireDefaultTailnet rejects any tailnet other than "-". Headscale is
+// requireDefaultTailnet rejects any tailnet other than "-". Orgscale is
 // single-tailnet; the Tailscale SDK sends "-" (its default tailnet). A non-"-"
 // value is "no such tailnet", a 404, which lets the SDK's IsNotFound behave.
 func requireDefaultTailnet(tailnet string) error {
@@ -302,7 +302,7 @@ func requireDefaultTailnet(tailnet string) error {
 // reads it back in the middleware.
 
 // scopeMetaKey keys the per-operation required scope in huma.Operation.Metadata.
-const scopeMetaKey = "headscale.scope"
+const scopeMetaKey = "orgscale.scope"
 
 // requireScope records op's required scope, both in its Metadata (where the auth
 // middleware reads it back) and in the generated OpenAPI document: an

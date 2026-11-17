@@ -36,7 +36,7 @@ const (
 //   - Readers don't block writers, writers don't block readers
 //   - Excellent crash recovery with minimal data loss risk
 //   - Uses additional .wal and .shm files
-//   - Default choice for Headscale production deployments
+//   - Default choice for Orgscale production deployments
 //
 // DELETE - Traditional rollback journal:
 //   - Good performance for single-threaded access
@@ -267,7 +267,7 @@ func (t TxLock) IsValid() bool {
 
 // Config holds SQLite database configuration with type-safe enums.
 // This configuration balances performance, durability, and operational requirements
-// for Headscale's SQLite database usage patterns.
+// for Orgscale's SQLite database usage patterns.
 type Config struct {
 	Path              string      // file path or ":memory:"
 	BusyTimeout       int         // milliseconds (0 = default/disabled)
@@ -280,7 +280,7 @@ type Config struct {
 	ReadOnly          bool        // open with SQLite's mode=ro
 }
 
-// Default returns the production configuration optimized for Headscale's usage patterns.
+// Default returns the production configuration optimized for Orgscale's usage patterns.
 // This configuration prioritizes:
 //   - Concurrent access (WAL mode for multiple readers/writers)
 //   - Data durability with good performance (NORMAL synchronous)

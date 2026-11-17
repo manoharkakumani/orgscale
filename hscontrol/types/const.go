@@ -13,7 +13,7 @@ const (
 	// answered on `tls.acme.http_listen`. TLS-ALPN-01 on `listen_addr`
 	// stays enabled too.
 	HTTP01ChallengeType ACMEChallenge = "HTTP-01"
-	// DNS01ChallengeType has the CA look up a TXT record, which headscale
+	// DNS01ChallengeType has the CA look up a TXT record, which orgscale
 	// writes through `dns.challenge.provider`. It needs no open port.
 	DNS01ChallengeType ACMEChallenge = "DNS-01"
 

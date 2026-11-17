@@ -117,10 +117,10 @@ func TestParseLoginURLFromCLILogin(t *testing.T) {
 			output: `
 To authenticate, visit:
 
-        https://headscale.example.com/register/3oYCOZYA2zZmGB4PQ7aHBaMi
+        https://orgscale.example.com/register/3oYCOZYA2zZmGB4PQ7aHBaMi
 
 Success.`,
-			wantURL: "https://headscale.example.com/register/3oYCOZYA2zZmGB4PQ7aHBaMi",
+			wantURL: "https://orgscale.example.com/register/3oYCOZYA2zZmGB4PQ7aHBaMi",
 			wantErr: "",
 		},
 		{
@@ -128,10 +128,10 @@ Success.`,
 			output: `
 To authenticate, visit:
 
-        http://headscale.example.com/register/3oYCOZYA2zZmGB4PQ7aHBaMi
+        http://orgscale.example.com/register/3oYCOZYA2zZmGB4PQ7aHBaMi
 
 Success.`,
-			wantURL: "http://headscale.example.com/register/3oYCOZYA2zZmGB4PQ7aHBaMi",
+			wantURL: "http://orgscale.example.com/register/3oYCOZYA2zZmGB4PQ7aHBaMi",
 			wantErr: "",
 		},
 		{
@@ -148,15 +148,15 @@ Success.`,
 			output: `
 To authenticate, visit:
 
-        https://headscale.example.com/register/3oYCOZYA2zZmGB4PQ7aHBaMi
+        https://orgscale.example.com/register/3oYCOZYA2zZmGB4PQ7aHBaMi
 
 To authenticate, visit:
 
-        http://headscale.example.com/register/dv1l2k5FackOYl-7-V3mSd_E
+        http://orgscale.example.com/register/dv1l2k5FackOYl-7-V3mSd_E
 
 Success.`,
 			wantURL: "",
-			wantErr: "multiple URLs found: https://headscale.example.com/register/3oYCOZYA2zZmGB4PQ7aHBaMi and http://headscale.example.com/register/dv1l2k5FackOYl-7-V3mSd_E",
+			wantErr: "multiple URLs found: https://orgscale.example.com/register/3oYCOZYA2zZmGB4PQ7aHBaMi and http://orgscale.example.com/register/dv1l2k5FackOYl-7-V3mSd_E",
 		},
 		{
 			name: "invalid URL",
@@ -816,7 +816,7 @@ func TestGenerateRegistrationKey(t *testing.T) {
 					t.Errorf("GenerateRegistrationKey() error = %v", err)
 				}
 
-				if !strings.HasPrefix(key, "hskey-reg-") {
+				if !strings.HasPrefix(key, "oskey-reg-") {
 					t.Errorf("key does not have expected prefix: %s", key)
 				}
 			},
@@ -831,7 +831,7 @@ func TestGenerateRegistrationKey(t *testing.T) {
 					t.Errorf("GenerateRegistrationKey() error = %v", err)
 				}
 
-				// Expected format: hskey-reg-{64-char-random}
+				// Expected format: oskey-reg-{64-char-random}
 				// Total length: 10 (prefix) + 64 (random) = 74
 				if len(key) != 74 {
 					t.Errorf("key length = %d, want 74", len(key))
@@ -869,7 +869,7 @@ func TestGenerateRegistrationKey(t *testing.T) {
 				}
 
 				// Remove prefix
-				_, randomPart, found := strings.Cut(key, "hskey-reg-")
+				_, randomPart, found := strings.Cut(key, "oskey-reg-")
 				if !found {
 					t.Error("key does not contain expected prefix")
 				}

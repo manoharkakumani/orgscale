@@ -24,7 +24,7 @@ import (
 func TestServerURLOnly(t *testing.T) {
 	t.Parallel()
 
-	const serverURL = "https://headscale.example.com"
+	const serverURL = "https://orgscale.example.com"
 
 	tests := []struct {
 		name string
@@ -46,7 +46,7 @@ func TestServerURLOnly(t *testing.T) {
 			load: func(t *testing.T) (*config.Loaded, error) {
 				t.Helper()
 
-				l, err := config.Load(t.TempDir(), false, []string{"HEADSCALE_SERVER_URL=" + serverURL})
+				l, err := config.Load(t.TempDir(), false, []string{"ORGSCALE_SERVER_URL=" + serverURL})
 				assert.Empty(t, l.File)
 
 				return l, err
@@ -75,7 +75,7 @@ func TestServerURLOnly(t *testing.T) {
 			}
 
 			cfg := *l.Config
-			// /var/lib/headscale belongs to the host and is not writable in a test.
+			// /var/lib/orgscale belongs to the host and is not writable in a test.
 			dir := t.TempDir()
 			cfg.Noise.PrivateKeyPath = filepath.Join(dir, "noise_private.key")
 			cfg.Database.Sqlite.Path = filepath.Join(dir, "db.sqlite")

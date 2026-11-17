@@ -74,18 +74,18 @@ type NodeSystemStatus struct {
 	NodeStore        bool
 }
 
-// requireNoErrHeadscaleEnv validates that headscale environment creation succeeded.
-// Provides specific error context for headscale environment setup failures.
-func requireNoErrHeadscaleEnv(t *testing.T, err error) {
+// requireNoErrOrgscaleEnv validates that orgscale environment creation succeeded.
+// Provides specific error context for orgscale environment setup failures.
+func requireNoErrOrgscaleEnv(t *testing.T, err error) {
 	t.Helper()
-	require.NoError(t, err, "failed to create headscale environment")
+	require.NoError(t, err, "failed to create orgscale environment")
 }
 
-// requireNoErrGetHeadscale validates that headscale server retrieval succeeded.
-// Provides specific error context for headscale server access failures.
-func requireNoErrGetHeadscale(t *testing.T, err error) {
+// requireNoErrGetOrgscale validates that orgscale server retrieval succeeded.
+// Provides specific error context for orgscale server access failures.
+func requireNoErrGetOrgscale(t *testing.T, err error) {
 	t.Helper()
-	require.NoError(t, err, "failed to get headscale")
+	require.NoError(t, err, "failed to get orgscale")
 }
 
 // requireNoErrListClients validates that client listing operations succeeded.
@@ -142,35 +142,35 @@ func collectExpectedNodeIDs(t *testing.T, clients []TailscaleClient) []types.Nod
 // validateInitialConnection performs comprehensive validation after initial client login.
 // Validates that all nodes are online and have proper [tailcfg.NetInfo]/DERP configuration,
 // essential for ensuring successful initial connection state in relogin tests.
-func validateInitialConnection(t *testing.T, headscale ControlServer, expectedNodes []types.NodeID) {
+func validateInitialConnection(t *testing.T, orgscale ControlServer, expectedNodes []types.NodeID) {
 	t.Helper()
 
-	requireAllClientsOnline(t, headscale, expectedNodes, true, "all clients should be connected after initial login", 120*time.Second)
-	requireAllClientsNetInfoAndDERP(t, headscale, expectedNodes, "all clients should have NetInfo and DERP after initial login", 3*time.Minute)
+	requireAllClientsOnline(t, orgscale, expectedNodes, true, "all clients should be connected after initial login", 120*time.Second)
+	requireAllClientsNetInfoAndDERP(t, orgscale, expectedNodes, "all clients should have NetInfo and DERP after initial login", 3*time.Minute)
 }
 
 // validateLogoutComplete performs comprehensive validation after client logout.
-// Ensures all nodes are properly offline across all headscale systems,
+// Ensures all nodes are properly offline across all orgscale systems,
 // critical for validating clean logout state in relogin tests.
-func validateLogoutComplete(t *testing.T, headscale ControlServer, expectedNodes []types.NodeID) {
+func validateLogoutComplete(t *testing.T, orgscale ControlServer, expectedNodes []types.NodeID) {
 	t.Helper()
 
-	requireAllClientsOnline(t, headscale, expectedNodes, false, "all nodes should be offline after logout", 120*time.Second)
+	requireAllClientsOnline(t, orgscale, expectedNodes, false, "all nodes should be offline after logout", 120*time.Second)
 }
 
 // validateReloginComplete performs comprehensive validation after client relogin.
 // Validates that all nodes are back online with proper [tailcfg.NetInfo]/DERP configuration,
 // ensuring successful relogin state restoration in integration tests.
-func validateReloginComplete(t *testing.T, headscale ControlServer, expectedNodes []types.NodeID) {
+func validateReloginComplete(t *testing.T, orgscale ControlServer, expectedNodes []types.NodeID) {
 	t.Helper()
 
-	requireAllClientsOnline(t, headscale, expectedNodes, true, "all clients should be connected after relogin", integrationutil.ScaledTimeout(120*time.Second))
-	requireAllClientsNetInfoAndDERP(t, headscale, expectedNodes, "all clients should have NetInfo and DERP after relogin", integrationutil.ScaledTimeout(3*time.Minute))
+	requireAllClientsOnline(t, orgscale, expectedNodes, true, "all clients should be connected after relogin", integrationutil.ScaledTimeout(120*time.Second))
+	requireAllClientsNetInfoAndDERP(t, orgscale, expectedNodes, "all clients should have NetInfo and DERP after relogin", integrationutil.ScaledTimeout(3*time.Minute))
 }
 
-// requireAllClientsOnline validates that all nodes are online/offline across all headscale systems
+// requireAllClientsOnline validates that all nodes are online/offline across all orgscale systems
 // requireAllClientsOnline verifies all expected nodes are in the specified online state across all systems.
-func requireAllClientsOnline(t *testing.T, headscale ControlServer, expectedNodes []types.NodeID, expectedOnline bool, message string, timeout time.Duration) {
+func requireAllClientsOnline(t *testing.T, orgscale ControlServer, expectedNodes []types.NodeID, expectedOnline bool, message string, timeout time.Duration) {
 	t.Helper()
 
 	startTime := time.Now()
@@ -181,10 +181,10 @@ func requireAllClientsOnline(t *testing.T, headscale ControlServer, expectedNode
 
 	if expectedOnline {
 		// For online validation, use the existing logic with full timeout
-		requireAllClientsOnlineWithSingleTimeout(t, headscale, expectedNodes, expectedOnline, message, timeout)
+		requireAllClientsOnlineWithSingleTimeout(t, orgscale, expectedNodes, expectedOnline, message, timeout)
 	} else {
 		// For offline validation, use staged approach with component-specific timeouts
-		requireAllClientsOfflineStaged(t, headscale, expectedNodes)
+		requireAllClientsOfflineStaged(t, orgscale, expectedNodes)
 	}
 
 	endTime := time.Now()
@@ -194,7 +194,7 @@ func requireAllClientsOnline(t *testing.T, headscale ControlServer, expectedNode
 // requireAllClientsOnlineWithSingleTimeout is the original validation logic for online state.
 //
 //nolint:gocyclo // complex validation with multiple node states
-func requireAllClientsOnlineWithSingleTimeout(t *testing.T, headscale ControlServer, expectedNodes []types.NodeID, expectedOnline bool, message string, timeout time.Duration) {
+func requireAllClientsOnlineWithSingleTimeout(t *testing.T, orgscale ControlServer, expectedNodes []types.NodeID, expectedOnline bool, message string, timeout time.Duration) {
 	t.Helper()
 
 	var prevReport string
@@ -203,7 +203,7 @@ func requireAllClientsOnlineWithSingleTimeout(t *testing.T, headscale ControlSer
 
 	require.EventuallyWithT(t, func(c *assert.CollectT) {
 		// Get batcher state
-		debugInfo, err := headscale.DebugBatcher()
+		debugInfo, err := orgscale.DebugBatcher()
 		assert.NoError(c, err, "Failed to get batcher debug info")
 
 		if err != nil {
@@ -211,7 +211,7 @@ func requireAllClientsOnlineWithSingleTimeout(t *testing.T, headscale ControlSer
 		}
 
 		// Get map responses
-		mapResponses, err := headscale.GetAllMapReponses()
+		mapResponses, err := orgscale.GetAllMapReponses()
 		assert.NoError(c, err, "Failed to get map responses")
 
 		if err != nil {
@@ -219,7 +219,7 @@ func requireAllClientsOnlineWithSingleTimeout(t *testing.T, headscale ControlSer
 		}
 
 		// Get nodestore state
-		nodeStore, err := headscale.DebugNodeStore()
+		nodeStore, err := orgscale.DebugNodeStore()
 		assert.NoError(c, err, "Failed to get nodestore debug info")
 
 		if err != nil {
@@ -381,7 +381,7 @@ func requireAllClientsOnlineWithSingleTimeout(t *testing.T, headscale ControlSer
 }
 
 // requireAllClientsOfflineStaged validates offline state with staged timeouts for different components.
-func requireAllClientsOfflineStaged(t *testing.T, headscale ControlServer, expectedNodes []types.NodeID) {
+func requireAllClientsOfflineStaged(t *testing.T, orgscale ControlServer, expectedNodes []types.NodeID) {
 	t.Helper()
 
 	connectedRecipients := make(map[string]bool)
@@ -389,7 +389,7 @@ func requireAllClientsOfflineStaged(t *testing.T, headscale ControlServer, expec
 	// Stage 1: Verify batcher disconnection (should be immediate)
 	t.Logf("Stage 1: Verifying batcher disconnection for %d nodes", len(expectedNodes))
 	require.EventuallyWithT(t, func(c *assert.CollectT) {
-		debugInfo, err := headscale.DebugBatcher()
+		debugInfo, err := orgscale.DebugBatcher()
 		assert.NoError(c, err, "Failed to get batcher debug info")
 
 		if err != nil {
@@ -421,7 +421,7 @@ func requireAllClientsOfflineStaged(t *testing.T, headscale ControlServer, expec
 	// Stage 2: Verify nodestore offline status (up to 15 seconds due to disconnect detection delay)
 	t.Logf("Stage 2: Verifying nodestore offline status for %d nodes (allowing for 10s disconnect detection delay)", len(expectedNodes))
 	require.EventuallyWithT(t, func(c *assert.CollectT) {
-		nodeStore, err := headscale.DebugNodeStore()
+		nodeStore, err := orgscale.DebugNodeStore()
 		assert.NoError(c, err, "Failed to get nodestore debug info")
 
 		if err != nil {
@@ -452,7 +452,7 @@ func requireAllClientsOfflineStaged(t *testing.T, headscale ControlServer, expec
 
 	t.Logf("Stage 3: Verifying map response propagation for %d nodes (allowing for peer map update delays)", len(expectedNodes))
 	require.EventuallyWithT(t, func(c *assert.CollectT) {
-		mapResponses, err := headscale.GetAllMapReponses()
+		mapResponses, err := orgscale.GetAllMapReponses()
 		assert.NoError(c, err, "Failed to get map responses")
 
 		if err != nil {
@@ -504,10 +504,10 @@ func requireAllClientsOfflineStaged(t *testing.T, headscale ControlServer, expec
 
 // requireAllClientsNetInfoAndDERP validates that all nodes have [tailcfg.NetInfo] in the database
 // and a valid DERP server based on the [tailcfg.NetInfo]. This function follows the pattern of
-// [requireAllClientsOnline] by using [hsic.HeadscaleInContainer.DebugNodeStore] to get the database state.
+// [requireAllClientsOnline] by using [hsic.OrgscaleInContainer.DebugNodeStore] to get the database state.
 //
 //nolint:unparam // timeout is configurable for flexibility even though callers currently use same value
-func requireAllClientsNetInfoAndDERP(t *testing.T, headscale ControlServer, expectedNodes []types.NodeID, message string, timeout time.Duration) {
+func requireAllClientsNetInfoAndDERP(t *testing.T, orgscale ControlServer, expectedNodes []types.NodeID, message string, timeout time.Duration) {
 	t.Helper()
 
 	startTime := time.Now()
@@ -515,7 +515,7 @@ func requireAllClientsNetInfoAndDERP(t *testing.T, headscale ControlServer, expe
 
 	require.EventuallyWithT(t, func(c *assert.CollectT) {
 		// Get nodestore state
-		nodeStore, err := headscale.DebugNodeStore()
+		nodeStore, err := orgscale.DebugNodeStore()
 		assert.NoError(c, err, "Failed to get nodestore debug info")
 
 		if err != nil {
@@ -1074,7 +1074,7 @@ func tagApprover(name string) policyv2.AutoApprover {
 
 // oidcMockUser creates a [mockoidc.MockUser] for OIDC authentication testing.
 // Generates consistent test user data with configurable email verification status
-// for validating OIDC integration flows in headscale authentication tests.
+// for validating OIDC integration flows in orgscale authentication tests.
 func oidcMockUser(username string, emailVerified bool) mockoidc.MockUser {
 	return mockoidc.MockUser{
 		Subject:           username,
@@ -1084,10 +1084,10 @@ func oidcMockUser(username string, emailVerified bool) mockoidc.MockUser {
 	}
 }
 
-// GetUserByName retrieves a user by name from the headscale server.
+// GetUserByName retrieves a user by name from the orgscale server.
 // This is a common pattern used when creating preauth keys or managing users.
-func GetUserByName(headscale ControlServer, username string) (*clientv1.User, error) {
-	users, err := headscale.ListUsers()
+func GetUserByName(orgscale ControlServer, username string) (*clientv1.User, error) {
+	users, err := orgscale.ListUsers()
 	if err != nil {
 		return nil, fmt.Errorf("listing users: %w", err)
 	}
@@ -1158,7 +1158,7 @@ func (s *Scenario) AddAndLoginClient(
 	t *testing.T,
 	username string,
 	version string,
-	headscale ControlServer,
+	orgscale ControlServer,
 	tsOpts ...tsic.Option,
 ) (TailscaleClient, error) {
 	t.Helper()
@@ -1200,7 +1200,7 @@ func (s *Scenario) AddAndLoginClient(
 	}
 
 	// Get the user and create preauth key
-	user, err := GetUserByName(headscale, username)
+	user, err := GetUserByName(orgscale, username)
 	if err != nil {
 		return nil, fmt.Errorf("getting user: %w", err)
 	}
@@ -1211,7 +1211,7 @@ func (s *Scenario) AddAndLoginClient(
 	}
 
 	// Login the new client
-	err = newClient.Login(headscale.GetEndpoint(), authKey.Key)
+	err = newClient.Login(orgscale.GetEndpoint(), authKey.Key)
 	if err != nil {
 		return nil, fmt.Errorf("logging in new client: %w", err)
 	}
@@ -1224,12 +1224,12 @@ func (s *Scenario) MustAddAndLoginClient(
 	t *testing.T,
 	username string,
 	version string,
-	headscale ControlServer,
+	orgscale ControlServer,
 	tsOpts ...tsic.Option,
 ) TailscaleClient {
 	t.Helper()
 
-	client, err := s.AddAndLoginClient(t, username, version, headscale, tsOpts...)
+	client, err := s.AddAndLoginClient(t, username, version, orgscale, tsOpts...)
 	require.NoError(t, err)
 
 	return client

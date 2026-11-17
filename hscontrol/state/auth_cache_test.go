@@ -97,7 +97,7 @@ func TestAuthCacheTTLExpiry(t *testing.T) {
 }
 
 func TestAuthCacheAdmissionPreservesPending(t *testing.T) {
-	cfg := persistTestConfig(t.TempDir() + "/headscale.db")
+	cfg := persistTestConfig(t.TempDir() + "/orgscale.db")
 	cfg.Tuning.RegisterCacheMaxEntries = 1
 	s, err := NewState(cfg)
 	require.NoError(t, err)
@@ -125,7 +125,7 @@ func TestAuthCacheAdmissionPreservesPending(t *testing.T) {
 }
 
 func TestAuthCacheAdmissionPreservesIdentity(t *testing.T) {
-	cfg := persistTestConfig(t.TempDir() + "/headscale.db")
+	cfg := persistTestConfig(t.TempDir() + "/orgscale.db")
 	s, err := NewState(cfg)
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, s.Close()) })
@@ -142,7 +142,7 @@ func TestAuthCacheAdmissionPreservesIdentity(t *testing.T) {
 }
 
 func TestAuthCacheAdmissionConcurrent(t *testing.T) {
-	cfg := persistTestConfig(t.TempDir() + "/headscale.db")
+	cfg := persistTestConfig(t.TempDir() + "/orgscale.db")
 	cfg.Tuning.RegisterCacheMaxEntries = 2
 	s, err := NewState(cfg)
 	require.NoError(t, err)
@@ -184,7 +184,7 @@ func TestAuthCacheAdmissionConcurrent(t *testing.T) {
 }
 
 func TestAuthCacheAdmissionReservesSSHCapacity(t *testing.T) {
-	cfg := persistTestConfig(t.TempDir() + "/headscale.db")
+	cfg := persistTestConfig(t.TempDir() + "/orgscale.db")
 	cfg.Tuning.RegisterCacheMaxEntries = 1
 	s, err := NewState(cfg)
 	require.NoError(t, err)
@@ -204,7 +204,7 @@ func TestAuthCacheAdmissionReservesSSHCapacity(t *testing.T) {
 }
 
 func TestAuthCacheAdmissionBoundsRegistrationPayload(t *testing.T) {
-	cfg := persistTestConfig(t.TempDir() + "/headscale.db")
+	cfg := persistTestConfig(t.TempDir() + "/orgscale.db")
 	s, err := NewState(cfg)
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, s.Close()) })
@@ -221,7 +221,7 @@ func TestAuthCacheAdmissionBoundsRegistrationPayload(t *testing.T) {
 }
 
 func TestAuthCacheAdmissionDoesNotReuseExpiredRequest(t *testing.T) {
-	cfg := persistTestConfig(t.TempDir() + "/headscale.db")
+	cfg := persistTestConfig(t.TempDir() + "/orgscale.db")
 	cfg.Tuning.RegisterCacheExpiration = 50 * time.Millisecond
 	s, err := NewState(cfg)
 	require.NoError(t, err)
@@ -237,7 +237,7 @@ func TestAuthCacheAdmissionDoesNotReuseExpiredRequest(t *testing.T) {
 func TestAuthCacheAdmissionReleasesCapacity(t *testing.T) {
 	for _, removal := range []string{"consumption", "expiry"} {
 		t.Run(removal, func(t *testing.T) {
-			cfg := persistTestConfig(t.TempDir() + "/headscale.db")
+			cfg := persistTestConfig(t.TempDir() + "/orgscale.db")
 			cfg.Tuning.RegisterCacheMaxEntries = 1
 			cfg.Tuning.RegisterCacheExpiration = 50 * time.Millisecond
 			s, err := NewState(cfg)
@@ -297,7 +297,7 @@ func authCacheSweepers(t *testing.T, gid string) int {
 func TestStateCloseStopsAuthCacheSweeper(t *testing.T) {
 	gid := goroutineID()
 
-	s, err := NewState(persistTestConfig(t.TempDir() + "/headscale.db"))
+	s, err := NewState(persistTestConfig(t.TempDir() + "/orgscale.db"))
 	require.NoError(t, err)
 	require.Equal(t, 1, authCacheSweepers(t, gid), "NewState must start a sweeper")
 

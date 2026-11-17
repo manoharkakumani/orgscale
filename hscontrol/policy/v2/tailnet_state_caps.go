@@ -1,7 +1,7 @@
 package v2
 
 // This file enumerates [tailcfg.NodeCapability] values that the
-// Tailscale-hosted control plane emits where headscale has no
+// Tailscale-hosted control plane emits where orgscale has no
 // equivalent concept yet. The compat test in
 // tailscale_nodeattrs_compat_test.go builds the self-view CapMap via
 // [types.Node.TailNode] -- the same call the mapper makes -- and
@@ -9,7 +9,7 @@ package v2
 // compared in full as it lands on the wire.
 //
 // Each entry documents its purpose (cross-referenced to Tailscale
-// source), why headscale does not emit it, and a tracking issue where
+// source), why orgscale does not emit it, and a tracking issue where
 // one exists.
 
 import (
@@ -55,19 +55,19 @@ func PeerCapMap(peer types.NodeView, peerSelfCaps tailcfg.NodeCapMap) tailcfg.No
 // unmodelledTailnetStateCaps lists [tailcfg.NodeCapability] values
 // stripped on both sides of the compat diff. Order:
 //
-//  1. Caps gated on a user-role concept headscale does not model.
-//  2. Caps gated on a tailnet feature headscale does not implement.
+//  1. Caps gated on a user-role concept orgscale does not model.
+//  2. Caps gated on a tailnet feature orgscale does not implement.
 //  3. Caps that are tailnet-state metadata (display name, key
 //     duration, etc.) where the values are not derivable from
-//     headscale config in a way that round-trips through the
+//     orgscale config in a way that round-trips through the
 //     anonymized capture.
 //  4. Caps that are internal magicsock or embedded-SSH tuning with no
-//     headscale-side equivalent.
+//     orgscale-side equivalent.
 var unmodelledTailnetStateCaps = []nodecap.Cap{
 	// --- 1. User-role gated ---
 
 	// [tailcfg.CapabilityOwner]: conditional on the "owner" role, which
-	// headscale does not model, so it does not emit this cap at all.
+	// orgscale does not model, so it does not emit this cap at all.
 	// autogroup:owner support is tracked under NO_USER_ROLES — see the
 	// compat skip list.
 	nodecap.Owner,
@@ -78,18 +78,18 @@ var unmodelledTailnetStateCaps = []nodecap.Cap{
 	// with a tailnet-wide signing key so peers can detect silent
 	// re-keying by the control plane. Client gates
 	// [tailscale.com/ipn/ipnlocal.LocalBackend.NetworkLockStatus] on it.
-	// Headscale has no tailnet-lock implementation.
+	// Orgscale has no tailnet-lock implementation.
 	nodecap.TailnetLock,
 
 	// [tailcfg.NodeAttrServiceHost]: marks a node as approved to host
 	// VIP services (Tailscale Services). Client decodes it via
 	// [tailcfg.UnmarshalNodeCapViewJSON] into [tailcfg.ServiceIPMappings].
-	// Headscale does not implement Tailscale Services.
+	// Orgscale does not implement Tailscale Services.
 	nodecap.ServiceHost,
 
 	// [tailcfg.NodeAttrStoreAppCRoutes]: tells an app-connector node
 	// to persist learned routes across restarts. Client reads via
-	// [tailscale.com/control/controlknobs.Knobs.UpdateFromNodeAttributes]. Headscale does not implement app
+	// [tailscale.com/control/controlknobs.Knobs.UpdateFromNodeAttributes]. Orgscale does not implement app
 	// connectors.
 	nodecap.StoreAppCRoutes,
 
@@ -98,18 +98,18 @@ var unmodelledTailnetStateCaps = []nodecap.Cap{
 	// defensively in case a stale tailnet still emits it.
 	nodecap.WarnFunnelNoHTTPS,
 
-	// --- 3. Tailnet-state metadata not derivable from headscale config ---
+	// --- 3. Tailnet-state metadata not derivable from orgscale config ---
 
 	// [tailcfg.NodeAttrTailnetDisplayName]: tailnet display name
 	// surfaced in the client UI. The hosted control plane emits the
-	// tailnet admin's email; headscale would have to invent a value
+	// tailnet admin's email; orgscale would have to invent a value
 	// from cfg.Domain() that does not round-trip through the
 	// anonymized capture string. Skip rather than diverge on a value
 	// with no real-world equivalent.
 	nodecap.TailnetDisplayName,
 
 	// [tailcfg.NodeAttrMaxKeyDuration]: tailnet-wide max key duration
-	// value. Headscale has cfg.Node.Expiry but does not surface it
+	// value. Orgscale has cfg.Node.Expiry but does not surface it
 	// as a cap today; the hosted control plane emits this only when
 	// a non-default value is configured.
 	nodecap.MaxKeyDuration,
@@ -120,7 +120,7 @@ var unmodelledTailnetStateCaps = []nodecap.Cap{
 	// PR).
 	nodecap.NativeIPV4,
 
-	// --- 4. Internal tuning, no headscale equivalent ---
+	// --- 4. Internal tuning, no orgscale equivalent ---
 
 	// [tailcfg.NodeAttrProbeUDPLifetime]: tunes magicsock's UDP
 	// path-lifetime probe behavior. Internal performance knob; not
@@ -131,7 +131,7 @@ var unmodelledTailnetStateCaps = []nodecap.Cap{
 	// [tailcfg.NodeAttrSSHBehaviorV1]: picks the embedded SSH server's
 	// older path on a root-run Linux daemon: no su, in-process SFTP, no
 	// PAM session or login environment. SaaS stamps it on every node;
-	// headscale leaves it to a nodeAttr on purpose, as switching changes
+	// orgscale leaves it to a nodeAttr on purpose, as switching changes
 	// existing users' login environment. It is more than tuning, so
 	// TestSSHBehaviorIsAnAdminChoice pins it apart from this strip.
 	nodecap.SSHBehaviorV1,

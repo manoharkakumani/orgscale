@@ -3,14 +3,14 @@
 database:
   postgres: {}
   sqlite:
-    path: /var/lib/headscale/db.sqlite
+    path: /var/lib/orgscale/db.sqlite
     write_ahead_log: true
   type: sqlite
 derp:
   auto_update_enabled: true
   paths: []
   server:
-    private_key_path: /var/lib/headscale/derp_server_private.key
+    private_key_path: /var/lib/orgscale/derp_server_private.key
   update_frequency: 24h
   urls:
   - https://controlplane.tailscale.com/derpmap/default
@@ -32,7 +32,7 @@ node:
   ephemeral:
     inactivity_timeout: 30m
 noise:
-  private_key_path: /var/lib/headscale/noise_private.key
+  private_key_path: /var/lib/orgscale/noise_private.key
 oidc:
   allowed_domains: []
   allowed_users: []
@@ -52,9 +52,9 @@ prefixes:
   allocation: sequential
   v4: 100.64.0.0/10
   v6: fd7a:115c:a1e0::/48
-server_url: https://headscale.example.com
-tls_letsencrypt_cache_dir: /var/lib/headscale/.cache
+server_url: https://orgscale.example.com
+tls_letsencrypt_cache_dir: /var/lib/orgscale/.cache
 tls_letsencrypt_challenge_type: HTTP-01
 tls_letsencrypt_hostname: ''
 tls_letsencrypt_listen: :http
-unix_socket: /run/headscale/headscale.sock
+unix_socket: /run/orgscale/orgscale.sock

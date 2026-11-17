@@ -2,10 +2,10 @@
 // captures recorded against a real Tailscale SaaS tailnet. Each capture is
 // checked in steps, see [runTesterCompat]:
 //
-//   - verdict: SaaS accepted the policy (200) exactly when headscale does;
-//   - message: a refusal's message is contained in headscale's error;
+//   - verdict: SaaS accepted the policy (200) exactly when orgscale does;
+//   - message: a refusal's message is contained in orgscale's error;
 //   - breakdown: the failures SaaS lists in its error data are the ones
-//     headscale's evaluators report, see [requireFailureBreakdown];
+//     orgscale's evaluators report, see [requireFailureBreakdown];
 //   - label: no node hostname appears in one report and not the other.
 //
 // Captures live in testdata/policytest_results/*.hujson; the sshTests ones
@@ -34,7 +34,7 @@ import (
 	tsapi "tailscale.com/client/tailscale/v2"
 )
 
-// policyTesterSkipReasons lists checks where headscale's evaluator
+// policyTesterSkipReasons lists checks where orgscale's evaluator
 // differs from Tailscale SaaS, keyed <test_id>/<check>.
 var policyTesterSkipReasons = map[string]string{
 	"policytest-accept-fail-proto-icmp-not-allowed/breakdown": testEntryErrors,
@@ -46,8 +46,8 @@ var policyTesterSkipReasons = map[string]string{
 }
 
 const (
-	testEntryErrors  = "TEST_ENTRY_ERRORS: SaaS reports the first shape error of a tests entry, headscale every one"
-	testUnknownAlias = "TEST_UNKNOWN_ALIAS: SaaS reports a test naming an unknown user or group as not reached, headscale as an evaluation error"
+	testEntryErrors  = "TEST_ENTRY_ERRORS: SaaS reports the first shape error of a tests entry, orgscale every one"
+	testUnknownAlias = "TEST_UNKNOWN_ALIAS: SaaS reports a test naming an unknown user or group as not reached, orgscale as an evaluation error"
 )
 
 // TestPolicyTesterCompat replays every capture under
@@ -72,7 +72,7 @@ func TestPolicyTesterCompat(t *testing.T) {
 }
 
 // runTesterCompat replays one tests or sshTests capture. SaaS validates the
-// policy and runs both blocks in one POST; headscale parses first and runs
+// policy and runs both blocks in one POST; orgscale parses first and runs
 // the blocks in SetPolicy, so an error from either step is its refusal.
 func runTesterCompat(t *testing.T, c *testcapture.Capture, skips map[string]string) {
 	t.Helper()
@@ -85,7 +85,7 @@ func runTesterCompat(t *testing.T, c *testcapture.Capture, skips map[string]stri
 }
 
 // runTesterCompatFor is [runTesterCompat] against the given users and nodes,
-// with its checks keyed under key. It returns headscale's refusal, if any.
+// with its checks keyed under key. It returns orgscale's refusal, if any.
 func runTesterCompatFor(
 	t *testing.T,
 	c *testcapture.Capture,
@@ -115,9 +115,9 @@ func runTesterCompatFor(
 	compatCheck(t, skips, key+"verdict", func() string {
 		switch {
 		case saasRefused && err == nil:
-			return fmt.Sprintf("SaaS refused with %q; headscale accepted", body.Message)
+			return fmt.Sprintf("SaaS refused with %q; orgscale accepted", body.Message)
 		case !saasRefused && err != nil:
-			return fmt.Sprintf("SaaS accepted; headscale refused: %v", err)
+			return fmt.Sprintf("SaaS accepted; orgscale refused: %v", err)
 		}
 
 		return ""
@@ -134,7 +134,7 @@ func runTesterCompatFor(
 			return ""
 		}
 
-		return fmt.Sprintf("tailscale wants: %q\nheadscale got:   %q", body.Message, err.Error())
+		return fmt.Sprintf("tailscale wants: %q\norgscale got:   %q", body.Message, err.Error())
 	})
 
 	if len(body.Data) == 0 {
@@ -163,7 +163,7 @@ var (
 )
 
 // requireFailureBreakdown compares the failures SaaS lists in its error data
-// with the ones headscale's evaluators report, as sorted lines of
+// with the ones orgscale's evaluators report, as sorted lines of
 // "src -> dst: want" (tests), "src/user: want @ dst" (sshTests) and
 // "src: error" for an entry that could not be evaluated. Repeats are kept.
 // Both name an sshTests src and dst as written.
@@ -218,7 +218,7 @@ func requireFailureBreakdown(
 // parser reports tests and sshTests entries by index.
 var parseRefusalEntryRE = regexp.MustCompile(`(?m)^\s*(test|sshTest) (\d+)\b`)
 
-// parseRefusalBreakdown renders a refusal headscale gave before running the
+// parseRefusalBreakdown renders a refusal orgscale gave before running the
 // tests: one "src: error" per entry it names.
 func parseRefusalBreakdown(policy string, refusal error) ([]string, error) {
 	type entry struct {
@@ -323,7 +323,7 @@ func nodeLabels(c *testcapture.Capture, text string) []string {
 }
 
 // compatCheck runs one check of a capture as a subtest named after the last
-// element of key; mismatch returns "" when headscale matches SaaS. A key in
+// element of key; mismatch returns "" when orgscale matches SaaS. A key in
 // skips is a known difference that must still differ, so the fix that makes
 // it match has to delete the entry.
 func compatCheck(t *testing.T, skips map[string]string, key string, mismatch func() string) {
@@ -418,7 +418,7 @@ var standInVerdictSkipReasons = map[string]string{
 }
 
 // TestStandInsVerdict replays every capture: [CheckPolicy] refuses a policy
-// exactly when [ValidatePolicy], which "headscale policy set" runs, refuses it
+// exactly when [ValidatePolicy], which "orgscale policy set" runs, refuses it
 // against the captured topology.
 func TestStandInsVerdict(t *testing.T) {
 	t.Parallel()

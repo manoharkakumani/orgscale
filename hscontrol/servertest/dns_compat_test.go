@@ -1,5 +1,5 @@
 // This file replays MagicDNS captures from Tailscale SaaS, one per ipPool,
-// and compares the reverse-DNS routes headscale sends with those SaaS sent.
+// and compares the reverse-DNS routes orgscale sends with those SaaS sent.
 //
 // Test data source: ../policy/v2/testdata/dns_results/dns-reverse-*.hujson
 // Source format:    github.com/manoharkakumani/orgscale/hscontrol/types/testcapture
@@ -25,7 +25,7 @@ import (
 	"tailscale.com/types/netmap"
 )
 
-// reverseRoutes returns the reverse-DNS keys of routes as FQDNs; headscale
+// reverseRoutes returns the reverse-DNS keys of routes as FQDNs; orgscale
 // sends them without the trailing dot, SaaS with it.
 func reverseRoutes(routes map[string][]*dnstype.Resolver) []string {
 	var out []string
@@ -41,7 +41,7 @@ func reverseRoutes(routes map[string][]*dnstype.Resolver) []string {
 	return out
 }
 
-// dnsNetmap starts headscale with prefixV4 and returns a node's netmap once
+// dnsNetmap starts orgscale with prefixV4 and returns a node's netmap once
 // its DNS config has arrived.
 func dnsNetmap(t *testing.T, prefixV4 netip.Prefix, magicDNS bool) *netmap.NetworkMap {
 	t.Helper()
@@ -67,7 +67,7 @@ func dnsNetmap(t *testing.T, prefixV4 netip.Prefix, magicDNS bool) *netmap.Netwo
 
 // TestMagicDNSReverseRoutesCompat: with an ipPool inside CGNAT, SaaS sends no
 // reverse-DNS routes, whatever the pool's size or alignment; clients add the
-// ones for the Tailscale ranges themselves. Headscale runs each pool as
+// ones for the Tailscale ranges themselves. Orgscale runs each pool as
 // prefixes.v4 and must send the same.
 func TestMagicDNSReverseRoutesCompat(t *testing.T) {
 	t.Parallel()
@@ -81,7 +81,7 @@ func TestMagicDNSReverseRoutesCompat(t *testing.T) {
 		require.NoError(t, err)
 
 		// SaaS refuses an ipPool outside CGNAT; TestMagicDNSReverseRoutesOutsideCGNAT
-		// covers what headscale sends for one.
+		// covers what orgscale sends for one.
 		if c.Error {
 			assert.Contains(t, c.Input.APIResponseBody.Message, "must be within CGNAT range", c.TestID)
 
@@ -132,7 +132,7 @@ func TestMagicDNSReverseRoutesCompat(t *testing.T) {
 
 // TestMagicDNSReverseRoutesOutsideCGNAT: SaaS has no prefix outside the
 // Tailscale ranges (dns-reverse-e1/e2), so clients add no reverse routes for
-// one and headscale must. An octet-aligned prefix gets one name, not 256.
+// one and orgscale must. An octet-aligned prefix gets one name, not 256.
 func TestMagicDNSReverseRoutesOutsideCGNAT(t *testing.T) {
 	t.Parallel()
 

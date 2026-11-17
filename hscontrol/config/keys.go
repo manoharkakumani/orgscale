@@ -150,7 +150,7 @@ func parseDetail(ext string, b []byte, err error) string {
 type removedKey struct{ Old, New, Value, Since, Hint string }
 
 var removedKeys = []removedKey{
-	{Old: "derp.server.stun.enabled", Since: "0.30", Hint: "remove it: headscale never read it; the embedded DERP server always serves STUN on derp.server.stun_listen_addr"},
+	{Old: "derp.server.stun.enabled", Since: "0.30", Hint: "remove it: orgscale never read it; the embedded DERP server always serves STUN on derp.server.stun_listen_addr"},
 	{Old: "tuning.notifier_send_timeout", Since: "0.30", Hint: "remove it: it had no effect"},
 	{Old: "acl_policy_path", New: "policy.path", Since: "0.30"},
 	{Old: "dns_config", New: "dns", Since: "0.30", Hint: "move every dns_config.* key to dns (nameservers to dns.nameservers.global, restricted_nameservers to dns.nameservers.split, domains to dns.search_domains)"},
@@ -163,7 +163,7 @@ var removedKeys = []removedKey{
 	{Old: "dns_config.extra_records", New: "dns.extra_records", Since: "0.30"},
 	{Old: "dns_config.use_username_in_magic_dns", Since: "0.24"},
 	{Old: "dns.use_username_in_magic_dns", Since: "0.24"},
-	// The NixOS module's name; headscale never read it.
+	// The NixOS module's name; orgscale never read it.
 	{Old: "dns.split", New: "dns.nameservers.split", Since: "0.30"},
 	{Old: "oidc.strip_email_domain", Since: "0.26"},
 	{Old: "oidc.map_legacy_users", Since: "0.26"},
@@ -189,7 +189,7 @@ var removedKeys = []removedKey{
 	{Old: "db_user", New: "database.postgres.user", Since: "0.30"},
 	{Old: "db_pass", New: "database.postgres.pass", Since: "0.30"},
 	{Old: "db_ssl", New: "database.postgres.ssl", Since: "0.30"},
-	// The NixOS module's name; headscale never read it.
+	// The NixOS module's name; orgscale never read it.
 	{Old: "db_password_file", New: "database.postgres.pass", Value: "file:<path>", Since: "0.30"},
 	{Old: "private_key_path", New: "noise.private_key_path", Since: "0.23"},
 	{Old: "ip_prefixes", New: "prefixes.v4 prefixes.v6", Since: "0.23"},

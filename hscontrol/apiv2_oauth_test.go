@@ -28,7 +28,7 @@ import (
 // OAuth token endpoint, which the humatest harness in apiv2_keys_test.go does
 // not mount) over a real httptest server, returning the app, its base URL, and
 // an all-access admin API key.
-func newOAuthTestServer(t *testing.T) (*Headscale, string, string) {
+func newOAuthTestServer(t *testing.T) (*Orgscale, string, string) {
 	t.Helper()
 
 	app := createTestApp(t)
@@ -203,7 +203,7 @@ func TestAPIv2OAuth_TokenEndpoint(t *testing.T) {
 	assert.Equal(t, "Bearer", m["token_type"])
 	assert.InDelta(t, 3600, m["expires_in"], 0, "fixed 1h, in seconds")
 	tok, _ := m["access_token"].(string)
-	assert.Contains(t, tok, "hskey-oauthtok-", "distinct prefix from admin keys")
+	assert.Contains(t, tok, "oskey-oauthtok-", "distinct prefix from admin keys")
 
 	// Mint via HTTP Basic (x/oauth2 auto-detect probes Basic first).
 	statusBasic, mBasic := mintToken(t, baseURL, clientID, secret, "", true)
@@ -225,7 +225,7 @@ func TestAPIv2OAuth_TokenEndpoint(t *testing.T) {
 	assert.NotContains(t, mReader, "tags")
 
 	// Bad credentials → RFC 6749 invalid_client.
-	statusBad, mBad := mintToken(t, baseURL, clientID, "hskey-client-deadbeefdead-"+stringOf("0", 64), "", false)
+	statusBad, mBad := mintToken(t, baseURL, clientID, "oskey-client-deadbeefdead-"+stringOf("0", 64), "", false)
 	assert.Equal(t, http.StatusUnauthorized, statusBad)
 	assert.Equal(t, "invalid_client", mBad["error"])
 
@@ -806,9 +806,9 @@ func TestAPIv2OAuth_DenialBranches(t *testing.T) {
 
 	// Bearer dispatch: every malformed/unknown bearer is unauthorized.
 	for _, bearer := range []string{
-		"hskey-oauthtok-deadbeefdead-" + stringOf("0", 64), // well-formed prefix, unknown token
-		"hskey-oauthtok-garbage",                           // malformed OAuth token
-		"hskey-client-deadbeefdead-" + stringOf("0", 64),   // client secret presented as API bearer
+		"oskey-oauthtok-deadbeefdead-" + stringOf("0", 64), // well-formed prefix, unknown token
+		"oskey-oauthtok-garbage",                           // malformed OAuth token
+		"oskey-client-deadbeefdead-" + stringOf("0", 64),   // client secret presented as API bearer
 		"totally-bogus",
 	} {
 		assert.Equalf(t, http.StatusUnauthorized, apiGet(t, keysURL, bearer),

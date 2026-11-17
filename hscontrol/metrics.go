@@ -6,7 +6,7 @@ import (
 	"tailscale.com/envknob"
 )
 
-var debugHighCardinalityMetrics = envknob.Bool("HEADSCALE_DEBUG_HIGH_CARDINALITY_METRICS")
+var debugHighCardinalityMetrics = envknob.Bool("ORGSCALE_DEBUG_HIGH_CARDINALITY_METRICS")
 
 var mapResponseLastSentSeconds *prometheus.GaugeVec
 
@@ -20,7 +20,7 @@ func init() {
 	}
 }
 
-const prometheusNamespace = "headscale"
+const prometheusNamespace = "orgscale"
 
 var (
 	mapResponseSent = promauto.NewCounterVec(prometheus.CounterOpts{

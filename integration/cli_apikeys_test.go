@@ -27,18 +27,18 @@ func TestApiKeyCommand(t *testing.T) {
 	require.NoError(t, err)
 	defer scenario.ShutdownAssertNoPanics(t)
 
-	err = scenario.CreateHeadscaleEnv([]tsic.Option{}, hsic.WithTestName("cli-apikey"))
+	err = scenario.CreateOrgscaleEnv([]tsic.Option{}, hsic.WithTestName("cli-apikey"))
 	require.NoError(t, err)
 
-	headscale, err := scenario.Headscale()
+	orgscale, err := scenario.Orgscale()
 	require.NoError(t, err)
 
 	keys := make([]string, count)
 
 	for idx := range count {
-		apiResult, err := headscale.Execute(
+		apiResult, err := orgscale.Execute(
 			[]string{
-				"headscale",
+				"orgscale",
 				"apikeys",
 				"create",
 				"--expiration",
@@ -58,9 +58,9 @@ func TestApiKeyCommand(t *testing.T) {
 	var listedAPIKeys []clientv1.ApiKey
 
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		err = executeAndUnmarshal(headscale,
+		err = executeAndUnmarshal(orgscale,
 			[]string{
-				"headscale",
+				"orgscale",
 				"apikeys",
 				"list",
 				"--output",
@@ -122,9 +122,9 @@ func TestApiKeyCommand(t *testing.T) {
 
 	// Expire three keys
 	for idx := range 3 {
-		_, err := headscale.Execute(
+		_, err := orgscale.Execute(
 			[]string{
-				"headscale",
+				"orgscale",
 				"apikeys",
 				"expire",
 				"--prefix",
@@ -139,9 +139,9 @@ func TestApiKeyCommand(t *testing.T) {
 	var listedAfterExpireAPIKeys []clientv1.ApiKey
 
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		err = executeAndUnmarshal(headscale,
+		err = executeAndUnmarshal(orgscale,
 			[]string{
-				"headscale",
+				"orgscale",
 				"apikeys",
 				"list",
 				"--output",
@@ -168,9 +168,9 @@ func TestApiKeyCommand(t *testing.T) {
 		}
 	}
 
-	_, err = headscale.Execute(
+	_, err = orgscale.Execute(
 		[]string{
-			"headscale",
+			"orgscale",
 			"apikeys",
 			"delete",
 			"--prefix",
@@ -181,9 +181,9 @@ func TestApiKeyCommand(t *testing.T) {
 	var listedAPIKeysAfterDelete []clientv1.ApiKey
 
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		err = executeAndUnmarshal(headscale,
+		err = executeAndUnmarshal(orgscale,
 			[]string{
-				"headscale",
+				"orgscale",
 				"apikeys",
 				"list",
 				"--output",
@@ -197,9 +197,9 @@ func TestApiKeyCommand(t *testing.T) {
 	assert.Len(t, listedAPIKeysAfterDelete, 4)
 
 	// Test expire by ID (using key at index 0)
-	_, err = headscale.Execute(
+	_, err = orgscale.Execute(
 		[]string{
-			"headscale",
+			"orgscale",
 			"apikeys",
 			"expire",
 			"--id",
@@ -210,9 +210,9 @@ func TestApiKeyCommand(t *testing.T) {
 	var listedAPIKeysAfterExpireByID []clientv1.ApiKey
 
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		err = executeAndUnmarshal(headscale,
+		err = executeAndUnmarshal(orgscale,
 			[]string{
-				"headscale",
+				"orgscale",
 				"apikeys",
 				"list",
 				"--output",
@@ -233,9 +233,9 @@ func TestApiKeyCommand(t *testing.T) {
 
 	// Test delete by ID (using key at index 1)
 	deletedKeyID := listedAPIKeysAfterExpireByID[1].Id
-	_, err = headscale.Execute(
+	_, err = orgscale.Execute(
 		[]string{
-			"headscale",
+			"orgscale",
 			"apikeys",
 			"delete",
 			"--id",
@@ -246,9 +246,9 @@ func TestApiKeyCommand(t *testing.T) {
 	var listedAPIKeysAfterDeleteByID []clientv1.ApiKey
 
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		err = executeAndUnmarshal(headscale,
+		err = executeAndUnmarshal(orgscale,
 			[]string{
-				"headscale",
+				"orgscale",
 				"apikeys",
 				"list",
 				"--output",
@@ -275,19 +275,19 @@ func TestApiKeyCommand(t *testing.T) {
 func TestApiKeyCommandValidation(t *testing.T) {
 	IntegrationSkip(t)
 
-	scenario, headscale := setupCLIScenario(t, "cli-apikeyval", []string{"user1"}, 0)
+	scenario, orgscale := setupCLIScenario(t, "cli-apikeyval", []string{"user1"}, 0)
 	defer scenario.ShutdownAssertNoPanics(t)
 
 	// Create a real key so a valid prefix exists. `apikeys create` prints the
 	// raw secret, not JSON of the key, so list to discover the prefix.
-	_, err := headscale.Execute([]string{"headscale", "apikeys", "create", "--output", "json"})
+	_, err := orgscale.Execute([]string{"orgscale", "apikeys", "create", "--output", "json"})
 	require.NoError(t, err)
 
 	var listed []clientv1.ApiKey
 
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		err := executeAndUnmarshal(headscale,
-			[]string{"headscale", "apikeys", "list", "--output", "json"},
+		err := executeAndUnmarshal(orgscale,
+			[]string{"orgscale", "apikeys", "list", "--output", "json"},
 			&listed,
 		)
 		assert.NoError(c, err)
@@ -313,7 +313,7 @@ func TestApiKeyCommandValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := headscale.Execute(append([]string{"headscale"}, tt.args...))
+			_, err := orgscale.Execute(append([]string{"orgscale"}, tt.args...))
 			if tt.wantErr != "" {
 				require.ErrorContains(t, err, tt.wantErr)
 

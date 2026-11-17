@@ -18,7 +18,7 @@ import (
 func TestAPIV1SocketClient(t *testing.T) {
 	app := createTestApp(t)
 
-	socketPath := filepath.Join(t.TempDir(), "headscale.sock")
+	socketPath := filepath.Join(t.TempDir(), "orgscale.sock")
 
 	lis, err := new(net.ListenConfig).Listen(context.Background(), "unix", socketPath)
 	require.NoError(t, err)

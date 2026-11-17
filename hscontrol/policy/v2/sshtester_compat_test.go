@@ -13,7 +13,7 @@ import (
 )
 
 // sshTesterSkipReasons names the engine gap for each check where
-// headscale and upstream disagree, keyed <test_id>/<check>.
+// orgscale and upstream disagree, keyed <test_id>/<check>.
 var sshTesterSkipReasons = map[string]string{}
 
 func TestSSHTesterCompat(t *testing.T) {

@@ -45,7 +45,7 @@ func TestExpiryIsEncodableCheck(t *testing.T) {
 
 		if !ok {
 			require.NotEmpty(t, problem)
-			require.Equal(t, "headscale nodes expire --identifier 7", fixHint,
+			require.Equal(t, "orgscale nodes expire --identifier 7", fixHint,
 				"the fix must name the node and keep an expired one expired")
 		}
 	}
@@ -56,10 +56,10 @@ func TestExpiryIsEncodableCheck(t *testing.T) {
 // with an actionable fix, and that it never rewrites the stored name — the
 // maintainer's decision is log-only, no silent mutation.
 func TestScanNodeHealthReportsInvalidNameWithoutMutating(t *testing.T) {
-	dbPath := t.TempDir() + "/headscale.db"
+	dbPath := t.TempDir() + "/orgscale.db"
 	cfg := persistTestConfig(dbPath)
 
-	database, err := db.NewHeadscaleDatabase(cfg)
+	database, err := db.NewOrgscaleDatabase(cfg)
 	require.NoError(t, err)
 
 	user := database.CreateUserForTest("scan-user")

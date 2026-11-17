@@ -24,7 +24,7 @@ vendor/
 
 dist/
 /release-assets/
-/headscale
+/orgscale
 config.yaml
 config*.yaml
 !docs/ref/config-example.yaml
@@ -47,7 +47,7 @@ result
 .direnv/
 
 # OpenAPI spec is served live from the code and emitted on demand, not committed
-/openapi/v1/headscale.yaml
+/openapi/v1/orgscale.yaml
 
 # MkDocs
 .cache

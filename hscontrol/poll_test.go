@@ -371,7 +371,7 @@ func TestServeLongPollWritesErrorWhenInitialMapFails(t *testing.T) {
 	app.mapBatcher.Close()
 	require.NoError(t, app.state.Close())
 
-	database, err := db.NewHeadscaleDatabase(app.cfg)
+	database, err := db.NewOrgscaleDatabase(app.cfg)
 	require.NoError(t, err)
 	require.NoError(t, database.DB.
 		Model(&types.Node{}).

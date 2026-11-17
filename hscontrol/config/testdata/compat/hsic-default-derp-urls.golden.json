@@ -58,8 +58,8 @@
       "ServerEnabled": true,
       "AutomaticallyAddEmbeddedDerpRegion": true,
       "ServerRegionID": 999,
-      "ServerRegionCode": "headscale",
-      "ServerRegionName": "Headscale Embedded DERP",
+      "ServerRegionCode": "orgscale",
+      "ServerRegionName": "Orgscale Embedded DERP",
       "ServerPrivateKeyPath": "/tmp/derp.key",
       "ServerVerifyClients": true,
       "STUNAddr": "0.0.0.0:3478",
@@ -80,7 +80,7 @@
         "HTTPListen": ":http",
         "URL": "",
         "Email": "",
-        "CacheDir": "/var/lib/headscale/cache"
+        "CacheDir": "/var/lib/orgscale/cache"
       }
     },
     "DNSConfig": {
@@ -124,7 +124,7 @@
       ],
       "ProviderName": ""
     },
-    "UnixSocket": "/var/run/headscale/headscale.sock",
+    "UnixSocket": "/var/run/orgscale/orgscale.sock",
     "UnixSocketPermission": 504,
     "OIDC": {
       "OnlyStartIfOIDCIsAvailable": true,

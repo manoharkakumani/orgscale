@@ -446,7 +446,7 @@ func apiv2DevicesACLTerraform(t *testing.T, version string, srv *servertest.Test
 	tf.assertNoDrift()
 
 	// destroy resets the policy; the node is a data source, so it persists.
-	// Tags/expiry teardown are no-ops on Headscale, so they are not reverted.
+	// Tags/expiry teardown are no-ops on Orgscale, so they are not reverted.
 	tf.run("destroy", "-auto-approve", "-no-color", "-input=false", "-parallelism=1")
 
 	_, ok := srv.State().GetNodeByID(id)
@@ -456,7 +456,7 @@ func apiv2DevicesACLTerraform(t *testing.T, version string, srv *servertest.Test
 // TestAPIV2TaggedDeviceUserCompat replays the setup step of the user-role
 // capture, where odin and freya each join an untagged and a tag:server node
 // with keys they minted, and compares each device's user and tags in
-// headscale's v2 device list with SaaS's.
+// orgscale's v2 device list with SaaS's.
 //
 // Test data source: testdata/steps/user-role.hujson, loaded by name; its
 // role steps are TestUserChangeDispatchCompat's.

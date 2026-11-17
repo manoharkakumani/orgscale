@@ -32,7 +32,7 @@ var givenNameMapsToValidFQDN = nodeHealthCheck{
 	check: func(nv types.NodeView, cfg *types.Config) (string, string, bool) {
 		err := types.ValidateGivenName(nv.GivenName(), cfg.DNSConfig.BaseDomain)
 		if err != nil {
-			return err.Error(), fmt.Sprintf("headscale nodes rename %d <name>", nv.ID()), false
+			return err.Error(), fmt.Sprintf("orgscale nodes rename %d <name>", nv.ID()), false
 		}
 
 		return "", "", true
@@ -51,7 +51,7 @@ var expiryIsEncodable = nodeHealthCheck{
 		_, err := types.ValidateExpiry(expiry)
 		if err != nil {
 			return err.Error(), fmt.Sprintf(
-				"headscale nodes expire --identifier %d",
+				"orgscale nodes expire --identifier %d",
 				nv.ID(),
 			), false
 		}

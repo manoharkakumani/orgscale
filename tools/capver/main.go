@@ -312,7 +312,7 @@ func writeCapabilityVersionsToFile(versions map[string]tailcfg.CapabilityVersion
 
 	// Add the [capver.MinSupportedCapabilityVersion] constant
 	content.WriteString("// MinSupportedCapabilityVersion represents the minimum capability version\n")
-	content.WriteString("// supported by this Headscale instance (latest 10 minor versions)\n")
+	content.WriteString("// supported by this Orgscale instance (latest 10 minor versions)\n")
 	fmt.Fprintf(&content, "const MinSupportedCapabilityVersion tailcfg.CapabilityVersion = %d\n", minSupportedCapVer)
 
 	// Format the generated code

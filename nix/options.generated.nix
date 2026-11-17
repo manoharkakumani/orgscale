@@ -1,6 +1,6 @@
-# Generated from hscontrol/types/config.go by `headscale generate nixos-options`; do not edit.
-# headscale development tree, not a release
-# Options for services.headscale.settings, not a module: import ./options.generated.nix { inherit lib; }
+# Generated from hscontrol/types/config.go by `orgscale generate nixos-options`; do not edit.
+# orgscale development tree, not a release
+# Options for services.orgscale.settings, not a module: import ./options.generated.nix { inherit lib; }
 { lib, ... }:
 let
   o4 = "(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])";
@@ -24,11 +24,11 @@ in
   server_url = lib.mkOption {
     type = lib.types.str;
     description = ''
-      The URL clients connect to, with its `http://` or `https://` scheme, e.g. `https://headscale.example.com:443`. A trailing slash is trimmed on load. Its host must not be `dns.base_domain` or a name below it.
+      The URL clients connect to, with its `http://` or `https://` scheme, e.g. `https://orgscale.example.com:443`. A trailing slash is trimmed on load. Its host must not be `dns.base_domain` or a name below it.
 
       Required.
     '';
-    example = "https://headscale.example.com";
+    example = "https://orgscale.example.com";
   };
   listen_addr = lib.mkOption {
     type = t.listenAddr;
@@ -48,13 +48,13 @@ in
   };
   unix_socket = lib.mkOption {
     type = t.stateFile;
-    default = "/var/run/headscale/headscale.sock";
+    default = "/var/run/orgscale/orgscale.sock";
     description = ''
       Where the server serves the API without authentication, for the CLI on the same host. The CLI connects to it when `cli.address` is empty.
 
       On NixOS, paths must be absolute and outside the Nix store.
     '';
-    example = "/run/headscale/headscale.sock";
+    example = "/run/orgscale/orgscale.sock";
   };
   unix_socket_permission = lib.mkOption {
     type = t.fileMode;
@@ -79,20 +79,20 @@ in
     type = lib.types.bool;
     default = false;
     description = ''
-      Skips the check for a newer headscale release that commands make at start.
+      Skips the check for a newer orgscale release that commands make at start.
     '';
     example = true;
   };
   noise = {
     private_key_path = lib.mkOption {
       type = t.stateFile;
-      default = "/var/lib/headscale/noise_private.key";
+      default = "/var/lib/orgscale/noise_private.key";
       description = ''
-        The file holding the Noise private key, which encrypts traffic between headscale and clients, relative to the configuration file. A missing file is created with a new key.
+        The file holding the Noise private key, which encrypts traffic between orgscale and clients, relative to the configuration file. A missing file is created with a new key.
 
         On NixOS, paths must be absolute and outside the Nix store.
       '';
-      example = "/opt/headscale/noise_private.key";
+      example = "/opt/orgscale/noise_private.key";
     };
   };
   prefixes = {
@@ -139,7 +139,7 @@ in
 
         On NixOS, paths must be absolute.
       '';
-      example = "/etc/headscale/policy.hujson";
+      example = "/etc/orgscale/policy.hujson";
     };
     mode = lib.mkOption {
       type = lib.types.enum [
@@ -153,8 +153,8 @@ in
 
         One of:
 
-        - `file`: Reads the policy from `policy.path`. Send headscale `SIGHUP` to reload it after an edit.
-        - `database`: Keeps the policy in the database, set with `headscale policy set` or the API. `policy.path` is not read.
+        - `file`: Reads the policy from `policy.path`. Send orgscale `SIGHUP` to reload it after an edit.
+        - `database`: Keeps the policy in the database, set with `orgscale policy set` or the API. `policy.path` is not read.
       '';
       example = "database";
     };
@@ -212,7 +212,7 @@ in
       type = t.duration;
       default = "0s";
       description = ''
-        The key expiry given to a non-tagged node that registers without one, whatever the method (auth key, CLI, web, OIDC). An expiry the client asks for, `oidc.use_expiry_from_token` and an admin's `headscale nodes expire` still apply. Tagged nodes never get this default. Zero or negative disables the default.
+        The key expiry given to a non-tagged node that registers without one, whatever the method (auth key, CLI, web, OIDC). An expiry the client asks for, `oidc.use_expiry_from_token` and an admin's `orgscale nodes expire` still apply. Tagged nodes never get this default. Zero or negative disables the default.
       '';
       example = "2160h";
     };
@@ -281,7 +281,7 @@ in
         description = ''
           The region's short code, shown by Tailscale clients.
         '';
-        example = "headscale";
+        example = "orgscale";
       };
       region_name = lib.mkOption {
         type = lib.types.str;
@@ -289,7 +289,7 @@ in
         description = ''
           The region's name, shown by Tailscale clients.
         '';
-        example = "Headscale Embedded DERP";
+        example = "Orgscale Embedded DERP";
       };
       verify_clients = lib.mkOption {
         type = lib.types.bool;
@@ -315,7 +315,7 @@ in
 
           On NixOS, paths must be absolute and outside the Nix store.
         '';
-        example = "/var/lib/headscale/derp_server_private.key";
+        example = "/var/lib/orgscale/derp_server_private.key";
       };
       ipv4 = lib.mkOption {
         type = lib.types.str;
@@ -348,7 +348,7 @@ in
         "https://controlplane.tailscale.com/derpmap/default"
       ];
       description = ''
-        DERP maps in JSON to fetch. One that fails to load is logged and skipped; startup fails only when no region remains. The default is Tailscale's map: headscale fetches it from Tailscale and clients relay through Tailscale's servers. `[]` keeps to your own.
+        DERP maps in JSON to fetch. One that fails to load is logged and skipped; startup fails only when no region remains. The default is Tailscale's map: orgscale fetches it from Tailscale and clients relay through Tailscale's servers. `[]` keeps to your own.
       '';
       example = [
         "https://derp.example.com/derpmap.json"
@@ -363,7 +363,7 @@ in
         On NixOS, paths must be absolute.
       '';
       example = [
-        "/etc/headscale/derp.yaml"
+        "/etc/orgscale/derp.yaml"
       ];
     };
     auto_update_enabled = lib.mkOption {
@@ -440,19 +440,19 @@ in
     sqlite = {
       path = lib.mkOption {
         type = t.stateFile;
-        default = "/var/lib/headscale/db.sqlite";
+        default = "/var/lib/orgscale/db.sqlite";
         description = ''
           The database file, relative to the configuration file; `:memory:` keeps the database in memory.
 
           On NixOS, paths must be absolute and outside the Nix store.
         '';
-        example = "/opt/headscale/db.sqlite";
+        example = "/opt/orgscale/db.sqlite";
       };
       write_ahead_log = lib.mkOption {
         type = lib.types.bool;
         default = true;
         description = ''
-          Runs SQLite in write-ahead log (WAL) mode, applies `database.sqlite.wal_autocheckpoint` and compacts the database (`VACUUM`) on shutdown. False uses SQLite's rollback journal (`DELETE`) with `synchronous=FULL`, and converts a database left in WAL mode when headscale opens it.
+          Runs SQLite in write-ahead log (WAL) mode, applies `database.sqlite.wal_autocheckpoint` and compacts the database (`VACUUM`) on shutdown. False uses SQLite's rollback journal (`DELETE`) with `synchronous=FULL`, and converts a database left in WAL mode when orgscale opens it.
         '';
         example = false;
       };
@@ -488,7 +488,7 @@ in
         description = ''
           The database name.
         '';
-        example = "headscale";
+        example = "orgscale";
       };
       user = lib.mkOption {
         type = lib.types.str;
@@ -496,15 +496,15 @@ in
         description = ''
           The user to connect as.
         '';
-        example = "headscale";
+        example = "orgscale";
       };
       pass = lib.mkOption {
         type = t.secretFile;
         default = "";
         description = ''
-          The password, or `file:<path>` to read it from a file, read only when `database.type` is `postgres`. `headscale generate config --running` and `/debug/config` show a literal password as `<redacted>` and a `file:` reference as written.
+          The password, or `file:<path>` to read it from a file, read only when `database.type` is `postgres`. `orgscale generate config --running` and `/debug/config` show a literal password as `<redacted>` and a `file:` reference as written.
 
-          On NixOS, the value must be `""` or `file:<path>`: load the secret as a systemd credential with `systemd.services.headscale.serviceConfig.LoadCredential = [ "database_postgres_pass:/run/secrets/database_postgres_pass" ];` and set this option to `"file:\''${CREDENTIALS_DIRECTORY}/database_postgres_pass"`.
+          On NixOS, the value must be `""` or `file:<path>`: load the secret as a systemd credential with `systemd.services.orgscale.serviceConfig.LoadCredential = [ "database_postgres_pass:/run/secrets/database_postgres_pass" ];` and set this option to `"file:\''${CREDENTIALS_DIRECTORY}/database_postgres_pass"`.
         '';
         example = "file:/run/secrets/postgres_password";
       };
@@ -572,7 +572,7 @@ in
         type = lib.types.listOf lib.types.str;
         default = [ ];
         description = ''
-          The nameservers for names `dns.nameservers.split` does not cover: IP addresses, or DNS-over-HTTPS URLs such as `https://dns.nextdns.io/<id>`. Empty by default, so clients keep their own DNS: headscale points them at no resolver you did not list.
+          The nameservers for names `dns.nameservers.split` does not cover: IP addresses, or DNS-over-HTTPS URLs such as `https://dns.nextdns.io/<id>`. Empty by default, so clients keep their own DNS: orgscale points them at no resolver you did not list.
         '';
         example = [
           "9.9.9.9"
@@ -668,7 +668,7 @@ in
 
         On NixOS, paths must be absolute.
       '';
-      example = "/var/lib/headscale/extra-records.json";
+      example = "/var/lib/orgscale/extra-records.json";
     };
     certificates = {
       enabled = lib.mkOption {
@@ -715,9 +715,9 @@ in
         type = lib.types.attrsOf lib.types.anything;
         default = { };
         description = ''
-          The DNS provider that writes challenge records: `name` selects it, the other keys are its settings. Keys are lowercased on load, at every depth; two that differ only in case are an error. Any setting may be `file:<path>` to read it from a file; a non-string one, such as acme-dns `config`, is the JSON in it. `headscale generate config --running` and `/debug/config` show `name` and `file:` references; every other setting is `<redacted>`, as any may be a credential. See [DNS-01 challenge provider](https://headscale.net/stable/ref/dns/#dns-01-challenge-provider) to set a provider up, acme-dns included, and to set it from environment variables.
+          The DNS provider that writes challenge records: `name` selects it, the other keys are its settings. Keys are lowercased on load, at every depth; two that differ only in case are an error. Any setting may be `file:<path>` to read it from a file; a non-string one, such as acme-dns `config`, is the JSON in it. `orgscale generate config --running` and `/debug/config` show `name` and `file:` references; every other setting is `<redacted>`, as any may be a credential. See [DNS-01 challenge provider](https://headscale.net/stable/ref/dns/#dns-01-challenge-provider) to set a provider up, acme-dns included, and to set it from environment variables.
 
-          On NixOS, keep a secret setting out of the Nix store: load it as a systemd credential with `systemd.services.headscale.serviceConfig.LoadCredential = [ "dns_challenge_provider_<setting>:/run/secrets/dns_challenge_provider_<setting>" ];` and set the setting to `"file:\''${CREDENTIALS_DIRECTORY}/dns_challenge_provider_<setting>"`. `name` is not a secret.
+          On NixOS, keep a secret setting out of the Nix store: load it as a systemd credential with `systemd.services.orgscale.serviceConfig.LoadCredential = [ "dns_challenge_provider_<setting>:/run/secrets/dns_challenge_provider_<setting>" ];` and set the setting to `"file:\''${CREDENTIALS_DIRECTORY}/dns_challenge_provider_<setting>"`. `name` is not a secret.
         '';
         example = {
           api_token = "file:/run/secrets/cloudflare";
@@ -735,7 +735,7 @@ in
 
         On NixOS, paths must be absolute.
       '';
-      example = "/etc/headscale/tls/cert.pem";
+      example = "/etc/orgscale/tls/cert.pem";
     };
     key_path = lib.mkOption {
       type = t.stateFile;
@@ -745,7 +745,7 @@ in
 
         On NixOS, paths must be absolute and outside the Nix store.
       '';
-      example = "/etc/headscale/tls/key.pem";
+      example = "/etc/orgscale/tls/key.pem";
     };
     acme = {
       hostname = lib.mkOption {
@@ -754,7 +754,7 @@ in
         description = ''
           The domain to request a certificate for. Setting it turns ACME on.
         '';
-        example = "headscale.example.com";
+        example = "orgscale.example.com";
       };
       challenge_type = lib.mkOption {
         type = lib.types.enum [
@@ -765,13 +765,13 @@ in
         ];
         default = "HTTP-01";
         description = ''
-          How the CA verifies that headscale controls `tls.acme.hostname`.
+          How the CA verifies that orgscale controls `tls.acme.hostname`.
 
           One of:
 
           - `HTTP-01`: Has the CA fetch a token over HTTP on port 80, answered on `tls.acme.http_listen`. TLS-ALPN-01 on `listen_addr` stays enabled too.
           - `TLS-ALPN-01`: Has the CA check a special certificate on port 443, answered on `listen_addr`, which must be reachable there.
-          - `DNS-01`: Has the CA look up a TXT record, which headscale writes through `dns.challenge.provider`. It needs no open port.
+          - `DNS-01`: Has the CA look up a TXT record, which orgscale writes through `dns.challenge.provider`. It needs no open port.
         '';
         example = "TLS-ALPN-01";
       };
@@ -801,13 +801,13 @@ in
       };
       cache_dir = lib.mkOption {
         type = t.stateFile;
-        default = "/var/lib/headscale/cache";
+        default = "/var/lib/orgscale/cache";
         description = ''
           Where certificates and ACME account data are stored, relative to the configuration file.
 
           On NixOS, paths must be absolute and outside the Nix store.
         '';
-        example = "/var/cache/headscale/acme";
+        example = "/var/cache/orgscale/acme";
       };
     };
   };
@@ -826,7 +826,7 @@ in
       description = ''
         The provider's issuer URL. Setting it turns OIDC on.
       '';
-      example = "https://idp.example.com/realms/headscale";
+      example = "https://idp.example.com/realms/orgscale";
     };
     client_id = lib.mkOption {
       type = lib.types.str;
@@ -834,15 +834,15 @@ in
       description = ''
         The client ID from the provider; required when `oidc.issuer` is set.
       '';
-      example = "headscale";
+      example = "orgscale";
     };
     client_secret = lib.mkOption {
       type = t.secretFile;
       default = "";
       description = ''
-        The client secret from the provider, or `file:<path>` to read it from a file; required when `oidc.issuer` is set. `headscale generate config --running` and `/debug/config` show a literal secret as `<redacted>` and a `file:` reference as written.
+        The client secret from the provider, or `file:<path>` to read it from a file; required when `oidc.issuer` is set. `orgscale generate config --running` and `/debug/config` show a literal secret as `<redacted>` and a `file:` reference as written.
 
-        On NixOS, the value must be `""` or `file:<path>`: load the secret as a systemd credential with `systemd.services.headscale.serviceConfig.LoadCredential = [ "oidc_client_secret:/run/secrets/oidc_client_secret" ];` and set this option to `"file:\''${CREDENTIALS_DIRECTORY}/oidc_client_secret"`.
+        On NixOS, the value must be `""` or `file:<path>`: load the secret as a systemd credential with `systemd.services.orgscale.serviceConfig.LoadCredential = [ "oidc_client_secret:/run/secrets/oidc_client_secret" ];` and set this option to `"file:\''${CREDENTIALS_DIRECTORY}/oidc_client_secret"`.
       '';
       example = "file:/run/secrets/oidc_client_secret";
     };
@@ -901,7 +901,7 @@ in
         Admits only members of at least one listed group, from the provider's `groups` claim: UserInfo first, the ID token as fallback. Empty admits any group.
       '';
       example = [
-        "headscale-users"
+        "orgscale-users"
       ];
     };
     email_verified_required = lib.mkOption {
@@ -953,7 +953,7 @@ in
       type = lib.types.bool;
       default = false;
       description = ''
-        Lets nodes send their logs to Tailscale Inc.; headscale cannot point them at another log server. False tells nodes not to.
+        Lets nodes send their logs to Tailscale Inc.; orgscale cannot point them at another log server. False tells nodes not to.
       '';
       example = true;
     };

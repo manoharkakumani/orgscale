@@ -23,8 +23,8 @@ const dnsDocsURL = "https://headscale.net/stable/ref/dns/"
 var (
 	errOIDCClientIDRequired     = errors.New("oidc.client_id is required when oidc.issuer is set")
 	errOIDCClientSecretRequired = errors.New("oidc.client_secret is required when oidc.issuer is set")
-	errServerURLSuffix          = errors.New("server_url cannot be part of base_domain in a way that could make the DERP and headscale server unreachable")
-	errServerURLSame            = errors.New("server_url cannot use the same domain as base_domain in a way that could make the DERP and headscale server unreachable")
+	errServerURLSuffix          = errors.New("server_url cannot be part of base_domain in a way that could make the DERP and orgscale server unreachable")
+	errServerURLSame            = errors.New("server_url cannot use the same domain as base_domain in a way that could make the DERP and orgscale server unreachable")
 	errInvalidPKCEMethod        = errors.New("pkce.method must be either 'plain' or 'S256'")
 	errTrustedProxyZeroRange    = errors.New("0.0.0.0/0 and ::/0 are not allowed")
 	errURLSyntax                = errors.New("invalid URL syntax")
@@ -82,7 +82,7 @@ func Validate(c *types.Config) error {
 	if c.Noise.PrivateKeyPath == "" {
 		v.Add(&types.ConfigError{
 			Reason: "noise.private_key_path is required",
-			Hint:   "set noise.private_key_path: /var/lib/headscale/noise_private.key (or any writable path)",
+			Hint:   "set noise.private_key_path: /var/lib/orgscale/noise_private.key (or any writable path)",
 			See:    "https://headscale.net/stable/setup/install/official/",
 		})
 	}
@@ -99,7 +99,7 @@ func Validate(c *types.Config) error {
 	if c.UnixSocket == "" {
 		v.Add(&types.ConfigError{
 			Reason: "unix_socket is required",
-			Hint:   `set unix_socket, e.g. "/var/run/headscale/headscale.sock", or remove it for that default`,
+			Hint:   `set unix_socket, e.g. "/var/run/orgscale/orgscale.sock", or remove it for that default`,
 		})
 	}
 
@@ -123,11 +123,11 @@ func Validate(c *types.Config) error {
 	case c.ServerURL == "":
 		v.Add(&types.ConfigError{
 			Reason: "server_url is required",
-			Hint:   "set server_url to the URL clients connect to, e.g. https://headscale.example.com",
+			Hint:   "set server_url to the URL clients connect to, e.g. https://orgscale.example.com",
 		})
 	case !strings.HasPrefix(c.ServerURL, "http://") && !strings.HasPrefix(c.ServerURL, "https://"):
 		// Without an @ it holds no userinfo; shown, the common mistake
-		// (headscale.example.com) is plain to see.
+		// (orgscale.example.com) is plain to see.
 		shown := c.ServerURL
 		if strings.Contains(shown, "@") {
 			shown = serverURL
@@ -232,7 +232,7 @@ func Validate(c *types.Config) error {
 
 	// BaseDomain cannot be the same as the server URL.
 	// This is because Tailscale takes over the domain in BaseDomain,
-	// causing the headscale server and DERP to be unreachable.
+	// causing the orgscale server and DERP to be unreachable.
 	// For Tailscale upstream, the following is true:
 	// - DERP run on their own domains
 	// - Control plane runs on login.tailscale.com/controlplane.tailscale.com
@@ -426,7 +426,7 @@ func validateDERP(c *types.Config, v *configValidator) {
 				{Key: "derp.server.enabled", Value: true},
 				{Key: "derp.server.private_key_path", Value: ""},
 			},
-			Hint: `set derp.server.private_key_path (e.g. "/var/lib/headscale/derp_server_private.key"), or set derp.server.enabled: false`,
+			Hint: `set derp.server.private_key_path (e.g. "/var/lib/orgscale/derp_server_private.key"), or set derp.server.enabled: false`,
 			See:  "https://headscale.net/stable/ref/derp/",
 		})
 	case keyFile(c.AbsPath(derpKey)) == keyFile(c.AbsPath(noiseKey)):
@@ -438,7 +438,7 @@ func validateDERP(c *types.Config, v *configValidator) {
 				{Key: "derp.server.private_key_path", Value: derpKey},
 				{Key: "noise.private_key_path", Value: noiseKey},
 			},
-			Hint: `set derp.server.private_key_path to its own file (e.g. "/var/lib/headscale/derp_server_private.key")`,
+			Hint: `set derp.server.private_key_path to its own file (e.g. "/var/lib/orgscale/derp_server_private.key")`,
 			See:  "https://headscale.net/stable/ref/derp/",
 		})
 	}
@@ -474,7 +474,7 @@ func validateTLS(c *types.Config, v *configValidator) {
 				See:     see,
 			})
 		case key != "" && cert == "":
-			// Without a certificate the key is ignored and headscale serves
+			// Without a certificate the key is ignored and orgscale serves
 			// plain HTTP.
 			v.Add(&types.ConfigError{
 				Reason:  "tls.cert_path is required when tls.key_path is set",
@@ -502,7 +502,7 @@ func validateTLS(c *types.Config, v *configValidator) {
 		v.Add(&types.ConfigError{
 			Reason:  "tls.acme.cache_dir is required when tls.acme.hostname is set",
 			Current: []types.KV{{Key: "tls.acme.hostname", Value: acme.Hostname}, {Key: "tls.acme.cache_dir", Value: ""}},
-			Hint:    `set tls.acme.cache_dir, e.g. "/var/lib/headscale/cache", or remove it for that default`,
+			Hint:    `set tls.acme.cache_dir, e.g. "/var/lib/orgscale/cache", or remove it for that default`,
 			See:     see,
 		})
 	}
@@ -542,7 +542,7 @@ func validateDatabase(c *types.Config, v *configValidator) {
 				{Key: "database.type", Value: string(t)},
 				{Key: "database.sqlite.path", Value: ""},
 			},
-			Hint: `set database.sqlite.path, e.g. "/var/lib/headscale/db.sqlite"`,
+			Hint: `set database.sqlite.path, e.g. "/var/lib/orgscale/db.sqlite"`,
 			See:  see,
 		})
 	}
@@ -711,7 +711,7 @@ func validateDNSProvider(c *types.Config, v *configValidator) {
 
 	provider, err := ch.NewProvider(keepSecret)
 	// Only node certificates let a client pick what is published; a record
-	// shared by headscale's own certificate alone is harmless.
+	// shared by orgscale's own certificate alone is harmless.
 	if iso, ok := provider.(dns.Isolator); ok && err == nil && c.DNSConfig.Certificates.Enabled {
 		err = iso.CheckIsolation()
 		if err != nil {
@@ -740,21 +740,21 @@ func validateDNSProvider(c *types.Config, v *configValidator) {
 	})
 }
 
-// Warnings are advisories about c that do not stop headscale.
+// Warnings are advisories about c that do not stop orgscale.
 func Warnings(c *types.Config) []string {
 	var warnings []string
 
 	if c.TLS.ACME.Hostname != "" && c.TLS.ACME.ChallengeType == types.TLSALPN01ChallengeType &&
 		!strings.HasSuffix(string(c.Addr), ":443") {
-		// Only a warning: something in front of headscale may redirect the
+		// Only a warning: something in front of orgscale may redirect the
 		// traffic (e.g. an iptables rule).
-		warnings = append(warnings, "Warning: when using tls.acme.hostname with TLS-ALPN-01 as challenge type, headscale must be reachable on port 443, i.e. listen_addr should probably end in :443")
+		warnings = append(warnings, "Warning: when using tls.acme.hostname with TLS-ALPN-01 as challenge type, orgscale must be reachable on port 443, i.e. listen_addr should probably end in :443")
 	}
 
 	if v4, v6 := c.Prefixes.V4, c.Prefixes.V6; (v4 != nil && outsideRange(*v4, tsaddr.CGNATRange())) ||
 		(v6 != nil && outsideRange(*v6, tsaddr.TailscaleULARange())) {
 		warnings = append(warnings, bannerText([]string{
-			"You have overridden the default Headscale IP prefixes",
+			"You have overridden the default Orgscale IP prefixes",
 			"with a range outside of the standard CGNAT and/or ULA",
 			"ranges. This is NOT a supported configuration.",
 			"",
@@ -959,7 +959,7 @@ func addServerURLConfigError(v *configValidator, serverURL, baseDomain string, e
 		v.Add(&types.ConfigError{
 			Reason:  "server_url is a subdomain of dns.base_domain",
 			Current: current,
-			Hint:    "host headscale on a domain outside dns.base_domain (Tailscale takes over base_domain via MagicDNS)",
+			Hint:    "host orgscale on a domain outside dns.base_domain (Tailscale takes over base_domain via MagicDNS)",
 			See:     dnsDocsURL,
 			Cause:   errServerURLSuffix,
 		})
@@ -971,7 +971,7 @@ func addServerURLConfigError(v *configValidator, serverURL, baseDomain string, e
 			Reason:  "server_url cannot be parsed",
 			Current: []types.KV{{Key: "server_url", Value: serverURL}},
 			Detail:  errURLSyntax.Error(),
-			Hint:    "set server_url to an absolute URL, e.g. https://headscale.example.com",
+			Hint:    "set server_url to an absolute URL, e.g. https://orgscale.example.com",
 			Cause:   errURLSyntax,
 		})
 	}
@@ -979,7 +979,7 @@ func addServerURLConfigError(v *configValidator, serverURL, baseDomain string, e
 
 // BaseDomain cannot be a suffix of the server URL.
 // This is because Tailscale takes over the domain in BaseDomain,
-// causing the headscale server and DERP to be unreachable.
+// causing the orgscale server and DERP to be unreachable.
 // For Tailscale upstream, the following is true:
 // - DERP run on their own domains.
 // - Control plane runs on login.tailscale.com/controlplane.tailscale.com.

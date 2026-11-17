@@ -267,12 +267,12 @@ func TestPreAuthKeyAuthentication(t *testing.T) {
 				)
 				require.NoError(t, err)
 
-				// Verify format: hskey-auth-{12-char-prefix}-{64-char-hash}
+				// Verify format: oskey-auth-{12-char-prefix}-{64-char-hash}
 				// Use fixed-length parsing since prefix/hash can contain dashes (base64 URL-safe)
-				assert.True(t, strings.HasPrefix(keyStr.Key, "hskey-auth-"))
+				assert.True(t, strings.HasPrefix(keyStr.Key, "oskey-auth-"))
 
 				// Extract prefix and hash using fixed-length parsing like the real code does
-				_, prefixAndHash, found := strings.Cut(keyStr.Key, "hskey-auth-")
+				_, prefixAndHash, found := strings.Cut(keyStr.Key, "oskey-auth-")
 				assert.True(t, found)
 				assert.GreaterOrEqual(t, len(prefixAndHash), 12+1+64) // prefix + '-' + hash minimum
 
@@ -301,10 +301,10 @@ func TestPreAuthKeyAuthentication(t *testing.T) {
 
 				// Well-formed key with the right identifier but a wrong secret:
 				// must read as an unknown key (401), not a server error.
-				_, prefixAndHash, _ := strings.Cut(keyStr, "hskey-auth-")
+				_, prefixAndHash, _ := strings.Cut(keyStr, "oskey-auth-")
 				prefix := prefixAndHash[:12]
 
-				return "hskey-auth-" + prefix + "-" + strings.Repeat("0", 64)
+				return "oskey-auth-" + prefix + "-" + strings.Repeat("0", 64)
 			},
 			wantFindErr:     true,
 			findErrIs:       errSecretMismatch,
@@ -321,7 +321,7 @@ func TestPreAuthKeyAuthentication(t *testing.T) {
 		{
 			name: "key_too_short",
 			setupKey: func() string {
-				return "hskey-auth-short"
+				return "oskey-auth-short"
 			},
 			wantFindErr:     true,
 			wantValidateErr: false,
@@ -329,7 +329,7 @@ func TestPreAuthKeyAuthentication(t *testing.T) {
 		{
 			name: "missing_separator",
 			setupKey: func() string {
-				return "hskey-auth-ABCDEFGHIJKLabcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+				return "oskey-auth-ABCDEFGHIJKLabcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 			},
 			wantFindErr:     true,
 			wantValidateErr: false,
@@ -337,7 +337,7 @@ func TestPreAuthKeyAuthentication(t *testing.T) {
 		{
 			name: "hash_too_short",
 			setupKey: func() string {
-				return "hskey-auth-ABCDEFGHIJKL-short"
+				return "oskey-auth-ABCDEFGHIJKL-short"
 			},
 			wantFindErr:     true,
 			wantValidateErr: false,
@@ -345,7 +345,7 @@ func TestPreAuthKeyAuthentication(t *testing.T) {
 		{
 			name: "prefix_with_invalid_chars",
 			setupKey: func() string {
-				return "hskey-auth-ABC$EF@HIJKL-" + strings.Repeat("a", 64)
+				return "oskey-auth-ABC$EF@HIJKL-" + strings.Repeat("a", 64)
 			},
 			wantFindErr:     true,
 			wantValidateErr: false,
@@ -353,7 +353,7 @@ func TestPreAuthKeyAuthentication(t *testing.T) {
 		{
 			name: "hash_with_invalid_chars",
 			setupKey: func() string {
-				return "hskey-auth-ABCDEFGHIJKL-" + "invalid$chars" + strings.Repeat("a", 54)
+				return "oskey-auth-ABCDEFGHIJKL-" + "invalid$chars" + strings.Repeat("a", 54)
 			},
 			wantFindErr:     true,
 			wantValidateErr: false,
@@ -362,7 +362,7 @@ func TestPreAuthKeyAuthentication(t *testing.T) {
 			name: "prefix_not_found_in_db",
 			setupKey: func() string {
 				// Create a validly formatted key but with a prefix that doesn't exist
-				return "hskey-auth-NotInDB12345-" + strings.Repeat("a", 64)
+				return "oskey-auth-NotInDB12345-" + strings.Repeat("a", 64)
 			},
 			wantFindErr:     true,
 			wantValidateErr: false,
@@ -498,7 +498,7 @@ func TestPreAuthKeyLazyRehashesBcrypt(t *testing.T) {
 
 	prefix := "abcdefghijkl"
 	secret := strings.Repeat("b", 64)
-	keyStr := "hskey-auth-" + prefix + "-" + secret
+	keyStr := "oskey-auth-" + prefix + "-" + secret
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(secret), bcrypt.MinCost)
 	require.NoError(t, err)

@@ -8,28 +8,28 @@ import (
 
 const (
 	// OAuthClientPrefix prefixes an OAuth client secret:
-	// hskey-client-<clientID>-<secret>.
-	OAuthClientPrefix = "hskey-client-" //nolint:gosec // prefix, not a credential
+	// oskey-client-<clientID>-<secret>.
+	OAuthClientPrefix = "oskey-client-" //nolint:gosec // prefix, not a credential
 
 	// TailscaleOAuthClientPrefix is an accepted alias for [OAuthClientPrefix].
 	// The tailscale client only runs its OAuth client-credentials exchange
 	// (feature/oauthkey) for secrets with this prefix, so accepting it lets the
-	// stock client and GitHub Action mint auth keys against headscale. The
+	// stock client and GitHub Action mint auth keys against orgscale. The
 	// prefix is only a label, cut before lookup; the same stored client
 	// authenticates under either.
 	TailscaleOAuthClientPrefix = "tskey-client-" //nolint:gosec // prefix, not a credential
 
 	// AccessTokenPrefix prefixes an OAuth access token:
-	// hskey-oauthtok-<prefix>-<secret>. The v2 auth middleware dispatches a
+	// oskey-oauthtok-<prefix>-<secret>. The v2 auth middleware dispatches a
 	// scope-limited token from an all-access admin key on this prefix alone, so
 	// it is one canonical constant shared by the db and api layers.
-	AccessTokenPrefix = "hskey-oauthtok-" //nolint:gosec // prefix, not a credential
+	AccessTokenPrefix = "oskey-oauthtok-" //nolint:gosec // prefix, not a credential
 )
 
 // OAuthClient is a long-lived OAuth 2.0 client-credentials principal. It mints
 // short-lived [OAuthAccessToken]s limited to its Scopes and Tags. It is the
 // API projection of a [Credential] of kind oauth_client. ClientID is public and embedded in the secret
-// string (hskey-client-<ClientID>-<secret>) so the token endpoint can derive it
+// string (oskey-client-<ClientID>-<secret>) so the token endpoint can derive it
 // from the secret alone, matching Tailscale, where the client id is a substring
 // of the client secret.
 //

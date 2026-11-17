@@ -1,10 +1,10 @@
 # Every key the loader reads, set to a valid non-default value.
-server_url: https://headscale.example.com
+server_url: https://orgscale.example.com
 listen_addr: 0.0.0.0:8443
 metrics_listen_addr: 127.0.0.1:9091
 trusted_proxies: [10.0.0.0/8, 192.168.0.0/16]
 disable_check_updates: true
-unix_socket: /run/headscale/headscale.sock
+unix_socket: /run/orgscale/orgscale.sock
 unix_socket_permission: "0700"
 
 noise:
@@ -20,7 +20,7 @@ derp:
     enabled: true
     region_id: 900
     region_code: hs
-    region_name: Headscale Embedded DERP
+    region_name: Orgscale Embedded DERP
     verify_clients: false
     stun_listen_addr: 0.0.0.0:3479
     private_key_path: ./derp_server_private.key
@@ -31,7 +31,7 @@ derp:
     - https://controlplane.tailscale.com/derpmap/default
     - https://derp.example.com/map.json
   paths:
-    - /etc/headscale/derp.yaml
+    - /etc/orgscale/derp.yaml
   auto_update_enabled: false
   update_frequency: 1h
 
@@ -57,8 +57,8 @@ database:
   postgres:
     host: db.example.com
     port: 5433
-    name: headscale
-    user: headscale
+    name: orgscale
+    user: orgscale
     pass: marker-postgres-pass
     max_open_conns: 20
     max_idle_conns: 5
@@ -67,7 +67,7 @@ database:
 
 tls:
   acme:
-    hostname: headscale.example.com
+    hostname: orgscale.example.com
     challenge_type: TLS-ALPN-01
     http_listen: :8081
     url: https://acme-staging-v02.api.letsencrypt.org/directory
@@ -104,7 +104,7 @@ dns:
 oidc:
   only_start_if_oidc_is_available: false
   issuer: https://idp.example.com
-  client_id: headscale
+  client_id: orgscale
   # os.ExpandEnv, then read relative to the test's working directory.
   client_secret_path: ${COMPAT_SECRETS}/oidc-secret.txt
   scope: [openid, profile, email, groups]
@@ -112,7 +112,7 @@ oidc:
     Login_Hint: file
   allowed_domains: [example.com]
   allowed_users: [alice@example.com]
-  allowed_groups: [/headscale]
+  allowed_groups: [/orgscale]
   email_verified_required: false
   use_expiry_from_token: true
   pkce:
@@ -127,7 +127,7 @@ auto_update:
   enabled: true
 
 cli:
-  address: headscale.example.com:443
+  address: orgscale.example.com:443
   api_key: marker-cli-api-key
   timeout: 15s
   insecure: true

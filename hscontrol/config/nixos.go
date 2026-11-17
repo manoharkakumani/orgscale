@@ -13,7 +13,7 @@ import (
 	"tailscale.com/tailcfg"
 )
 
-const nixHeader = "# Generated from hscontrol/types/config.go by `headscale generate nixos-options`; do not edit.\n"
+const nixHeader = "# Generated from hscontrol/types/config.go by `orgscale generate nixos-options`; do not edit.\n"
 
 // nixTypes names the option types nixpkgs lacks, so an IP or a listen
 // address of the wrong shape fails evaluation at the option.
@@ -51,7 +51,7 @@ var (
 	nixIndented = strings.NewReplacer("'${", `''\'''${`, "''", "'''", "${", "''${")
 )
 
-// GenerateNixOptions is the NixOS options of services.headscale.settings:
+// GenerateNixOptions is the NixOS options of services.orgscale.settings:
 // a function of lib only, one option per key, nested as the file nests
 // keys. release stamps a release's version and commit; nil marks the
 // development tree.
@@ -66,12 +66,12 @@ func GenerateNixOptions(release *types.VersionInfo) ([]byte, error) {
 	b.WriteString(nixHeader)
 
 	if release == nil {
-		b.WriteString("# headscale development tree, not a release\n")
+		b.WriteString("# orgscale development tree, not a release\n")
 	} else {
-		fmt.Fprintf(&b, "# headscale %s, commit %s\n", release.Version, release.Commit)
+		fmt.Fprintf(&b, "# orgscale %s, commit %s\n", release.Version, release.Commit)
 	}
 
-	b.WriteString("# Options for services.headscale.settings, not a module: import ./options.generated.nix { inherit lib; }\n{ lib, ... }:\n" + nixTypes + "{\n")
+	b.WriteString("# Options for services.orgscale.settings, not a module: import ./options.generated.nix { inherit lib; }\n{ lib, ... }:\n" + nixTypes + "{\n")
 
 	var open []string // the sections around the key, outermost first
 
@@ -159,7 +159,7 @@ func nixOption(k keyInfo, indent int) (string, error) {
 			fmt.Fprintf(&fields, "%s%s = %s;\n", pad, f.Name, mkOption(in+6, attrs))
 		}
 
-		// Freeform, so an unknown field reaches headscale, whose check names
+		// Freeform, so an unknown field reaches orgscale, whose check names
 		// it, instead of failing evaluation.
 		typ = fmt.Sprintf("lib.types.listOf (\n%[1]s  lib.types.submodule {\n%[1]s    freeformType = lib.types.attrsOf lib.types.anything;\n%[1]s    options = {\n%[2]s%[1]s    };\n%[1]s  }\n%[1]s)",
 			strings.Repeat(" ", in), fields.String())
@@ -246,7 +246,7 @@ func nixDescription(k keyInfo) string {
 // store: as the systemd credential name, which target reads with file:.
 func nixCredential(rule, name, what, target string) string {
 	return "On NixOS, " + rule + ": load " + what + " as a systemd credential with " +
-		"`systemd.services.headscale.serviceConfig.LoadCredential = [ \"" + name + ":/run/secrets/" + name + "\" ];` " +
+		"`systemd.services.orgscale.serviceConfig.LoadCredential = [ \"" + name + ":/run/secrets/" + name + "\" ];` " +
 		"and set " + target + " to `\"file:\\${CREDENTIALS_DIRECTORY}/" + name + "\"`."
 }
 

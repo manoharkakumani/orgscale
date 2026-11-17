@@ -15,32 +15,32 @@ base image as official releases.
 Images are available from both Docker Hub and GitHub Container Registry, tagged
 with the short commit hash of the build (e.g. `main-abc1234`):
 
-- Docker Hub: `docker.io/headscale/headscale:main-<sha>`
+- Docker Hub: `docker.io/orgscale/orgscale:main-<sha>`
 - GitHub Container Registry: `ghcr.io/juanfont/headscale:main-<sha>`
 
 To find the latest available tag, check the
 [GitHub Actions workflow](https://github.com/juanfont/headscale/actions/workflows/container-main.yml)
-or the [GitHub Container Registry package page](https://github.com/juanfont/headscale/pkgs/container/headscale).
+or the [GitHub Container Registry package page](https://github.com/juanfont/headscale/pkgs/container/orgscale).
 
 For example, to run a specific development build:
 
 ```shell
 docker run \
-  --name headscale \
+  --name orgscale \
   --detach \
   --read-only \
   --tmpfs /tmp \
-  --tmpfs /var/run/headscale \
-  --volume "$(pwd)/config:/etc/headscale:ro" \
-  --volume "$(pwd)/lib:/var/lib/headscale" \
+  --tmpfs /var/run/orgscale \
+  --volume "$(pwd)/config:/etc/orgscale:ro" \
+  --volume "$(pwd)/lib:/var/lib/orgscale" \
   --publish 127.0.0.1:8080:8080 \
   --publish 127.0.0.1:9090:9090 \
-  --health-cmd "CMD headscale health" \
-  docker.io/headscale/headscale:main-<sha> \
+  --health-cmd "CMD orgscale health" \
+  docker.io/orgscale/orgscale:main-<sha> \
   serve
 ```
 
-See [Running headscale in a container](container.md) for full container setup instructions.
+See [Running orgscale in a container](container.md) for full container setup instructions.
 
 ## Binaries
 
@@ -49,10 +49,10 @@ via [nightly.link](https://nightly.link/juanfont/headscale/workflows/container-m
 
 | OS    | Arch  | Download                                                                                                                   |
 | ----- | ----- | -------------------------------------------------------------------------------------------------------------------------- |
-| Linux | amd64 | [headscale-linux-amd64](https://nightly.link/juanfont/headscale/workflows/container-main/main/headscale-linux-amd64.zip)   |
-| Linux | arm64 | [headscale-linux-arm64](https://nightly.link/juanfont/headscale/workflows/container-main/main/headscale-linux-arm64.zip)   |
-| macOS | amd64 | [headscale-darwin-amd64](https://nightly.link/juanfont/headscale/workflows/container-main/main/headscale-darwin-amd64.zip) |
-| macOS | arm64 | [headscale-darwin-arm64](https://nightly.link/juanfont/headscale/workflows/container-main/main/headscale-darwin-arm64.zip) |
+| Linux | amd64 | [orgscale-linux-amd64](https://nightly.link/juanfont/headscale/workflows/container-main/main/orgscale-linux-amd64.zip)   |
+| Linux | arm64 | [orgscale-linux-arm64](https://nightly.link/juanfont/headscale/workflows/container-main/main/orgscale-linux-arm64.zip)   |
+| macOS | amd64 | [orgscale-darwin-amd64](https://nightly.link/juanfont/headscale/workflows/container-main/main/orgscale-darwin-amd64.zip) |
+| macOS | arm64 | [orgscale-darwin-arm64](https://nightly.link/juanfont/headscale/workflows/container-main/main/orgscale-darwin-arm64.zip) |
 
 After downloading and extracting the archive, make the binary executable and follow the
 [standalone binary installation](official.md#using-standalone-binaries-advanced)

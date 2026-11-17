@@ -38,7 +38,7 @@ var generateCmd = &cobra.Command{
 
 var generatePrivateKeyCmd = &cobra.Command{
 	Use:   "private-key",
-	Short: "Generate a private key for the headscale server",
+	Short: "Generate a private key for the orgscale server",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		machineKey := key.NewMachine()
 
@@ -58,8 +58,8 @@ var generateConfigCmd = &cobra.Command{
 	Use:   "config",
 	Short: "Print a configuration file with every key",
 	Long: `Print a YAML configuration with every key, its default and its
-documentation as comments, e.g. for "> /etc/headscale/config.yaml". Set the
-keys marked "Required" before starting headscale. With --minimal, print only
+documentation as comments, e.g. for "> /etc/orgscale/config.yaml". Set the
+keys marked "Required" before starting orgscale. With --minimal, print only
 those keys.
 
 With --running, print instead the configuration of the running server,
@@ -122,8 +122,8 @@ func printRunningConfig(cmd *cobra.Command, docs bool) error {
 
 var generateNixOSOptionsCmd = &cobra.Command{
 	Use:   "nixos-options",
-	Short: "Print the NixOS options for services.headscale.settings",
-	Long: `Print the NixOS options for services.headscale.settings: one option per
+	Short: "Print the NixOS options for services.orgscale.settings",
+	Long: `Print the NixOS options for services.orgscale.settings: one option per
 configuration key, with its type, default, documentation and an example. The
 output is a function of lib only, not a module:
 

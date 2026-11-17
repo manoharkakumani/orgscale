@@ -49,15 +49,15 @@ const (
 	scenarioHashLength = 6
 )
 
-var usePostgresForTest = envknob.Bool("HEADSCALE_INTEGRATION_POSTGRES")
+var usePostgresForTest = envknob.Bool("ORGSCALE_INTEGRATION_POSTGRES")
 
 var (
-	errNoHeadscaleAvailable        = errors.New("no headscale available")
+	errNoOrgscaleAvailable        = errors.New("no orgscale available")
 	errNoUserAvailable             = errors.New("no user available")
 	errNoClientFound               = errors.New("client not found")
-	errInvalidHeadscaleImageFormat = errors.New("invalid HEADSCALE_INTEGRATION_HEADSCALE_IMAGE format, expected repository:tag")
-	errInvalidMockOIDCImage        = errors.New("invalid HEADSCALE_INTEGRATION_HEADSCALE_IMAGE format, expected repository:tag")
-	errMockOIDCImageRequiredInCI   = errors.New("HEADSCALE_INTEGRATION_HEADSCALE_IMAGE must be set for mock OIDC in CI")
+	errInvalidOrgscaleImageFormat = errors.New("invalid ORGSCALE_INTEGRATION_ORGSCALE_IMAGE format, expected repository:tag")
+	errInvalidMockOIDCImage        = errors.New("invalid ORGSCALE_INTEGRATION_ORGSCALE_IMAGE format, expected repository:tag")
+	errMockOIDCImageRequiredInCI   = errors.New("ORGSCALE_INTEGRATION_ORGSCALE_IMAGE must be set for mock OIDC in CI")
 
 	// AllVersions represents a list of Tailscale versions the suite
 	// uses to test compatibility with the [ControlServer].
@@ -158,7 +158,7 @@ type ScenarioSpec struct {
 	// Versions is specific list of versions to use for the test.
 	Versions []string
 
-	// OIDCSkipUserCreation, if true, skips creating users via headscale CLI
+	// OIDCSkipUserCreation, if true, skips creating users via orgscale CLI
 	// during environment setup. Useful for OIDC tests where the SSH policy
 	// references users by name, since OIDC login creates users automatically
 	// and pre-creating them via CLI causes duplicate user records.
@@ -301,9 +301,9 @@ func (s *Scenario) AddNetworkWithSubnet(name, subnet string) (*dockertest.Networ
 	// readiness checks, this ensures that we can run the tests with individual networks
 	// and have the client reach the different containers.
 	// The container name includes the run ID to support multiple concurrent test runs.
-	testSuiteName := "headscale-test-suite"
+	testSuiteName := "orgscale-test-suite"
 	if runID := dockertestutil.GetIntegrationRunID(); runID != "" {
-		testSuiteName = "headscale-test-suite-" + runID
+		testSuiteName = "orgscale-test-suite-" + runID
 	}
 
 	err = dockertestutil.AddContainerToNetwork(s.pool, network, testSuiteName)
@@ -462,38 +462,38 @@ func (s *Scenario) Users() []string {
 	return users
 }
 
-/// Headscale related stuff
-// Note: These functions assume that there is a _single_ headscale instance for now
+/// Orgscale related stuff
+// Note: These functions assume that there is a _single_ orgscale instance for now
 
-// Headscale returns a [ControlServer] instance based on hsic ([hsic.HeadscaleInContainer]).
+// Orgscale returns a [ControlServer] instance based on hsic ([hsic.OrgscaleInContainer]).
 // If the [Scenario] already has an instance, the pointer to the running container
 // will be return, otherwise a new instance will be created.
-// TODO(kradalby): make port and headscale configurable, multiple instances support?
-func (s *Scenario) Headscale(opts ...hsic.Option) (ControlServer, error) {
+// TODO(kradalby): make port and orgscale configurable, multiple instances support?
+func (s *Scenario) Orgscale(opts ...hsic.Option) (ControlServer, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if headscale, ok := s.controlServers.Load("headscale"); ok {
-		return headscale, nil
+	if orgscale, ok := s.controlServers.Load("orgscale"); ok {
+		return orgscale, nil
 	}
 
 	if usePostgresForTest {
 		opts = append(opts, hsic.WithPostgres())
 	}
 
-	headscale, err := hsic.New(s.pool, s.Networks(), opts...)
+	orgscale, err := hsic.New(s.pool, s.Networks(), opts...)
 	if err != nil {
-		return nil, fmt.Errorf("creating headscale container: %w", err)
+		return nil, fmt.Errorf("creating orgscale container: %w", err)
 	}
 
-	err = headscale.WaitForRunning()
+	err = orgscale.WaitForRunning()
 	if err != nil {
-		return nil, fmt.Errorf("reaching headscale container: %w", err)
+		return nil, fmt.Errorf("reaching orgscale container: %w", err)
 	}
 
-	s.controlServers.Store("headscale", headscale)
+	s.controlServers.Store("orgscale", orgscale)
 
-	return headscale, nil
+	return orgscale, nil
 }
 
 // Pool returns the [dockertest.Pool] for the scenario.
@@ -519,14 +519,14 @@ func (s *Scenario) GetOrCreateUser(userStr string) *User {
 }
 
 // CreatePreAuthKey creates a "pre authentorised key" to be created in the
-// Headscale instance on behalf of the [Scenario].
+// Orgscale instance on behalf of the [Scenario].
 func (s *Scenario) CreatePreAuthKey(
 	user uint64,
 	reusable bool,
 	ephemeral bool,
 ) (*clientv1.PreAuthKey, error) {
-	if headscale, err := s.Headscale(); err == nil { //nolint:noinlineerr
-		key, err := headscale.CreateAuthKey(user, reusable, ephemeral)
+	if orgscale, err := s.Orgscale(); err == nil { //nolint:noinlineerr
+		key, err := orgscale.CreateAuthKey(user, reusable, ephemeral)
 		if err != nil {
 			return nil, fmt.Errorf("creating user: %w", err)
 		}
@@ -534,18 +534,18 @@ func (s *Scenario) CreatePreAuthKey(
 		return key, nil
 	}
 
-	return nil, fmt.Errorf("creating user: %w", errNoHeadscaleAvailable)
+	return nil, fmt.Errorf("creating user: %w", errNoOrgscaleAvailable)
 }
 
 // CreatePreAuthKeyWithOptions creates a "pre authorised key" with the specified options
-// to be created in the Headscale instance on behalf of the [Scenario].
+// to be created in the Orgscale instance on behalf of the [Scenario].
 func (s *Scenario) CreatePreAuthKeyWithOptions(opts hsic.AuthKeyOptions) (*clientv1.PreAuthKey, error) {
-	headscale, err := s.Headscale()
+	orgscale, err := s.Orgscale()
 	if err != nil {
-		return nil, fmt.Errorf("creating preauth key with options: %w", errNoHeadscaleAvailable)
+		return nil, fmt.Errorf("creating preauth key with options: %w", errNoOrgscaleAvailable)
 	}
 
-	key, err := headscale.CreateAuthKeyWithOptions(opts)
+	key, err := orgscale.CreateAuthKeyWithOptions(opts)
 	if err != nil {
 		return nil, fmt.Errorf("creating preauth key with options: %w", err)
 	}
@@ -554,19 +554,19 @@ func (s *Scenario) CreatePreAuthKeyWithOptions(opts hsic.AuthKeyOptions) (*clien
 }
 
 // CreatePreAuthKeyWithTags creates a "pre authorised key" with the specified tags
-// to be created in the Headscale instance on behalf of the [Scenario].
+// to be created in the Orgscale instance on behalf of the [Scenario].
 func (s *Scenario) CreatePreAuthKeyWithTags(
 	user uint64,
 	reusable bool,
 	ephemeral bool,
 	tags []string,
 ) (*clientv1.PreAuthKey, error) {
-	headscale, err := s.Headscale()
+	orgscale, err := s.Orgscale()
 	if err != nil {
-		return nil, fmt.Errorf("creating preauth key with tags: %w", errNoHeadscaleAvailable)
+		return nil, fmt.Errorf("creating preauth key with tags: %w", errNoOrgscaleAvailable)
 	}
 
-	key, err := headscale.CreateAuthKeyWithTags(user, reusable, ephemeral, tags)
+	key, err := orgscale.CreateAuthKeyWithTags(user, reusable, ephemeral, tags)
 	if err != nil {
 		return nil, fmt.Errorf("creating preauth key with tags: %w", err)
 	}
@@ -575,10 +575,10 @@ func (s *Scenario) CreatePreAuthKeyWithTags(
 }
 
 // CreateUser creates a [User] to be created in the
-// Headscale instance on behalf of the [Scenario].
+// Orgscale instance on behalf of the [Scenario].
 func (s *Scenario) CreateUser(user string) (*clientv1.User, error) {
-	if headscale, err := s.Headscale(); err == nil { //nolint:noinlineerr
-		u, err := headscale.CreateUser(user)
+	if orgscale, err := s.Orgscale(); err == nil { //nolint:noinlineerr
+		u, err := orgscale.CreateUser(user)
 		if err != nil {
 			return nil, fmt.Errorf("creating user: %w", err)
 		}
@@ -592,7 +592,7 @@ func (s *Scenario) CreateUser(user string) (*clientv1.User, error) {
 		return u, nil
 	}
 
-	return nil, fmt.Errorf("creating user: %w", errNoHeadscaleAvailable)
+	return nil, fmt.Errorf("creating user: %w", errNoOrgscaleAvailable)
 }
 
 /// Client related stuff
@@ -601,13 +601,13 @@ func (s *Scenario) CreateTailscaleNode(
 	version string,
 	opts ...tsic.Option,
 ) (TailscaleClient, error) {
-	headscale, err := s.Headscale()
+	orgscale, err := s.Orgscale()
 	if err != nil {
 		return nil, fmt.Errorf("creating tailscale node (version: %s): %w", version, err)
 	}
 
-	cert := headscale.GetCert()
-	hostname := headscale.GetHostname()
+	cert := orgscale.GetCert()
+	hostname := orgscale.GetHostname()
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -615,7 +615,7 @@ func (s *Scenario) CreateTailscaleNode(
 	opts = append(
 		opts,
 		tsic.WithCACert(cert),
-		tsic.WithHeadscaleName(hostname),
+		tsic.WithOrgscaleName(hostname),
 	)
 
 	tsClient, err := tsic.New(
@@ -665,13 +665,13 @@ func (s *Scenario) CreateTailscaleNodesInUser(
 
 			versions = append(versions, version)
 
-			headscale, err := s.Headscale()
+			orgscale, err := s.Orgscale()
 			if err != nil {
 				return fmt.Errorf("creating tailscale node (version: %s): %w", version, err)
 			}
 
-			cert := headscale.GetCert()
-			hostname := headscale.GetHostname()
+			cert := orgscale.GetCert()
+			hostname := orgscale.GetHostname()
 
 			// Determine which network this tailscale client will be in
 			var network *dockertest.Network
@@ -681,16 +681,16 @@ func (s *Scenario) CreateTailscaleNodesInUser(
 				network = s.networks[s.testDefaultNetwork]
 			}
 
-			// Get headscale IP in this network for /etc/hosts fallback DNS
-			headscaleIP := headscale.GetIPInNetwork(network)
-			extraHosts := []string{hostname + ":" + headscaleIP}
+			// Get orgscale IP in this network for /etc/hosts fallback DNS
+			orgscaleIP := orgscale.GetIPInNetwork(network)
+			extraHosts := []string{hostname + ":" + orgscaleIP}
 
 			s.mu.Lock()
 
 			clientOpts := append(
 				slices.Clone(opts),
 				tsic.WithCACert(cert),
-				tsic.WithHeadscaleName(hostname),
+				tsic.WithOrgscaleName(hostname),
 				tsic.WithExtraHosts(extraHosts),
 			)
 
@@ -883,31 +883,31 @@ func (s *Scenario) waitPeers(perUser func(*User) int, timeout, retryInterval tim
 	return nil
 }
 
-func (s *Scenario) CreateHeadscaleEnvWithLoginURL(
+func (s *Scenario) CreateOrgscaleEnvWithLoginURL(
 	tsOpts []tsic.Option,
 	opts ...hsic.Option,
 ) error {
-	return s.createHeadscaleEnv(true, tsOpts, opts...)
+	return s.createOrgscaleEnv(true, tsOpts, opts...)
 }
 
-func (s *Scenario) CreateHeadscaleEnv(
+func (s *Scenario) CreateOrgscaleEnv(
 	tsOpts []tsic.Option,
 	opts ...hsic.Option,
 ) error {
-	return s.createHeadscaleEnv(false, tsOpts, opts...)
+	return s.createOrgscaleEnv(false, tsOpts, opts...)
 }
 
-// CreateHeadscaleEnv starts the headscale environment and the clients
+// CreateOrgscaleEnv starts the orgscale environment and the clients
 // according to the [ScenarioSpec] passed to the [Scenario].
-func (s *Scenario) createHeadscaleEnv(
+func (s *Scenario) createOrgscaleEnv(
 	withURL bool,
 	tsOpts []tsic.Option,
 	opts ...hsic.Option,
 ) error {
-	return s.createHeadscaleEnvWithTags(withURL, tsOpts, nil, "", opts...)
+	return s.createOrgscaleEnvWithTags(withURL, tsOpts, nil, "", opts...)
 }
 
-// createHeadscaleEnvWithTags starts the headscale environment and the clients
+// createOrgscaleEnvWithTags starts the orgscale environment and the clients
 // according to the [ScenarioSpec] passed to the [Scenario]. If preAuthKeyTags is
 // non-empty and withURL is false, the tags will be applied to the PreAuthKey
 // (tags-as-identity model).
@@ -916,14 +916,14 @@ func (s *Scenario) createHeadscaleEnv(
 // is non-empty, only nodes belonging to that user will request tags via
 // --advertise-tags. This is necessary because tagOwners ACL controls which
 // users can request specific tags.
-func (s *Scenario) createHeadscaleEnvWithTags(
+func (s *Scenario) createOrgscaleEnvWithTags(
 	withURL bool,
 	tsOpts []tsic.Option,
 	preAuthKeyTags []string,
 	webauthTagUser string,
 	opts ...hsic.Option,
 ) error {
-	headscale, err := s.Headscale(opts...)
+	orgscale, err := s.Orgscale(opts...)
 	if err != nil {
 		return err
 	}
@@ -932,7 +932,7 @@ func (s *Scenario) createHeadscaleEnvWithTags(
 		var u *clientv1.User
 
 		if s.spec.OIDCSkipUserCreation {
-			// Only register locally — OIDC login will create the headscale user.
+			// Only register locally — OIDC login will create the orgscale user.
 			s.mu.Lock()
 			s.users[user] = &User{Clients: make(map[string]TailscaleClient)}
 			s.mu.Unlock()
@@ -962,7 +962,7 @@ func (s *Scenario) createHeadscaleEnvWithTags(
 		}
 
 		if withURL {
-			err = s.RunTailscaleUpWithURL(user, headscale.GetEndpoint())
+			err = s.RunTailscaleUpWithURL(user, orgscale.GetEndpoint())
 			if err != nil {
 				return err
 			}
@@ -979,7 +979,7 @@ func (s *Scenario) createHeadscaleEnvWithTags(
 				return err
 			}
 
-			err = s.RunTailscaleUp(user, headscale.GetEndpoint(), key.Key)
+			err = s.RunTailscaleUp(user, orgscale.GetEndpoint(), key.Key)
 			if err != nil {
 				return err
 			}
@@ -1010,7 +1010,7 @@ func (s *Scenario) RunTailscaleUpWithURL(userStr, loginServer string) error {
 				// If the URL is not a OIDC URL, then we need to
 				// run the register command to fully log in the client.
 				if !strings.Contains(loginURL.String(), "/oidc/") {
-					_ = s.runHeadscaleRegister(userStr, body)
+					_ = s.runOrgscaleRegister(userStr, body)
 				}
 
 				return nil
@@ -1119,7 +1119,7 @@ func (j *debugJar) Dump(w io.Writer) {
 // registerConfirmCSRFField is the name of both the hidden CSRF form field
 // and the cookie on the OIDC registration confirmation interstitial. It
 // mirrors registerConfirmCSRFCookie in hscontrol, which is unexported.
-const registerConfirmCSRFField = "headscale_register_confirm"
+const registerConfirmCSRFField = "orgscale_register_confirm"
 
 func copyCookie(c *http.Cookie) *http.Cookie {
 	cc := *c
@@ -1348,7 +1348,7 @@ func submitConfirmForm(
 
 var errParseAuthPage = errors.New("parsing auth page")
 
-func (s *Scenario) runHeadscaleRegister(userStr string, body string) error {
+func (s *Scenario) runOrgscaleRegister(userStr string, body string) error {
 	// see api.go HTML template
 	codeSep := strings.Split(body, "</code>")
 	if len(codeSep) != 2 {
@@ -1364,9 +1364,9 @@ func (s *Scenario) runHeadscaleRegister(userStr string, body string) error {
 	key = strings.SplitN(key, " ", 2)[0]
 	log.Printf("registering node %s", key)
 
-	if headscale, err := s.Headscale(); err == nil { //nolint:noinlineerr
-		_, err = headscale.Execute(
-			[]string{"headscale", "auth", "register", "--user", userStr, "--auth-id", key},
+	if orgscale, err := s.Orgscale(); err == nil { //nolint:noinlineerr
+		_, err = orgscale.Execute(
+			[]string{"orgscale", "auth", "register", "--user", userStr, "--auth-id", key},
 		)
 		if err != nil {
 			log.Printf("registering node: %s", err)
@@ -1377,7 +1377,7 @@ func (s *Scenario) runHeadscaleRegister(userStr string, body string) error {
 		return nil
 	}
 
-	return fmt.Errorf("finding headscale: %w", errNoHeadscaleAvailable)
+	return fmt.Errorf("finding orgscale: %w", errNoOrgscaleAvailable)
 }
 
 type LoggingRoundTripper struct {
@@ -1611,7 +1611,7 @@ func (s *Scenario) runMockOIDC(accessTTL time.Duration, users []mockoidc.MockUse
 
 	mockOidcOptions := &dockertest.RunOptions{
 		Name:         hostname,
-		Cmd:          []string{"headscale", "mockoidc"},
+		Cmd:          []string{"orgscale", "mockoidc"},
 		ExposedPorts: []string{portNotation},
 		PortBindings: map[docker.Port][]docker.PortBinding{
 			docker.Port(portNotation): {{HostPort: strconv.Itoa(port)}},
@@ -1627,7 +1627,7 @@ func (s *Scenario) runMockOIDC(accessTTL time.Duration, users []mockoidc.MockUse
 		},
 	}
 
-	headscaleBuildOptions := &dockertest.BuildOptions{
+	orgscaleBuildOptions := &dockertest.BuildOptions{
 		Dockerfile: hsic.IntegrationTestDockerFileName,
 		ContextDir: dockerContextPath,
 	}
@@ -1644,9 +1644,9 @@ func (s *Scenario) runMockOIDC(accessTTL time.Duration, users []mockoidc.MockUse
 
 	var container *dockertest.Resource
 
-	// CI already built and loaded the Headscale image, including its mockoidc command.
+	// CI already built and loaded the Orgscale image, including its mockoidc command.
 	// Reuse it instead of downloading dependencies and rebuilding for every OIDC test.
-	if prebuiltImage := os.Getenv("HEADSCALE_INTEGRATION_HEADSCALE_IMAGE"); prebuiltImage != "" {
+	if prebuiltImage := os.Getenv("ORGSCALE_INTEGRATION_ORGSCALE_IMAGE"); prebuiltImage != "" {
 		repo, tag, ok := strings.Cut(prebuiltImage, ":")
 		if !ok || repo == "" || tag == "" {
 			return errInvalidMockOIDCImage
@@ -1662,7 +1662,7 @@ func (s *Scenario) runMockOIDC(accessTTL time.Duration, users []mockoidc.MockUse
 		return errMockOIDCImageRequiredInCI
 	} else {
 		container, err = s.pool.BuildAndRunWithBuildOptions(
-			headscaleBuildOptions,
+			orgscaleBuildOptions,
 			mockOidcOptions,
 			dockertestutil.DockerRestartPolicy,
 		)
@@ -1674,13 +1674,13 @@ func (s *Scenario) runMockOIDC(accessTTL time.Duration, users []mockoidc.MockUse
 
 	s.mockOIDC.r = container
 
-	// headscale needs to set up the provider with a specific
+	// orgscale needs to set up the provider with a specific
 	// IP addr to ensure we get the correct config from the well-known
 	// endpoint.
 	network := s.Networks()[0]
 	ipAddr := s.mockOIDC.r.GetIPInNetwork(network)
 
-	log.Println("Waiting for headscale mock oidc to be ready for tests")
+	log.Println("Waiting for orgscale mock oidc to be ready for tests")
 
 	hostEndpoint := net.JoinHostPort(ipAddr, strconv.Itoa(port))
 
@@ -1692,7 +1692,7 @@ func (s *Scenario) runMockOIDC(accessTTL time.Duration, users []mockoidc.MockUse
 
 		resp, err := httpClient.Do(req)
 		if err != nil {
-			log.Printf("headscale mock OIDC tests is not ready: %s\n", err)
+			log.Printf("orgscale mock OIDC tests is not ready: %s\n", err)
 
 			return err
 		}
@@ -1717,7 +1717,7 @@ func (s *Scenario) runMockOIDC(accessTTL time.Duration, users []mockoidc.MockUse
 		OnlyStartIfOIDCIsAvailable: true,
 	}
 
-	log.Printf("headscale mock oidc is ready for tests at %s", hostEndpoint)
+	log.Printf("orgscale mock oidc is ready for tests at %s", hostEndpoint)
 
 	return nil
 }
@@ -1763,10 +1763,10 @@ func Webservice(s *Scenario, networkName string) (*dockertest.Resource, error) {
 		err error
 	)
 
-	if prebuiltImage := os.Getenv("HEADSCALE_INTEGRATION_HEADSCALE_IMAGE"); prebuiltImage != "" {
+	if prebuiltImage := os.Getenv("ORGSCALE_INTEGRATION_ORGSCALE_IMAGE"); prebuiltImage != "" {
 		repo, tag, ok := strings.Cut(prebuiltImage, ":")
 		if !ok {
-			return nil, errInvalidHeadscaleImageFormat
+			return nil, errInvalidOrgscaleImageFormat
 		}
 
 		webOpts.Repository = repo
@@ -1788,12 +1788,12 @@ func Webservice(s *Scenario, networkName string) (*dockertest.Resource, error) {
 		return nil, err
 	}
 
-	// headscale needs to set up the provider with a specific
+	// orgscale needs to set up the provider with a specific
 	// IP addr to ensure we get the correct config from the well-known
 	// endpoint.
 	// ipAddr := web.GetIPInNetwork(network)
 
-	// log.Println("Waiting for headscale mock oidc to be ready for tests")
+	// log.Println("Waiting for orgscale mock oidc to be ready for tests")
 	// hostEndpoint := net.JoinHostPort(ipAddr, strconv.Itoa(port))
 
 	// if err := s.pool.Retry(func() error {
@@ -1803,7 +1803,7 @@ func Webservice(s *Scenario, networkName string) (*dockertest.Resource, error) {
 	// 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, oidcConfigURL, nil)
 	// 	resp, err := httpClient.Do(req)
 	// 	if err != nil {
-	// 		log.Printf("headscale mock OIDC tests is not ready: %s\n", err)
+	// 		log.Printf("orgscale mock OIDC tests is not ready: %s\n", err)
 
 	// 		return err
 	// 	}

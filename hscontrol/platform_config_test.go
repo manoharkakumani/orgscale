@@ -31,9 +31,9 @@ import (
 func TestApplePlatformConfig_ServesProfilesViaChiRouter(t *testing.T) {
 	t.Parallel()
 
-	h := &Headscale{
+	h := &Orgscale{
 		cfg: &types.Config{
-			ServerURL: "https://headscale.example.com",
+			ServerURL: "https://orgscale.example.com",
 		},
 	}
 
@@ -67,7 +67,7 @@ func TestApplePlatformConfig_ServesProfilesViaChiRouter(t *testing.T) {
 				resp.Header.Get("Content-Type"),
 				"profile must be served as an Apple aspen config")
 			assert.Contains(t, body,
-				"https://headscale.example.com",
+				"https://orgscale.example.com",
 				"rendered profile must embed the configured ServerURL")
 		})
 	}
@@ -82,9 +82,9 @@ func TestApplePlatformConfig_ServesProfilesViaChiRouter(t *testing.T) {
 func TestApplePlatformConfig_RejectsUnknownPlatform(t *testing.T) {
 	t.Parallel()
 
-	h := &Headscale{
+	h := &Orgscale{
 		cfg: &types.Config{
-			ServerURL: "https://headscale.example.com",
+			ServerURL: "https://orgscale.example.com",
 		},
 	}
 

@@ -35,7 +35,7 @@ func init() {
 
 	cobra.OnInitialize(initConfig)
 	rootCmd.PersistentFlags().
-		StringVarP(&cfgFile, "config", "c", "", "config file (default is /etc/headscale/config.yaml)")
+		StringVarP(&cfgFile, "config", "c", "", "config file (default is /etc/orgscale/config.yaml)")
 	rootCmd.PersistentFlags().
 		StringP("output", "o", "", "Output format. Empty for human-readable, 'json', 'json-line' or 'yaml'")
 	rootCmd.PersistentFlags().
@@ -64,12 +64,12 @@ func skipsInitConfig(args []string) bool {
 	return err == nil && (cmd == checkCmd || cmd.HasParent() && cmd.Parent() == checkCmd || cmd == generateConfigCmd || cmd == generateNixOSOptionsCmd)
 }
 
-// loadConfig loads path, else the file -c names, else $HEADSCALE_CONFIG,
-// else the first config.* in /etc/headscale, $XDG_CONFIG_HOME/headscale,
-// headscale under each $XDG_CONFIG_DIRS entry, ~/.headscale or ".". Without
+// loadConfig loads path, else the file -c names, else $ORGSCALE_CONFIG,
+// else the first config.* in /etc/orgscale, $XDG_CONFIG_HOME/orgscale,
+// orgscale under each $XDG_CONFIG_DIRS entry, ~/.orgscale or ".". Without
 // a file it loads defaults and environment only. The result is never nil.
 func loadConfig(path string) (*config.Loaded, error) {
-	path = cmp.Or(path, cfgFile, os.Getenv("HEADSCALE_CONFIG"))
+	path = cmp.Or(path, cfgFile, os.Getenv("ORGSCALE_CONFIG"))
 
 	l, err := config.Load(path, path != "", os.Environ())
 	switch {
@@ -143,7 +143,7 @@ func initConfig() {
 			!versionInfo.Dirty {
 			githubTag := &latest.GithubTag{
 				Owner:         "juanfont",
-				Repository:    "headscale",
+				Repository:    "orgscale",
 				TagFilterFunc: filterPreReleasesIfStable(func() string { return versionInfo.Version }),
 			}
 
@@ -151,7 +151,7 @@ func initConfig() {
 			if err == nil && res.Outdated {
 				//nolint
 				log.Warn().Msgf(
-					"An updated version of Headscale has been found (%s vs. your current %s). Check it out https://github.com/juanfont/headscale/releases\n",
+					"An updated version of Orgscale has been found (%s vs. your current %s). Check it out https://github.com/juanfont/headscale/releases\n",
 					res.Current,
 					versionInfo.Version,
 				)
@@ -189,10 +189,10 @@ func filterPreReleasesIfStable(versionFunc func() string) func(string) bool {
 }
 
 var rootCmd = &cobra.Command{
-	Use:   "headscale",
-	Short: "headscale - a Tailscale control server",
+	Use:   "orgscale",
+	Short: "orgscale - a Tailscale control server",
 	Long: `
-headscale is an open source implementation of the Tailscale control server
+orgscale is an open source implementation of the Tailscale control server
 
 https://github.com/juanfont/headscale`,
 	SilenceErrors: true,

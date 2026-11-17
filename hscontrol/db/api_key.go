@@ -11,9 +11,9 @@ import (
 )
 
 const (
-	apiKeyPrefix = "hskey-api-" //nolint:gosec // This is a prefix, not a credential
+	apiKeyPrefix = "oskey-api-" //nolint:gosec // This is a prefix, not a credential
 
-	// Legacy format constant: the prefix length of pre-hskey "prefix.secret" keys.
+	// Legacy format constant: the prefix length of pre-oskey "prefix.secret" keys.
 	// TODO(kradalby): remove in 0.32 with legacy key formats (announced).
 	legacyAPIPrefixLength = 7
 )
@@ -147,7 +147,7 @@ func (hsdb *HSDatabase) AuthenticateAPIKey(keyStr string) (*types.APIKey, error)
 }
 
 // SetAPIKeyUser sets the owning user of an API key. Used when an admin mints a
-// key on behalf of a user (headscale apikeys create --user).
+// key on behalf of a user (orgscale apikeys create --user).
 func (hsdb *HSDatabase) SetAPIKeyUser(keyID uint64, userID types.UserID) error {
 	res := hsdb.DB.Model(&types.Credential{}).
 		Where("kind = ? AND id = ?", types.CredentialAPIKey, keyID).
@@ -157,7 +157,7 @@ func (hsdb *HSDatabase) SetAPIKeyUser(keyID uint64, userID types.UserID) error {
 }
 
 // ParseAPIKeyPrefix extracts the database prefix from a display prefix.
-// Handles formats: "hskey-api-{12chars}-***", "hskey-api-{12chars}", or just "{12chars}".
+// Handles formats: "oskey-api-{12chars}-***", "oskey-api-{12chars}", or just "{12chars}".
 // Returns the 12-character prefix suitable for database lookup.
 func ParseAPIKeyPrefix(displayPrefix string) (string, error) {
 	// If it's already just the 12-character prefix, return it
@@ -167,7 +167,7 @@ func ParseAPIKeyPrefix(displayPrefix string) (string, error) {
 
 	// If it starts with the API key prefix, parse it
 	if strings.HasPrefix(displayPrefix, apiKeyPrefix) {
-		// Remove the "hskey-api-" prefix
+		// Remove the "oskey-api-" prefix
 		_, remainder, found := strings.Cut(displayPrefix, apiKeyPrefix)
 		if !found {
 			return "", fmt.Errorf("%w: invalid display prefix format", ErrAPIKeyFailedToParse)
@@ -194,14 +194,14 @@ func ParseAPIKeyPrefix(displayPrefix string) (string, error) {
 }
 
 // validateAPIKey validates an API key and returns the key if valid.
-// Handles both new (hskey-api-{prefix}-{secret}) and legacy (prefix.secret) formats.
+// Handles both new (oskey-api-{prefix}-{secret}) and legacy (prefix.secret) formats.
 func validateAPIKey(db *gorm.DB, keyStr string) (*types.APIKey, error) {
 	// Validate input is not empty
 	if keyStr == "" {
 		return nil, ErrAPIKeyFailedToParse
 	}
 
-	// Check for new format: hskey-api-{prefix}-{secret}
+	// Check for new format: oskey-api-{prefix}-{secret}
 	_, prefixAndSecret, found := strings.Cut(keyStr, apiKeyPrefix)
 
 	if !found {

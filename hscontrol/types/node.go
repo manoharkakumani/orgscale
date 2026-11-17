@@ -128,7 +128,7 @@ func MustParseNodeID(s string) NodeID {
 	return id
 }
 
-// Node is a Headscale client.
+// Node is a Orgscale client.
 type Node struct {
 	ID NodeID `gorm:"primary_key"`
 
@@ -156,7 +156,7 @@ type Node struct {
 	// a valid name set by the [User]
 	//
 	// GivenName is the name used in all DNS related
-	// parts of headscale.
+	// parts of orgscale.
 	GivenName string `gorm:"type:varchar(63);unique_index"`
 
 	// UserID identifies the owning user for user-owned nodes.
@@ -187,7 +187,7 @@ type Node struct {
 	Expiry *time.Time
 
 	// LastSeen is when the node was last in contact with
-	// headscale. It is best effort and not persisted.
+	// orgscale. It is best effort and not persisted.
 	LastSeen *time.Time `gorm:"column:last_seen"`
 
 	// ApprovedRoutes is a list of routes that the node is allowed to announce
@@ -1441,7 +1441,7 @@ func (nv NodeView) TailNode(
 		nodecap.SSHEnvironmentVariables: []tailcfg.RawMessage{},
 	}
 
-	// Headscale has no user roles, so every user counts as an admin. A tagged
+	// Orgscale has no user roles, so every user counts as an admin. A tagged
 	// node has no user to hold the role, and SaaS does not stamp it either.
 	if !nv.IsTagged() {
 		capMap[nodecap.Admin] = []tailcfg.RawMessage{}

@@ -39,7 +39,7 @@
         "ParameterizedQueries": false
       },
       "Sqlite": {
-        "Path": "/var/lib/headscale/db.sqlite",
+        "Path": "/var/lib/orgscale/db.sqlite",
         "WriteAheadLog": true,
         "WALAutoCheckPoint": 1000
       },
@@ -94,7 +94,7 @@
         "HTTPListen": ":http",
         "URL": "",
         "Email": "",
-        "CacheDir": "/var/lib/headscale/cache"
+        "CacheDir": "/var/lib/orgscale/cache"
       }
     },
     "DNSConfig": {
@@ -201,7 +201,7 @@
       ],
       "ProviderName": ""
     },
-    "UnixSocket": "/var/run/headscale/headscale.sock",
+    "UnixSocket": "/var/run/orgscale/orgscale.sock",
     "UnixSocketPermission": 504,
     "OIDC": {
       "OnlyStartIfOIDCIsAvailable": true,

@@ -1,10 +1,10 @@
 // Package tsric provides a TailscaleRustInContainer (tsric) implementation
 // that runs the tailscale-rs axum example inside a Docker container for
-// integration testing with headscale.
+// integration testing with orgscale.
 //
 // Unlike tsic (which runs the official Tailscale client), tsric runs a Rust
 // implementation of a Tailscale node. It does not have the `tailscale` CLI,
-// so verification is done externally via headscale API and peer connectivity.
+// so verification is done externally via orgscale API and peer connectivity.
 package tsric
 
 import (
@@ -35,7 +35,7 @@ const (
 
 // getPrebuiltImage returns the pre-built tailscale-rs Docker image name if set.
 func getPrebuiltImage() string {
-	return os.Getenv("HEADSCALE_INTEGRATION_TAILSCALE_RS_IMAGE")
+	return os.Getenv("ORGSCALE_INTEGRATION_TAILSCALE_RS_IMAGE")
 }
 
 // TailscaleRustInContainer runs the tailscale-rs axum example as an
@@ -48,7 +48,7 @@ type TailscaleRustInContainer struct {
 	network   *dockertest.Network
 
 	caCerts      [][]byte
-	headscaleURL string
+	orgscaleURL string
 	authKey      string
 	extraHosts   []string
 	repo         string
@@ -72,10 +72,10 @@ func WithNetwork(network *dockertest.Network) Option {
 	}
 }
 
-// WithHeadscaleURL sets the headscale control server URL.
-func WithHeadscaleURL(url string) Option {
+// WithOrgscaleURL sets the orgscale control server URL.
+func WithOrgscaleURL(url string) Option {
 	return func(t *TailscaleRustInContainer) {
-		t.headscaleURL = url
+		t.orgscaleURL = url
 	}
 }
 
@@ -131,7 +131,7 @@ func (t *TailscaleRustInContainer) buildEntrypoint() []string {
 
 	commands = append(
 		commands,
-		fmt.Sprintf(`export TS_CONTROL_URL=%q`, t.headscaleURL),
+		fmt.Sprintf(`export TS_CONTROL_URL=%q`, t.orgscaleURL),
 		// The tailscale crate refuses to run without this env gate;
 		// see lib.rs in tailscale-rs.
 		"export TS_RS_EXPERIMENT=this_is_unstable_software",
@@ -180,8 +180,8 @@ func New(
 		return nil, errors.New("tsric: no network set") //nolint:err113
 	}
 
-	if t.headscaleURL == "" {
-		return nil, errors.New("tsric: no headscale URL set") //nolint:err113
+	if t.orgscaleURL == "" {
+		return nil, errors.New("tsric: no orgscale URL set") //nolint:err113
 	}
 
 	if t.authKey == "" {

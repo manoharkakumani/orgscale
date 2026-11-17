@@ -105,7 +105,7 @@
       "Resolvers": null,
       "ProviderName": ""
     },
-    "UnixSocket": "/run/headscale/headscale.sock",
+    "UnixSocket": "/run/orgscale/orgscale.sock",
     "UnixSocketPermission": 0,
     "OIDC": {
       "OnlyStartIfOIDCIsAvailable": false,

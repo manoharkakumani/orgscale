@@ -6,7 +6,7 @@ testing is documented in [`cmd/hi/README.md`](cmd/hi/README.md) and
 [`integration/README.md`](integration/README.md). Read those files
 before running tests or writing new ones.
 
-Headscale is an open-source implementation of the Tailscale control server
+Orgscale is an open-source implementation of the Tailscale control server
 written in Go. It manages node registration, IP allocation, policy
 enforcement, and DERP routing for self-hosted tailnets.
 
@@ -73,7 +73,7 @@ nix develop
 make dev
 
 # Individual targets
-make build           # build the headscale binary
+make build           # build the orgscale binary
 make test            # go test ./...
 make fmt             # format Go, docs, proto
 make lint            # lint Go, proto
@@ -130,9 +130,9 @@ branches — never on `main`.
 ## Project Layout
 
 ```
-headscale/
+orgscale/
 ├── cmd/
-│   ├── headscale/    # Main headscale server binary
+│   ├── orgscale/    # Main orgscale server binary
 │   └── hi/           # Integration test runner (see cmd/hi/README.md)
 ├── hscontrol/        # Core control plane
 ├── integration/      # End-to-end Docker-based tests (see integration/README.md)
@@ -160,9 +160,9 @@ headscale/
 - `policy/` — `policy/v2/` is **the** policy implementation. The
   top-level `policy.go` is thin wrappers. There is no v1 directory.
 - `config/` — config code outside the `types.Config` struct: the loader
-  (`Load`: defaults, file, `HEADSCALE_*` environment; `Default`; `Marshal`;
+  (`Load`: defaults, file, `ORGSCALE_*` environment; `Default`; `Marshal`;
   the removed-keys table), `Validate` and `Warnings`, the checks behind
-  `headscale check` (`Files` lists every file a config names, with its
+  `orgscale check` (`Files` lists every file a config names, with its
   validator), `ReadPrivateKey` and the generators (`GenerateExample`,
   `GenerateNixOptions`, `GenerateReference`). The schema and `ConfigError`
   stay in `types`. It imports `types`; `types`, `derp`, `dns` and `policy`
@@ -217,7 +217,7 @@ migrations must:
 
 ## Tags-as-Identity
 
-Headscale enforces **tags XOR user ownership**: every node is either
+Orgscale enforces **tags XOR user ownership**: every node is either
 tagged (owned by tags) or user-owned (owned by a user namespace), never
 both. This is a load-bearing architectural rule.
 
@@ -267,7 +267,7 @@ variants, scenario setup) are documented in `integration/README.md`.
 Key reminders:
 
 - Integration test functions **must** start with `IntegrationSkip(t)`.
-- External calls (`client.Status`, `headscale.ListNodes`, etc.) belong
+- External calls (`client.Status`, `orgscale.ListNodes`, etc.) belong
   inside `EventuallyWithT`; state-mutating commands (`tailscale set`)
   must not.
 - Tests generate ~100 MB of logs per run under `control_logs/{runID}/`.
@@ -366,7 +366,7 @@ a broken one.
 - **Do not edit `gen/`** — it is regenerated from `proto/` by
   `make generate`.
 - **Proto changes + code changes should be two commits**, not one.
-- **`services.headscale.settings` options come only from
+- **`services.orgscale.settings` options come only from
   `nix/options.generated.nix`**, generated from `hscontrol/types/config.go`
   by `go generate ./hscontrol/types/`. Never declare one in `nix/module.nix`:
   the module only sets values, below `lib.mkDefault`.
@@ -377,6 +377,6 @@ a broken one.
 - **The NixOS test kit is a public contract** consumed by other projects'
   NixOS tests: the "Contract" in `nix/README.md`, covering
   `nix/testkit.nix`, `nix/testkit-peer.nix`, the embedded DERP region
-  and `HEADSCALE_DEBUG_INSECURE_TLS_LISTEN_ADDR`, and the CLI commands
+  and `ORGSCALE_DEBUG_INSECURE_TLS_LISTEN_ADDR`, and the CLI commands
   `hs-authkey` calls. Breaking it needs a "NixOS test kit" BREAKING entry
   in `CHANGELOG.md`.

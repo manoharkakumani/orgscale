@@ -29,7 +29,7 @@ const (
 	debugMapResponsePerm = 0o755
 )
 
-var debugDumpMapResponsePath = envknob.String("HEADSCALE_DEBUG_DUMP_MAPRESPONSE_PATH")
+var debugDumpMapResponsePath = envknob.String("ORGSCALE_DEBUG_DUMP_MAPRESPONSE_PATH")
 
 // TODO: Optimise
 // As this work continues, the idea is that there will be one Mapper instance

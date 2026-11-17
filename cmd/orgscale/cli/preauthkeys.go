@@ -37,7 +37,7 @@ func init() {
 
 var preauthkeysCmd = &cobra.Command{
 	Use:     "preauthkeys",
-	Short:   "Handle the preauthkeys in Headscale",
+	Short:   "Handle the preauthkeys in Orgscale",
 	Aliases: []string{"preauthkey", "authkey", "pre"},
 }
 
@@ -81,7 +81,7 @@ var listPreAuthKeys = &cobra.Command{
 					strconv.FormatBool(key.Ephemeral),
 					strconv.FormatBool(key.Used),
 					expiration,
-					key.CreatedAt.Format(HeadscaleDateTimeFormat),
+					key.CreatedAt.Format(OrgscaleDateTimeFormat),
 					owner,
 				})
 			}

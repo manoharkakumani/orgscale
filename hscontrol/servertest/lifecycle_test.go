@@ -109,7 +109,7 @@ func TestConnectionLifecycle(t *testing.T) {
 		h := servertest.NewHarness(t, 2)
 
 		// Reconnect without explicitly waiting for the old session to
-		// fully drain. This tests that Headscale correctly replaces
+		// fully drain. This tests that Orgscale correctly replaces
 		// the old map session for the same node.
 		h.Client(0).Reconnect(t)
 		h.WaitForMeshComplete(t, 15*time.Second)
@@ -555,7 +555,7 @@ func TestPathsDiscoAndExpiryHelpers(t *testing.T) {
 }
 
 // TestFramesCountResponsesWithoutControlTime checks that Frames counts the
-// responses headscale sends without a ControlTime: a removal ahead of its
+// responses orgscale sends without a ControlTime: a removal ahead of its
 // batch. A client that rebuilds its netmap on every response counts one frame
 // per rebuild.
 func TestFramesCountResponsesWithoutControlTime(t *testing.T) {

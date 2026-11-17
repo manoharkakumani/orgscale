@@ -1,4 +1,4 @@
-// cmd/dev starts a local headscale development server with a pre-created
+// cmd/dev starts a local orgscale development server with a pre-created
 // user and pre-auth key, ready for connecting tailscale nodes via mts.
 package main
 
@@ -20,7 +20,7 @@ import (
 )
 
 var (
-	port = flag.Int("port", 8080, "headscale listen port")
+	port = flag.Int("port", 8080, "orgscale listen port")
 	keep = flag.Bool("keep", false, "keep state directory on exit")
 )
 
@@ -60,7 +60,7 @@ derp:
 
 dns:
   magic_dns: true
-  base_domain: headscale.dev
+  base_domain: orgscale.dev
   override_local_dns: false
 
 log:
@@ -70,7 +70,7 @@ log:
 policy:
   mode: database
 
-unix_socket: %s/headscale.sock
+unix_socket: %s/orgscale.sock
 unix_socket_permission: "0770"
 `
 
@@ -99,7 +99,7 @@ func main() {
 func run() error {
 	metricsPort := *port + 1010 // default 9090
 
-	tmpDir, err := os.MkdirTemp("", "headscale-dev-")
+	tmpDir, err := os.MkdirTemp("", "orgscale-dev-")
 	if err != nil {
 		return fmt.Errorf("creating temp dir: %w", err)
 	}
@@ -121,10 +121,10 @@ func run() error {
 		return fmt.Errorf("writing config: %w", err)
 	}
 
-	// Build headscale.
-	fmt.Println("Building headscale...")
+	// Build orgscale.
+	fmt.Println("Building orgscale...")
 
-	hsBin := filepath.Join(tmpDir, "headscale")
+	hsBin := filepath.Join(tmpDir, "orgscale")
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -135,11 +135,11 @@ func run() error {
 
 	err = build.Run()
 	if err != nil {
-		return fmt.Errorf("building headscale: %w", err)
+		return fmt.Errorf("building orgscale: %w", err)
 	}
 
-	// Start headscale serve.
-	fmt.Println("Starting headscale server...")
+	// Start orgscale serve.
+	fmt.Println("Starting orgscale server...")
 
 	serve := exec.CommandContext(ctx, hsBin, "serve", "-c", configPath)
 	serve.Stdout = os.Stdout
@@ -147,7 +147,7 @@ func run() error {
 
 	err = serve.Start()
 	if err != nil {
-		return fmt.Errorf("starting headscale: %w", err)
+		return fmt.Errorf("starting orgscale: %w", err)
 	}
 
 	// Wait for server to be ready.
@@ -155,7 +155,7 @@ func run() error {
 
 	err = waitForHealth(ctx, healthURL, 30*time.Second)
 	if err != nil {
-		return fmt.Errorf("waiting for headscale: %w", err)
+		return fmt.Errorf("waiting for orgscale: %w", err)
 	}
 
 	// Create user.
@@ -192,7 +192,7 @@ func run() error {
 	// Print banner.
 	fmt.Printf(
 		`
-=== Headscale Dev Environment ===
+=== Orgscale Dev Environment ===
   Server:  http://127.0.0.1:%d
   Metrics: http://127.0.0.1:%d
   Debug:   http://127.0.0.1:%d/debug/ping
@@ -207,7 +207,7 @@ Connect nodes with mts:
   go tool mts node1 up --login-server=http://127.0.0.1:%d --authkey=%s
   go tool mts node1 status                # check connection
 
-Manage headscale:
+Manage orgscale:
   %s -c %s nodes list
   %s -c %s users list
 
@@ -221,7 +221,7 @@ Press Ctrl+C to stop.
 		hsBin, configPath,
 	)
 
-	// Wait for headscale to exit.
+	// Wait for orgscale to exit.
 	err = serve.Wait()
 	if err != nil {
 		// Context cancellation is expected on Ctrl+C.
@@ -231,7 +231,7 @@ Press Ctrl+C to stop.
 			return nil
 		}
 
-		return fmt.Errorf("headscale exited: %w", err)
+		return fmt.Errorf("orgscale exited: %w", err)
 	}
 
 	return nil
@@ -268,7 +268,7 @@ func waitForHealth(ctx context.Context, url string, timeout time.Duration) error
 	return errHealthTimeout
 }
 
-// runHS executes a headscale CLI command and returns its stdout.
+// runHS executes a orgscale CLI command and returns its stdout.
 func runHS(ctx context.Context, bin, config string, args ...string) ([]byte, error) {
 	fullArgs := append([]string{"-c", config}, args...)
 	cmd := exec.CommandContext(ctx, bin, fullArgs...)

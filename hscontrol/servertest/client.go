@@ -161,7 +161,7 @@ func WithHostinfo(hi *tailcfg.Hostinfo) ClientOption {
 
 // WithInteractiveLogin registers without an auth key, as `tailscale up`
 // does: the server answers with an auth URL and approve, given its auth ID,
-// completes the login, as `headscale auth register` would.
+// completes the login, as `orgscale auth register` would.
 func WithInteractiveLogin(approve func(authID string) error) ClientOption {
 	return func(c *clientConfig) { c.approve = approve }
 }
@@ -499,7 +499,7 @@ func (c *TestClient) UpdateFullNetmap(nm *netmap.NetworkMap) {
 	// Removals sent ahead of their batch carry no ControlTime, so a rebuild
 	// with none before it is a response too.
 	// shortcut: one right after a response a delta client applied in place
-	// goes uncounted; count at the decoder if headscale sends one alone.
+	// goes uncounted; count at the decoder if orgscale sends one alone.
 	if !c.stamped {
 		c.frames++
 	}

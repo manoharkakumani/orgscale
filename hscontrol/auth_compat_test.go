@@ -27,7 +27,7 @@ import (
 	"tailscale.com/types/key"
 )
 
-// pendingLoginSkipReasons lists checks where headscale differs from SaaS,
+// pendingLoginSkipReasons lists checks where orgscale differs from SaaS,
 // keyed <test_id>/<step>/<node>/<check>. A listed check that matches fails,
 // so a fix must delete its entry.
 var pendingLoginSkipReasons = map[string]string{}
@@ -77,10 +77,10 @@ func runPendingLoginCompat(t *testing.T, id string) {
 
 // pendingReplay drives the register handler as the capture's clients did.
 // SaaS labels for node keys and auth URLs map to the keys the replay makes
-// and the auth IDs headscale returns.
+// and the auth IDs orgscale returns.
 type pendingReplay struct {
 	c     *testcapture.Capture
-	app   *Headscale
+	app   *Orgscale
 	users map[string]*types.User
 	owner *types.User
 
@@ -90,7 +90,7 @@ type pendingReplay struct {
 	authKeys  map[string]string
 
 	// urls holds each auth URL in the order it was given: SaaS's label
-	// and headscale's auth ID.
+	// and orgscale's auth ID.
 	urls []pendingURL
 
 	// held is the auth key each client still holds in memory, lastURL the
@@ -154,7 +154,7 @@ func newPendingReplay(t *testing.T, c *testcapture.Capture) *pendingReplay {
 }
 
 // pendingCheck is one rendering of an outcome: SaaS's, and how to read
-// headscale's.
+// orgscale's.
 type pendingCheck struct {
 	name string
 	want string
@@ -288,7 +288,7 @@ func (r *pendingReplay) api(t *testing.T, step testcapture.Step, a testcapture.A
 		}
 		require.NoError(t, json.Unmarshal(a.Body, &body), "%s: key body", step.Name)
 
-		// As the v2 API: only turning expiry off maps onto headscale.
+		// As the v2 API: only turning expiry off maps onto orgscale.
 		if body.KeyExpiryDisabled {
 			r.setExpiry(t, step, a, nil)
 		}
@@ -406,7 +406,7 @@ func (r *pendingReplay) stopWaiting(node string) {
 }
 
 // authURLCheck says whether the last auth URL given is new or repeats an
-// earlier one, on SaaS by label and on headscale by auth ID.
+// earlier one, on SaaS by label and on orgscale by auth ID.
 func (r *pendingReplay) authURLCheck(name string) pendingCheck {
 	last := r.urls[len(r.urls)-1]
 	want, got := "new", "new"
@@ -617,7 +617,7 @@ func registerFlags(a testcapture.RegisterAttempt) string {
 	return fmt.Sprintf("expired=%t authorized=%t url=%t", *a.NodeKeyExpired, *a.MachineAuthorized, a.AuthURL != "")
 }
 
-// responseFlags renders headscale's answer the way [registerFlags] renders
+// responseFlags renders orgscale's answer the way [registerFlags] renders
 // SaaS's; a refusal is "error".
 func responseFlags(resp *tailcfg.RegisterResponse, err error) string {
 	if err != nil || resp == nil || resp.Error != "" {

@@ -1,10 +1,10 @@
-Hi @{author}, thanks for your interest in headscale.
+Hi @{author}, thanks for your interest in orgscale.
 
-Headscale gates pull requests to vouched contributors only. Your account
+Orgscale gates pull requests to vouched contributors only. Your account
 isn't on the list yet, so this PR has been auto-closed. This is **not** a
 judgment of you or this change.
 
-Headscale is an "Open Source, acknowledged contribution" project: every
+Orgscale is an "Open Source, acknowledged contribution" project: every
 contribution starts with a discussion on the issue tracker, **before** any
 code is written. See [`CONTRIBUTING.md`](https://github.com/juanfont/headscale/blob/main/CONTRIBUTING.md)
 for the full policy and the rationale.

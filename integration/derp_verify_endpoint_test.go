@@ -22,16 +22,16 @@ import (
 func TestDERPVerifyEndpoint(t *testing.T) {
 	IntegrationSkip(t)
 
-	// Generate random hostname for the headscale instance
+	// Generate random hostname for the orgscale instance
 	hash := rands.HexString(6)
 
 	testName := "derpverify"
 	hostname := fmt.Sprintf("hs-%s-%s", testName, hash)
 
-	headscalePort := 8080
+	orgscalePort := 8080
 
-	// Create cert for headscale
-	caHeadscale, certHeadscale, keyHeadscale, err := integrationutil.CreateCertificate(hostname)
+	// Create cert for orgscale
+	caOrgscale, certOrgscale, keyOrgscale, err := integrationutil.CreateCertificate(hostname)
 	require.NoError(t, err)
 
 	spec := ScenarioSpec{
@@ -46,8 +46,8 @@ func TestDERPVerifyEndpoint(t *testing.T) {
 
 	derper, err := scenario.CreateDERPServer(
 		"head",
-		dsic.WithCACert(caHeadscale),
-		dsic.WithVerifyClientURL(fmt.Sprintf("https://%s/verify", net.JoinHostPort(hostname, strconv.Itoa(headscalePort)))),
+		dsic.WithCACert(caOrgscale),
+		dsic.WithVerifyClientURL(fmt.Sprintf("https://%s/verify", net.JoinHostPort(hostname, strconv.Itoa(orgscalePort)))),
 	)
 	require.NoError(t, err)
 
@@ -79,14 +79,14 @@ func TestDERPVerifyEndpoint(t *testing.T) {
 	//
 	// [tsic.WithCACert] passes the external DERP server's certificate so
 	// tailscale clients trust it. [hsic.WithCustomTLS] and [hsic.WithDERPConfig]
-	// configure headscale to use the external DERP server created
+	// configure orgscale to use the external DERP server created
 	// above instead of the default embedded one.
-	err = scenario.CreateHeadscaleEnv([]tsic.Option{tsic.WithCACert(derper.GetCert())},
+	err = scenario.CreateOrgscaleEnv([]tsic.Option{tsic.WithCACert(derper.GetCert())},
 		hsic.WithHostname(hostname),
-		hsic.WithPort(headscalePort),
-		hsic.WithCustomTLS(caHeadscale, certHeadscale, keyHeadscale),
+		hsic.WithPort(orgscalePort),
+		hsic.WithCustomTLS(caOrgscale, certOrgscale, keyOrgscale),
 		hsic.WithDERPConfig(derpMap))
-	requireNoErrHeadscaleEnv(t, err)
+	requireNoErrOrgscaleEnv(t, err)
 
 	allClients, err := scenario.ListTailscaleClients()
 	requireNoErrListClients(t, err)

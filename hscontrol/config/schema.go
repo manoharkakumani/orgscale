@@ -75,7 +75,7 @@ type leafType struct {
 const nixStr = "lib.types.str"
 
 // nixFiles types a file a key names, by the key's nix tag and Go type.
-// "path" is a file headscale only reads and that holds no secret, so a Nix
+// "path" is a file orgscale only reads and that holds no secret, so a Nix
 // path may copy it to the store; "external" is a key or state file, which
 // must stay out of the world-readable store.
 var nixFiles = map[string]map[reflect.Type]string{
@@ -94,7 +94,7 @@ var leafTypes = []leafType{
 	{
 		Kinds: []reflect.Kind{reflect.String}, Label: "string", Plural: "strings",
 		Format: "Text. Quote it where YAML would read another type, as in `\"0x1F\"` or `\"null\"`.",
-		Sample: "`/var/lib/headscale/db.sqlite`", Nix: nixStr,
+		Sample: "`/var/lib/orgscale/db.sqlite`", Nix: nixStr,
 	},
 	{
 		Kinds: []reflect.Kind{reflect.Bool}, Label: "boolean", Plural: "booleans",
@@ -120,7 +120,7 @@ var leafTypes = []leafType{
 	},
 	{
 		Type: reflect.TypeFor[types.HTTPURL](), Label: "URL", Plural: "URLs",
-		Format: "An absolute `http://` or `https://` URL with a host.", Sample: "`https://headscale.example.com`", Nix: "t.httpURL",
+		Format: "An absolute `http://` or `https://` URL with a host.", Sample: "`https://orgscale.example.com`", Nix: "t.httpURL",
 	},
 	{
 		Type: reflect.TypeFor[netip.Prefix](), Label: "prefix", Plural: "prefixes",

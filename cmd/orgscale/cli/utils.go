@@ -27,7 +27,7 @@ import (
 )
 
 const (
-	HeadscaleDateTimeFormat = "2006-01-02 15:04:05"
+	OrgscaleDateTimeFormat = "2006-01-02 15:04:05"
 	SocketWritePermissions  = 0o666
 
 	outputFormatJSON     = "json"
@@ -36,7 +36,7 @@ const (
 )
 
 var (
-	errAPIKeyNotSet     = errors.New("HEADSCALE_CLI_API_KEY environment variable needs to be set")
+	errAPIKeyNotSet     = errors.New("ORGSCALE_CLI_API_KEY environment variable needs to be set")
 	errUnixSocketNotSet = errors.New("unix_socket is empty: set it, or cli.address and cli.api_key for a remote server")
 	errMissingParameter = errors.New("missing parameters")
 	errResponseStatus   = errors.New("unexpected response status")
@@ -87,12 +87,12 @@ func mustMarkRequired(cmd *cobra.Command, names ...string) {
 	}
 }
 
-// newHeadscaleServerWithConfig builds the server, which validates the
+// newOrgscaleServerWithConfig builds the server, which validates the
 // configuration.
-func newHeadscaleServerWithConfig() (*hscontrol.Headscale, error) {
-	app, err := hscontrol.NewHeadscale(serverConfig())
+func newOrgscaleServerWithConfig() (*hscontrol.Orgscale, error) {
+	app, err := hscontrol.NewOrgscale(serverConfig())
 	if err != nil {
-		return nil, fmt.Errorf("creating new headscale: %w", err)
+		return nil, fmt.Errorf("creating new orgscale: %w", err)
 	}
 
 	return app, nil
@@ -116,9 +116,9 @@ func clientRunE(
 	fn func(ctx context.Context, client *clientv1.ClientWithResponses, cmd *cobra.Command, args []string) error,
 ) func(*cobra.Command, []string) error {
 	return func(cmd *cobra.Command, args []string) error {
-		ctx, client, cancel, err := newHeadscaleCLIWithConfig()
+		ctx, client, cancel, err := newOrgscaleCLIWithConfig()
 		if err != nil {
-			return fmt.Errorf("connecting to headscale: %w", err)
+			return fmt.Errorf("connecting to orgscale: %w", err)
 		}
 		defer cancel()
 
@@ -132,22 +132,22 @@ func clientRunE(
 func withClient(
 	fn func(ctx context.Context, client *clientv1.ClientWithResponses) error,
 ) error {
-	ctx, client, cancel, err := newHeadscaleCLIWithConfig()
+	ctx, client, cancel, err := newOrgscaleCLIWithConfig()
 	if err != nil {
-		return fmt.Errorf("connecting to headscale: %w", err)
+		return fmt.Errorf("connecting to orgscale: %w", err)
 	}
 	defer cancel()
 
 	return fn(ctx, client)
 }
 
-// newHeadscaleCLIWithConfig builds an HTTP client for the Headscale v1 API.
+// newOrgscaleCLIWithConfig builds an HTTP client for the Orgscale v1 API.
 //
 // When cfg.CLI.Address is unset the CLI is assumed to run on the server host
 // and talks to the unix socket over HTTP without authentication (local trust).
 // Otherwise it talks to the remote TCP address over HTTPS and injects the
 // configured API key as a bearer token.
-func newHeadscaleCLIWithConfig() (context.Context, *clientv1.ClientWithResponses, context.CancelFunc, error) {
+func newOrgscaleCLIWithConfig() (context.Context, *clientv1.ClientWithResponses, context.CancelFunc, error) {
 	cfg := loaded.Config
 
 	log.Debug().
@@ -162,7 +162,7 @@ func newHeadscaleCLIWithConfig() (context.Context, *clientv1.ClientWithResponses
 	if address == "" {
 		log.Debug().
 			Str("socket", cfg.UnixSocket).
-			Msgf("HEADSCALE_CLI_ADDRESS environment is not set, connecting to unix socket.")
+			Msgf("ORGSCALE_CLI_ADDRESS environment is not set, connecting to unix socket.")
 
 		client, err := newSocketClient(cfg.UnixSocket)
 		if err != nil {
@@ -222,7 +222,7 @@ func newSocketClient(socketPath string) (*clientv1.ClientWithResponses, error) {
 	if err != nil {
 		if os.IsPermission(err) {
 			return nil, fmt.Errorf(
-				"unable to read/write to headscale socket %q, do you have the correct permissions? %w",
+				"unable to read/write to orgscale socket %q, do you have the correct permissions? %w",
 				socketPath,
 				err,
 			)
@@ -234,7 +234,7 @@ func newSocketClient(socketPath string) (*clientv1.ClientWithResponses, error) {
 	httpClient := &http.Client{
 		Transport: &http.Transport{
 			DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
-				return dialHeadscaleSocket(ctx, socketPath)
+				return dialOrgscaleSocket(ctx, socketPath)
 			},
 		},
 	}
@@ -245,12 +245,12 @@ func newSocketClient(socketPath string) (*clientv1.ClientWithResponses, error) {
 	)
 }
 
-// dialHeadscaleSocket connects to the unix socket, retrying until it appears or
+// dialOrgscaleSocket connects to the unix socket, retrying until it appears or
 // ctx (the CLI timeout) expires. The socket is created late in startup (after
 // noise key, database, migrations), so a command run right after the server
 // starts can race its creation; retrying preserves the old gRPC client's
 // blocking-dial tolerance rather than failing on a not-yet-present socket.
-func dialHeadscaleSocket(ctx context.Context, socketPath string) (net.Conn, error) {
+func dialOrgscaleSocket(ctx context.Context, socketPath string) (net.Conn, error) {
 	// Retrying cannot help: no socket ever appears at "".
 	if socketPath == "" {
 		return nil, errUnixSocketNotSet
@@ -277,7 +277,7 @@ func clientBaseURL(address string) string {
 	return "https://" + address
 }
 
-// newRemoteClient builds an API client for a remote Headscale over HTTPS,
+// newRemoteClient builds an API client for a remote Orgscale over HTTPS,
 // honouring insecure (skip TLS verification) and injecting the API key as a
 // bearer token on every request.
 func newRemoteClient(address, apiKey string, insecure bool) (*clientv1.ClientWithResponses, error) {

@@ -2,9 +2,9 @@
 # Every key: https://headscale.net/stable/ref/configuration-options/
 
 # The URL clients connect to, with its `http://` or `https://` scheme, e.g.
-# `https://headscale.example.com:443`. A trailing slash is trimmed on load. Its
+# `https://orgscale.example.com:443`. A trailing slash is trimmed on load. Its
 # host must not be `dns.base_domain` or a name below it.
-# Required. Example: https://headscale.example.com
+# Required. Example: https://orgscale.example.com
 server_url: ""
 
 # The host:port the server listens on for clients, the API and the web pages. It
@@ -18,7 +18,7 @@ metrics_listen_addr: ""
 
 # Where the server serves the API without authentication, for the CLI on the
 # same host. The CLI connects to it when `cli.address` is empty.
-unix_socket: /var/run/headscale/headscale.sock
+unix_socket: /var/run/orgscale/orgscale.sock
 
 # The file mode of `unix_socket`, in quoted octal (`"0770"`): unquoted, YAML
 # reads `0770` as the number 504.
@@ -30,15 +30,15 @@ unix_socket_permission: "0770"
 # API.
 trusted_proxies: []
 
-# Skips the check for a newer headscale release that commands make at start.
+# Skips the check for a newer orgscale release that commands make at start.
 disable_check_updates: false
 
 # The Noise protocol (TS2021) clients connect over.
 noise:
   # The file holding the Noise private key, which encrypts traffic between
-  # headscale and clients, relative to the configuration file. A missing file is
+  # orgscale and clients, relative to the configuration file. A missing file is
   # created with a new key.
-  private_key_path: /var/lib/headscale/noise_private.key
+  private_key_path: /var/lib/orgscale/noise_private.key
 
 # The IP ranges node addresses are allocated from. Keep at least one of
 # `prefixes.v4` and `prefixes.v6`. Use the Tailscale ranges, `100.64.0.0/10` and
@@ -54,7 +54,7 @@ prefixes:
   # One of: `sequential`, `random`.
   allocation: sequential
 
-# Where the access control policy is kept: in a file headscale reads, or in the
+# Where the access control policy is kept: in a file orgscale reads, or in the
 # database. See [Policy](https://headscale.net/stable/ref/policy/).
 policy:
   # The HuJSON policy file read when `policy.mode` is `file`, relative to the
@@ -65,7 +65,7 @@ policy:
   # One of: `file`, `database`.
   mode: file
 
-# Headscale's own log output. See
+# Orgscale's own log output. See
 # [Debugging](https://headscale.net/stable/ref/debug/#application-logging).
 log:
   # The lowest level logged.
@@ -80,7 +80,7 @@ log:
 node:
   # The key expiry given to a non-tagged node that registers without one,
   # whatever the method (auth key, CLI, web, OIDC). An expiry the client asks
-  # for, `oidc.use_expiry_from_token` and an admin's `headscale nodes expire`
+  # for, `oidc.use_expiry_from_token` and an admin's `orgscale nodes expire`
   # still apply. Tagged nodes never get this default. Zero or negative disables
   # the default.
   expiry: 0s
@@ -94,7 +94,7 @@ node:
   # [Routes](https://headscale.net/stable/ref/routes/).
   routes:
     # Health probing of HA subnet routers. When two or more nodes advertise the
-    # same route, headscale pings each over Noise and moves the route away from
+    # same route, orgscale pings each over Noise and moves the route away from
     # one that does not answer in time. See [High
     # availability](https://headscale.net/stable/ref/routes/#high-availability).
     ha:
@@ -120,7 +120,7 @@ preauth_keys:
 # region replaces an earlier one with the same ID. See
 # [DERP](https://headscale.net/stable/ref/derp/).
 derp:
-  # The embedded DERP server, a relay and STUN server run by headscale itself.
+  # The embedded DERP server, a relay and STUN server run by orgscale itself.
   # See [Enable embedded
   # DERP](https://headscale.net/stable/ref/derp/#enable-embedded-derp).
   server:
@@ -157,7 +157,7 @@ derp:
     automatically_add_embedded_derp_region: true
   # DERP maps in JSON to fetch. One that fails to load is logged and skipped;
   # startup fails only when no region remains. The default is Tailscale's map:
-  # headscale fetches it from Tailscale and clients relay through Tailscale's
+  # orgscale fetches it from Tailscale and clients relay through Tailscale's
   # servers. `[]` keeps to your own.
   urls:
     - https://controlplane.tailscale.com/derpmap/default
@@ -171,9 +171,9 @@ derp:
   # reloading.
   update_frequency: 3h
 
-# Where headscale stores nodes, users and keys. SQLite is recommended;
-# PostgreSQL is supported for legacy deployments only. `database.sqlite` is read
-# only for SQLite, `database.postgres` only for PostgreSQL.
+# Where orgscale stores nodes, users and keys. SQLite is recommended; PostgreSQL
+# is supported for legacy deployments only. `database.sqlite` is read only for
+# SQLite, `database.postgres` only for PostgreSQL.
 database:
   # The database backend. SQLite is recommended; PostgreSQL is supported for
   # legacy deployments only.
@@ -198,12 +198,12 @@ database:
   sqlite:
     # The database file, relative to the configuration file; `:memory:` keeps
     # the database in memory.
-    path: /var/lib/headscale/db.sqlite
+    path: /var/lib/orgscale/db.sqlite
     # Runs SQLite in write-ahead log (WAL) mode, applies
     # `database.sqlite.wal_autocheckpoint` and compacts the database (`VACUUM`)
     # on shutdown. False uses SQLite's rollback journal (`DELETE`) with
-    # `synchronous=FULL`, and converts a database left in WAL mode when
-    # headscale opens it.
+    # `synchronous=FULL`, and converts a database left in WAL mode when orgscale
+    # opens it.
     write_ahead_log: true
     # The number of WAL frames after which the WAL is checkpointed
     # automatically; zero disables automatic checkpoints. Applied only when
@@ -227,7 +227,7 @@ database:
     # The user to connect as.
     user: ""
     # The password, or `file:<path>` to read it from a file, read only when
-    # `database.type` is `postgres`. `headscale generate config --running` and
+    # `database.type` is `postgres`. `orgscale generate config --running` and
     # `/debug/config` show a literal password as `<redacted>` and a `file:`
     # reference as written.
     pass: ""
@@ -263,7 +263,7 @@ dns:
   nameservers:
     # The nameservers for names `dns.nameservers.split` does not cover: IP
     # addresses, or DNS-over-HTTPS URLs such as `https://dns.nextdns.io/<id>`.
-    # Empty by default, so clients keep their own DNS: headscale points them at
+    # Empty by default, so clients keep their own DNS: orgscale points them at
     # no resolver you did not list.
     global: []
     # Maps a domain to the nameservers that answer for it (split DNS). Domains
@@ -282,7 +282,7 @@ dns:
   # `dns.extra_records`.
   extra_records_path: ""
   # Lets nodes get TLS certificates for their MagicDNS names with `tailscale
-  # cert`. The node runs ACME itself; headscale publishes its DNS-01 challenge
+  # cert`. The node runs ACME itself; orgscale publishes its DNS-01 challenge
   # through `dns.challenge.provider`.
   certificates:
     # Lets nodes run `tailscale cert`. It requires `dns.magic_dns`, a lowercase
@@ -293,7 +293,7 @@ dns:
     # `dns.base_domain`. Empty uses `dns.base_domain`.
     zone: ""
   # The DNS provider answering ACME DNS-01 challenges, for node certificates and
-  # for headscale's own certificate when `tls.acme.challenge_type` is `DNS-01`.
+  # for orgscale's own certificate when `tls.acme.challenge_type` is `DNS-01`.
   # See [DNS-01 challenge
   # provider](https://headscale.net/stable/ref/dns/#dns-01-challenge-provider).
   challenge:
@@ -311,7 +311,7 @@ dns:
     # other keys are its settings. Keys are lowercased on load, at every depth;
     # two that differ only in case are an error. Any setting may be
     # `file:<path>` to read it from a file; a non-string one, such as acme-dns
-    # `config`, is the JSON in it. `headscale generate config --running` and
+    # `config`, is the JSON in it. `orgscale generate config --running` and
     # `/debug/config` show `name` and `file:` references; every other setting is
     # `<redacted>`, as any may be a credential. See [DNS-01 challenge
     # provider](https://headscale.net/stable/ref/dns/#dns-01-challenge-provider)
@@ -319,7 +319,7 @@ dns:
     # variables.
     provider: {}
 
-# Headscale's own HTTPS certificate on `listen_addr`: from the files
+# Orgscale's own HTTPS certificate on `listen_addr`: from the files
 # `tls.cert_path` and `tls.key_path`, or from ACME in `tls.acme`, not both.
 # Without either, the server speaks plain HTTP. See
 # [TLS](https://headscale.net/stable/ref/tls/).
@@ -335,7 +335,7 @@ tls:
   acme:
     # The domain to request a certificate for. Setting it turns ACME on.
     hostname: ""
-    # How the CA verifies that headscale controls `tls.acme.hostname`.
+    # How the CA verifies that orgscale controls `tls.acme.hostname`.
     # One of: `HTTP-01`, `TLS-ALPN-01`, `DNS-01`.
     challenge_type: HTTP-01
     # The host:port serving HTTP-01 challenges; the port may be a name, as in
@@ -347,7 +347,7 @@ tls:
     email: ""
     # Where certificates and ACME account data are stored, relative to the
     # configuration file.
-    cache_dir: /var/lib/headscale/cache
+    cache_dir: /var/lib/orgscale/cache
 
 # Login through an OpenID Connect provider. Setting `oidc.issuer` turns it on
 # and requires `oidc.client_id` and `oidc.client_secret`. See [OpenID
@@ -361,7 +361,7 @@ oidc:
   # The client ID from the provider; required when `oidc.issuer` is set.
   client_id: ""
   # The client secret from the provider, or `file:<path>` to read it from a
-  # file; required when `oidc.issuer` is set. `headscale generate config
+  # file; required when `oidc.issuer` is set. `orgscale generate config
   # --running` and `/debug/config` show a literal secret as `<redacted>` and a
   # `file:` reference as written.
   client_secret: ""
@@ -401,7 +401,7 @@ oidc:
 
 # Whether nodes send their logs to Tailscale.
 logtail:
-  # Lets nodes send their logs to Tailscale Inc.; headscale cannot point them at
+  # Lets nodes send their logs to Tailscale Inc.; orgscale cannot point them at
   # another log server. False tells nodes not to.
   enabled: false
 
@@ -418,12 +418,12 @@ auto_update:
   # clients.
   enabled: false
 
-# How the headscale CLI reaches the server: the local `unix_socket` without
+# How the orgscale CLI reaches the server: the local `unix_socket` without
 # authentication, or a remote `cli.address` with `cli.api_key`. The CLI reads
 # these keys from its own configuration, such as
-# `~/.config/headscale/config.yaml`, or from `HEADSCALE_CLI_*` variables; the
+# `~/.config/orgscale/config.yaml`, or from `ORGSCALE_CLI_*` variables; the
 # server does not read them, so on NixOS they do not belong in
-# `services.headscale.settings`. See [Remote
+# `services.orgscale.settings`. See [Remote
 # control](https://headscale.net/stable/ref/api/#remote-control).
 cli:
   # The remote server's host:port or URL; `https://` is assumed without a

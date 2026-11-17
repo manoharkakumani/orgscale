@@ -1,4 +1,4 @@
-![headscale logo](./docs/assets/logo/headscale3_header_stacked_left.png)
+![orgscale logo](./docs/assets/logo/headscale3_header_stacked_left.png)
 
 ![ci](https://github.com/juanfont/headscale/actions/workflows/test.yml/badge.svg)
 
@@ -36,16 +36,16 @@ organisation.
 
 ## Design goal
 
-Headscale aims to implement a self-hosted, open source alternative to the
-[Tailscale](https://tailscale.com/) control server. Headscale's goal is to
+Orgscale aims to implement a self-hosted, open source alternative to the
+[Tailscale](https://tailscale.com/) control server. Orgscale's goal is to
 provide self-hosters and hobbyists with an open-source server they can use for
 their projects and labs. It implements a narrow scope, a _single_ Tailscale
 network (tailnet), suitable for a personal use, or a small open-source
 organisation.
 
-## Supporting Headscale
+## Supporting Orgscale
 
-If you like `headscale` and find it useful, there is a sponsorship and donation
+If you like `orgscale` and find it useful, there is a sponsorship and donation
 buttons available in the repo.
 
 ## Features
@@ -56,10 +56,10 @@ Please see ["Features" in the documentation](https://headscale.net/stable/about/
 
 Please see ["Client and operating system support" in the documentation](https://headscale.net/stable/about/clients/).
 
-## Running headscale
+## Running orgscale
 
 **Please note that we do not support nor encourage the use of reverse proxies
-and container to run Headscale.**
+and container to run Orgscale.**
 
 Please have a look at the [`documentation`](https://headscale.net/stable/).
 
@@ -73,16 +73,16 @@ documentation for details.
 
 ## Talks
 
-- Fosdem 2026 (video): [Headscale & Tailscale: The complementary open source clone](https://fosdem.org/2026/schedule/event/KYQ3LL-headscale-the-complementary-open-source-clone/)
+- Fosdem 2026 (video): [Orgscale & Tailscale: The complementary open source clone](https://fosdem.org/2026/schedule/event/KYQ3LL-orgscale-the-complementary-open-source-clone/)
   - presented by Kristoffer Dalby
-- Fosdem 2023 (video): [Headscale: How we are using integration testing to reimplement Tailscale](https://fosdem.org/2023/schedule/event/goheadscale/)
+- Fosdem 2023 (video): [Orgscale: How we are using integration testing to reimplement Tailscale](https://fosdem.org/2023/schedule/event/goorgscale/)
   - presented by Juan Font Alonso and Kristoffer Dalby
 
 ## Disclaimer
 
 This project is not associated with Tailscale Inc.
 
-However, one of the active maintainers for Headscale [is employed by Tailscale](https://tailscale.com/blog/opensource) and he is allowed to spend work hours contributing to the project. Contributions from this maintainer are reviewed by other maintainers.
+However, one of the active maintainers for Orgscale [is employed by Tailscale](https://tailscale.com/blog/opensource) and he is allowed to spend work hours contributing to the project. Contributions from this maintainer are reviewed by other maintainers.
 
 The maintainers work together on setting the direction for the project. The underlying principle is to serve the community of self-hosters, enthusiasts and hobbyists - while having a sustainable project.
 
@@ -94,12 +94,12 @@ Have also a look at our [AI_POLICY.md](./AI_POLICY.md).
 
 ### Requirements
 
-To contribute to headscale you would need the latest version of [Go](https://golang.org)
+To contribute to orgscale you would need the latest version of [Go](https://golang.org)
 and [Buf](https://buf.build) (Protobuf generator).
 
 We recommend using [Nix](https://nixos.org/) to setup a development environment. This can
 be done with `nix develop`, which will install the tools and give you a shell.
-This guarantees that you will have the same dev env as `headscale` maintainers.
+This guarantees that you will have the same dev env as `orgscale` maintainers.
 
 ### Code style
 

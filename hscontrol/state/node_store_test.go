@@ -1738,10 +1738,10 @@ func TestUpdateNodeDiffSharesUnchangedRoutes(t *testing.T) {
 // its own peers, is emitted in [tailcfg.MapResponse.PeersChanged], and the
 // Tailscale client merges it into its peer map next to the self node.
 func TestListPeersExcludesSelf(t *testing.T) {
-	dbPath := t.TempDir() + "/headscale.db"
+	dbPath := t.TempDir() + "/orgscale.db"
 	cfg := persistTestConfig(dbPath)
 
-	database, err := db.NewHeadscaleDatabase(cfg)
+	database, err := db.NewOrgscaleDatabase(cfg)
 	require.NoError(t, err)
 
 	user := database.CreateUserForTest("peer-user")
@@ -2214,10 +2214,10 @@ func checkStateAdjacencyMatchesFullBuild(t *testing.T, s *State) {
 func newPeerBuildTestState(t *testing.T) (*State, []types.NodeID, *atomic.Int64) {
 	t.Helper()
 
-	dbPath := t.TempDir() + "/headscale.db"
+	dbPath := t.TempDir() + "/orgscale.db"
 	cfg := persistTestConfig(dbPath)
 
-	database, err := db.NewHeadscaleDatabase(cfg)
+	database, err := db.NewOrgscaleDatabase(cfg)
 	require.NoError(t, err)
 
 	user := database.CreateUserForTest("pb-user")
@@ -2436,10 +2436,10 @@ func TestPolicyWriteReportsAfterPublish(t *testing.T) {
 // without the change clients only learned it from whichever unrelated
 // write next refreshed the policy.
 func TestBackfillNodeIPsReportsPolicyChange(t *testing.T) {
-	dbPath := t.TempDir() + "/headscale.db"
+	dbPath := t.TempDir() + "/orgscale.db"
 	cfg := persistTestConfig(dbPath)
 
-	database, err := db.NewHeadscaleDatabase(cfg)
+	database, err := db.NewOrgscaleDatabase(cfg)
 	require.NoError(t, err)
 
 	user := database.CreateUserForTest("bf-user")

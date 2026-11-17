@@ -45,7 +45,7 @@ const (
 	updateMulti     = 6
 )
 
-const prometheusNamespace = "headscale"
+const prometheusNamespace = "orgscale"
 
 var (
 	nodeStoreOperations = promauto.NewCounterVec(prometheus.CounterOpts{

@@ -327,7 +327,7 @@ func checkGitRepository(ctx context.Context) DoctorResult {
 		return fail(
 			"Git Repository",
 			"Not in a Git repository",
-			"Run from within the headscale git repository",
+			"Run from within the orgscale git repository",
 			"Clone the repository: git clone https://github.com/juanfont/headscale.git",
 		)
 	}
@@ -356,9 +356,9 @@ func checkRequiredFiles(_ context.Context) DoctorResult {
 		return fail(
 			"Required Files",
 			"Missing required files: "+strings.Join(missingFiles, ", "),
-			"Ensure you're in the headscale project root directory",
+			"Ensure you're in the orgscale project root directory",
 			"Check that integration/ directory exists",
-			"Verify this is a complete headscale repository",
+			"Verify this is a complete orgscale repository",
 		)
 	}
 

@@ -1,6 +1,6 @@
 // Replay golden HuJSON captures under testdata/ssh_results/ssh-*.hujson:
-// the 200 path compares headscale's compileSSHPolicy output node-by-node
-// against the captured SSHRules; the non-200 path requires headscale to
+// the 200 path compares orgscale's compileSSHPolicy output node-by-node
+// against the captured SSHRules; the non-200 path requires orgscale to
 // reject the same input with the captured error body as a substring.
 // Skips are listed in sshSkipReasons (200) and sshRejectSkipReasons
 // (non-200) with the engine gap each represents.
@@ -122,18 +122,18 @@ func TestSSHForwardingDataCompat(t *testing.T) {
 }
 
 // sshSkipReasons documents captures the upstream control plane accepts
-// but headscale cannot yet represent, keyed <test_id> for the whole capture
+// but orgscale cannot yet represent, keyed <test_id> for the whole capture
 // or <test_id>/<node>/<check>. Each entry names the feature gap.
 var sshSkipReasons = map[string]string{}
 
 // sshRejectSkipReasons documents captures the upstream control plane
-// rejects for reasons headscale cannot apply, keyed <test_id> for the whole
+// rejects for reasons orgscale cannot apply, keyed <test_id> for the whole
 // capture or <test_id>/<check>. Each entry names the feature gap.
-// sshRefusedUnlikeSaaS lists policies SaaS accepts but headscale refuses,
-// with the error headscale gives. They put autogroup:tagged in src next to
+// sshRefusedUnlikeSaaS lists policies SaaS accepts but orgscale refuses,
+// with the error orgscale gives. They put autogroup:tagged in src next to
 // a user or autogroup:self in dst, which Tailscale's docs forbid. SaaS's
 // validator lets them through and then sends no SSH rules to any node, so
-// headscale refuses them instead (see validateSSHSrcDstCombination).
+// orgscale refuses them instead (see validateSSHSrcDstCombination).
 // testSSHRefusedUnlikeSaaS fails once a re-capture shows SaaS refusing
 // them or granting access, so the exception gets revisited.
 var sshRefusedUnlikeSaaS = map[string]string{
@@ -145,19 +145,19 @@ var sshRefusedUnlikeSaaS = map[string]string{
 }
 
 var sshRejectSkipReasons = map[string]string{
-	"ssh-b4": "headscale has no associated-tailnet-domains config; user:*@domain / localpart:*@domain are not domain-validated",
-	"ssh-d1": "headscale has no associated-tailnet-domains config; user:*@domain / localpart:*@domain are not domain-validated",
-	"ssh-e1": "headscale has no associated-tailnet-domains config; user:*@domain / localpart:*@domain are not domain-validated",
-	"ssh-e2": "headscale has no associated-tailnet-domains config; user:*@domain / localpart:*@domain are not domain-validated",
-	"ssh-malformed-user-localpart-multi-glob": "headscale has no associated-tailnet-domains config; user:*@domain / localpart:*@domain are not domain-validated",
+	"ssh-b4": "orgscale has no associated-tailnet-domains config; user:*@domain / localpart:*@domain are not domain-validated",
+	"ssh-d1": "orgscale has no associated-tailnet-domains config; user:*@domain / localpart:*@domain are not domain-validated",
+	"ssh-e1": "orgscale has no associated-tailnet-domains config; user:*@domain / localpart:*@domain are not domain-validated",
+	"ssh-e2": "orgscale has no associated-tailnet-domains config; user:*@domain / localpart:*@domain are not domain-validated",
+	"ssh-malformed-user-localpart-multi-glob": "orgscale has no associated-tailnet-domains config; user:*@domain / localpart:*@domain are not domain-validated",
 
-	"ssh-malformed-checkperiod-too-long/message": "SSH_CHECKPERIOD_TEXT: SaaS quotes a refused checkPeriod as written; headscale prints the parsed duration",
+	"ssh-malformed-checkperiod-too-long/message": "SSH_CHECKPERIOD_TEXT: SaaS quotes a refused checkPeriod as written; orgscale prints the parsed duration",
 }
 
 // TestSSHDataCompat loads every ssh-*.hujson capture, parses the policy
 // it pinned, and compiles the same per-node SSH rules to compare against
 // the captured shape. Non-200 captures replay the rejection path: the
-// recorded error body must appear as a substring of headscale's
+// recorded error body must appear as a substring of orgscale's
 // rejection.
 func TestSSHDataCompat(t *testing.T) {
 	t.Parallel()
@@ -255,7 +255,7 @@ func TestSSHDataCompat(t *testing.T) {
 }
 
 // testSSHRefusedUnlikeSaaS checks an [sshRefusedUnlikeSaaS] entry: SaaS
-// still accepts the policy and sends no SSH rules, and headscale refuses it.
+// still accepts the policy and sends no SSH rules, and orgscale refuses it.
 func testSSHRefusedUnlikeSaaS(t *testing.T, tf *testcapture.Capture, users types.Users, nodes types.Nodes, want string) {
 	t.Helper()
 
@@ -271,7 +271,7 @@ func testSSHRefusedUnlikeSaaS(t *testing.T, tf *testcapture.Capture, users types
 	require.ErrorContains(t, err, want)
 }
 
-// testSSHRefusal replays a policy SaaS refused: headscale must refuse it
+// testSSHRefusal replays a policy SaaS refused: orgscale must refuse it
 // too, with the captured message in its error.
 func testSSHRefusal(t *testing.T, tf *testcapture.Capture, users types.Users, nodes types.Nodes) {
 	t.Helper()
@@ -287,7 +287,7 @@ func testSSHRefusal(t *testing.T, tf *testcapture.Capture, users types.Users, no
 
 	compatCheck(t, sshRejectSkipReasons, key+"refused", func() string {
 		if err == nil {
-			return "tailscale rejected; headscale accepted"
+			return "tailscale rejected; orgscale accepted"
 		}
 
 		return ""
@@ -309,13 +309,13 @@ func testSSHRefusal(t *testing.T, tf *testcapture.Capture, users types.Users, no
 			return ""
 		}
 
-		return fmt.Sprintf("tailscale wants: %q\nheadscale got:   %q", want, err.Error())
+		return fmt.Sprintf("tailscale wants: %q\norgscale got:   %q", want, err.Error())
 	})
 }
 
-// sshRulesMismatch compares the SSH policy headscale compiles for node,
+// sshRulesMismatch compares the SSH policy orgscale compiles for node,
 // directly and through the manager, with the captured one; "" is a match.
-// Each normalize runs on the captured rules and on headscale's alike.
+// Each normalize runs on the captured rules and on orgscale's alike.
 func sshRulesMismatch(
 	pol *Policy,
 	pm *PolicyManager,
@@ -371,7 +371,7 @@ func sshRulesMismatch(
 		}
 
 		if diff := cmp.Diff(wantSSH, compared, opts...); diff != "" {
-			diffs = append(diffs, fmt.Sprintf("%s SSH policy mismatch (-tailscale +headscale):\n%s", name, diff))
+			diffs = append(diffs, fmt.Sprintf("%s SSH policy mismatch (-tailscale +orgscale):\n%s", name, diff))
 		}
 
 		// EquateEmpty hides "rules":null vs "rules":[]; pin the captured
@@ -586,7 +586,7 @@ func TestSSHCheckParamsMatchesCaptures(t *testing.T) {
 	}
 }
 
-// TestSSHCheckParamsMatchesCompiledRules pins SSHCheckParams to headscale's
+// TestSSHCheckParamsMatchesCompiledRules pins SSHCheckParams to orgscale's
 // own compiled rules for shapes the captures lack, such as a user whose
 // email localpart is root or "0".
 func TestSSHCheckParamsMatchesCompiledRules(t *testing.T) {

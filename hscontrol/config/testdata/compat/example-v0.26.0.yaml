@@ -1,14 +1,14 @@
 ---
-# headscale will look for a configuration file named `config.yaml` (or `config.json`) in the following order:
+# orgscale will look for a configuration file named `config.yaml` (or `config.json`) in the following order:
 #
-# - `/etc/headscale`
-# - `~/.headscale`
+# - `/etc/orgscale`
+# - `~/.orgscale`
 # - current working directory
 
 # The url clients will connect to.
 # Typically this will be a domain like:
 #
-# https://myheadscale.example.com:443
+# https://myorgscale.example.com:443
 #
 server_url: http://127.0.0.1:8080
 
@@ -23,7 +23,7 @@ listen_addr: 127.0.0.1:8080
 metrics_listen_addr: 127.0.0.1:9090
 
 # Address to listen for gRPC.
-# gRPC is used for controlling a headscale server
+# gRPC is used for controlling a orgscale server
 # remotely with the CLI
 # Note: Remote access _only_ works if you have
 # valid certificates.
@@ -41,10 +41,10 @@ grpc_allow_insecure: false
 # The Noise section includes specific configuration for the
 # TS2021 Noise protocol
 noise:
-  # The Noise private key is used to encrypt the traffic between headscale and
+  # The Noise private key is used to encrypt the traffic between orgscale and
   # Tailscale clients when using the new Noise-based protocol. A missing key
   # will be automatically generated.
-  private_key_path: /var/lib/headscale/noise_private.key
+  private_key_path: /var/lib/orgscale/noise_private.key
 
 # List of IP prefixes to allocate tailaddresses from.
 # Each prefix consists of either an IPv4 or IPv6 address,
@@ -68,12 +68,12 @@ prefixes:
 # connection cannot be established.
 # https://tailscale.com/blog/how-tailscale-works/#encrypted-tcp-relays-derp
 #
-# headscale needs a list of DERP servers that can be presented
+# orgscale needs a list of DERP servers that can be presented
 # to the clients.
 derp:
   server:
     # If enabled, runs the embedded DERP server and merges it into the rest of the DERP config
-    # The Headscale server_url defined above MUST be using https, DERP requires TLS to be in place
+    # The Orgscale server_url defined above MUST be using https, DERP requires TLS to be in place
     enabled: false
 
     # Region ID to use for the embedded DERP server.
@@ -82,8 +82,8 @@ derp:
     region_id: 999
 
     # Region code and name are displayed in the Tailscale UI to identify a DERP region
-    region_code: "headscale"
-    region_name: "Headscale Embedded DERP"
+    region_code: "orgscale"
+    region_name: "Orgscale Embedded DERP"
 
     # Listens over UDP at the configured address for STUN connections - to help with NAT traversal.
     # When the embedded DERP server is enabled stun_listen_addr MUST be defined.
@@ -91,9 +91,9 @@ derp:
     # For more details on how this works, check this great article: https://tailscale.com/blog/how-tailscale-works/
     stun_listen_addr: "0.0.0.0:3478"
 
-    # Private key used to encrypt the traffic between headscale DERP and
+    # Private key used to encrypt the traffic between orgscale DERP and
     # Tailscale clients. A missing key will be automatically generated.
-    private_key_path: /var/lib/headscale/derp_server_private.key
+    private_key_path: /var/lib/orgscale/derp_server_private.key
 
     # This flag can be used, so the DERP map entry for the embedded DERP server is not written automatically,
     # it enables the creation of your very own DERP map entry using a locally available file with the parameter DERP.paths
@@ -116,7 +116,7 @@ derp:
   # https://tailscale.com/kb/1118/custom-derp-servers/
   #
   # paths:
-  #   - /etc/headscale/derp-example.yaml
+  #   - /etc/orgscale/derp-example.yaml
   paths: []
 
   # If enabled, a worker will be set up to periodically
@@ -127,7 +127,7 @@ derp:
   # How often should we check for DERP updates?
   update_frequency: 24h
 
-# Disables the automatic check for headscale updates on startup
+# Disables the automatic check for orgscale updates on startup
 disable_check_updates: false
 
 # Time before an inactive ephemeral node is deleted?
@@ -158,7 +158,7 @@ database:
 
   # SQLite config
   sqlite:
-    path: /var/lib/headscale/db.sqlite
+    path: /var/lib/orgscale/db.sqlite
 
     # Enable WAL mode for SQLite. This is recommended for production environments.
     # https://www.sqlite.org/wal.html
@@ -176,7 +176,7 @@ database:
   #   # If using a Unix socket to connect to Postgres, set the socket path in the 'host' field and leave 'port' blank.
   #   host: localhost
   #   port: 5432
-  #   name: headscale
+  #   name: orgscale
   #   user: foo
   #   pass: bar
   #   max_open_conns: 10
@@ -191,7 +191,7 @@ database:
 #
 ## Let's encrypt / ACME
 #
-# headscale supports automatically requesting and setting up
+# orgscale supports automatically requesting and setting up
 # TLS for a domain with Let's Encrypt.
 #
 # URL to ACME directory
@@ -206,7 +206,7 @@ tls_letsencrypt_hostname: ""
 # Path to store certificates and metadata needed by
 # letsencrypt
 # For production:
-tls_letsencrypt_cache_dir: /var/lib/headscale/cache
+tls_letsencrypt_cache_dir: /var/lib/orgscale/cache
 
 # Type of ACME challenge to use, currently supported types:
 # HTTP-01 or TLS-ALPN-01
@@ -227,7 +227,7 @@ log:
   level: info
 
 ## Policy
-# headscale supports Tailscale's ACL policies.
+# orgscale supports Tailscale's ACL policies.
 # Please have a look to their KB to better
 # understand the concepts: https://tailscale.com/kb/1018/acls/
 policy:
@@ -240,7 +240,7 @@ policy:
 
 ## DNS
 #
-# headscale supports Tailscale's DNS configuration and MagicDNS.
+# orgscale supports Tailscale's DNS configuration and MagicDNS.
 # Please have a look to their KB to better understand the concepts:
 #
 # - https://tailscale.com/kb/1054/dns/
@@ -257,7 +257,7 @@ policy:
 # overwrite /etc/resolv.conf.
 # https://tailscale.com/kb/1235/resolv-conf
 #
-# If you want stop Headscale from managing the DNS configuration
+# If you want stop Orgscale from managing the DNS configuration
 # all the fields under `dns` should be set to empty values.
 dns:
   # Whether to use [MagicDNS](https://tailscale.com/kb/1081/magicdns/).
@@ -271,7 +271,7 @@ dns:
   base_domain: example.com
 
   # Whether to use the local DNS settings of a node (default) or override the
-  # local DNS settings and force the use of Headscale's DNS configuration.
+  # local DNS settings and force the use of Orgscale's DNS configuration.
   override_local_dns: false
 
   # List of DNS servers to expose to clients.
@@ -312,15 +312,15 @@ dns:
   #   - { name: "prometheus.myvpn.example.com", type: "A", value: "100.64.0.3" }
   #
   # Alternatively, extra DNS records can be loaded from a JSON file.
-  # Headscale processes this file on each change.
-  # extra_records_path: /var/lib/headscale/extra-records.json
+  # Orgscale processes this file on each change.
+  # extra_records_path: /var/lib/orgscale/extra-records.json
 
 # Unix socket used for the CLI to connect without authentication
 # Note: for production you will want to set this to something like:
-unix_socket: /var/run/headscale/headscale.sock
+unix_socket: /var/run/orgscale/orgscale.sock
 unix_socket_permission: "0770"
 #
-# headscale supports experimental OpenID connect support,
+# orgscale supports experimental OpenID connect support,
 # it is still being tested and might have some bugs, please
 # help us test it.
 # OpenID Connect
@@ -360,7 +360,7 @@ unix_socket_permission: "0770"
 #     - example.com
 #   # Note: Groups from keycloak have a leading '/'
 #   allowed_groups:
-#     - /headscale
+#     - /orgscale
 #   allowed_users:
 #     - alice@example.com
 #
@@ -380,8 +380,8 @@ unix_socket_permission: "0770"
 # Logtail is Tailscales logging and auditing infrastructure, it allows the control panel
 # to instruct tailscale nodes to log their activity to a remote server.
 logtail:
-  # Enable logtail for this headscales clients.
-  # As there is currently no support for overriding the log server in headscale, this is
+  # Enable logtail for this orgscales clients.
+  # As there is currently no support for overriding the log server in orgscale, this is
   # disabled by default. Enabling this will make your clients send logs to Tailscale Inc.
   enabled: false
 

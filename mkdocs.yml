@@ -1,8 +1,8 @@
 ---
-site_name: Headscale
-site_url: https://juanfont.github.io/headscale/
+site_name: Orgscale
+site_url: https://juanfont.github.io/orgscale/
 edit_uri: blob/main/docs/
-site_author: Headscale authors
+site_author: Orgscale authors
 site_description: >-
   An open source, self-hosted implementation of the Tailscale control server.
 
@@ -11,7 +11,7 @@ repo_name: juanfont/headscale
 repo_url: https://github.com/juanfont/headscale
 
 # Copyright
-copyright: Copyright &copy; 2026 Headscale authors
+copyright: Copyright &copy; 2026 Orgscale authors
 
 # Configuration
 theme:
@@ -107,12 +107,12 @@ extra:
     - icon: fontawesome/brands/github
       link: https://github.com/juanfont/headscale
     - icon: material/coffee
-      link: https://ko-fi.com/headscale
+      link: https://ko-fi.com/orgscale
     - icon: fontawesome/brands/docker
-      link: https://github.com/juanfont/headscale/pkgs/container/headscale
+      link: https://github.com/juanfont/headscale/pkgs/container/orgscale
     - icon: fontawesome/brands/discord
       link: https://discord.gg/c84AZQhmpx
-  headscale:
+  orgscale:
     version: 0.29.6
 
 # Extensions

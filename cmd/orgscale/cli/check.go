@@ -24,7 +24,7 @@ func init() {
 	checkCmd.AddCommand(checkPolicyCmd)
 
 	for _, c := range []*cobra.Command{checkConfigCmd, checkAllCmd} {
-		c.Flags().StringP("file", "f", "", "Path to the config file (default: found as serve finds it: -c, HEADSCALE_CONFIG, /etc/headscale, $XDG_CONFIG_HOME/headscale, headscale under each $XDG_CONFIG_DIRS entry, ~/.headscale, .)")
+		c.Flags().StringP("file", "f", "", "Path to the config file (default: found as serve finds it: -c, ORGSCALE_CONFIG, /etc/orgscale, $XDG_CONFIG_HOME/orgscale, orgscale under each $XDG_CONFIG_DIRS entry, ~/.orgscale, .)")
 		checkCmd.AddCommand(c)
 	}
 
@@ -47,7 +47,7 @@ var checkPolicyCmd = &cobra.Command{
 	Check the policy file for errors and run its "tests" and "sshTests".
 
 	The tests run against one node for each user and tag the policy names,
-	not against your tailnet, so "headscale policy set" can still disagree
+	not against your tailnet, so "orgscale policy set" can still disagree
 	with them.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		policyPath, _ := cmd.Flags().GetString("file")
@@ -73,8 +73,8 @@ var checkConfigCmd = &cobra.Command{
 	Short: "Check the configuration for errors",
 	Long: `
 	Config validates the configuration: its syntax, keys and values. It does
-	not check the files the configuration names; "headscale check all" does.
-	Without --file it finds the configuration as "headscale serve" does.`,
+	not check the files the configuration names; "orgscale check all" does.
+	Without --file it finds the configuration as "orgscale serve" does.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		_, src, err := loadCheckedConfig(cmd)

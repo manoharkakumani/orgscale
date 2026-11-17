@@ -11,11 +11,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestDialHeadscaleSocketRetriesUntilPresent proves the CLI socket dialer
+// TestDialOrgscaleSocketRetriesUntilPresent proves the CLI socket dialer
 // tolerates a not-yet-created socket (the server-still-starting race) by
 // retrying until it appears, rather than failing immediately like a bare dial.
-func TestDialHeadscaleSocketRetriesUntilPresent(t *testing.T) {
-	sock := filepath.Join(t.TempDir(), "headscale.sock")
+func TestDialOrgscaleSocketRetriesUntilPresent(t *testing.T) {
+	sock := filepath.Join(t.TempDir(), "orgscale.sock")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -28,7 +28,7 @@ func TestDialHeadscaleSocketRetriesUntilPresent(t *testing.T) {
 	done := make(chan result, 1)
 
 	go func() {
-		conn, err := dialHeadscaleSocket(ctx, sock)
+		conn, err := dialOrgscaleSocket(ctx, sock)
 		done <- result{conn, err}
 	}()
 
@@ -54,10 +54,10 @@ func TestDialHeadscaleSocketRetriesUntilPresent(t *testing.T) {
 	res.conn.Close()
 }
 
-// TestDialHeadscaleSocketRespectsDeadline proves the retry is bounded by the
+// TestDialOrgscaleSocketRespectsDeadline proves the retry is bounded by the
 // context: when the socket never appears, the dialer returns an error around the
 // deadline instead of hanging.
-func TestDialHeadscaleSocketRespectsDeadline(t *testing.T) {
+func TestDialOrgscaleSocketRespectsDeadline(t *testing.T) {
 	sock := filepath.Join(t.TempDir(), "absent.sock")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
@@ -65,7 +65,7 @@ func TestDialHeadscaleSocketRespectsDeadline(t *testing.T) {
 
 	start := time.Now()
 
-	conn, err := dialHeadscaleSocket(ctx, sock)
+	conn, err := dialOrgscaleSocket(ctx, sock)
 	require.Error(t, err)
 	assert.Nil(t, conn)
 	assert.Less(t, time.Since(start), 5*time.Second, "should stop near the deadline, not hang")

@@ -44,10 +44,10 @@ import (
 func persistTestSetup(t *testing.T) (string, *State, types.NodeID) {
 	t.Helper()
 
-	dbPath := t.TempDir() + "/headscale.db"
+	dbPath := t.TempDir() + "/orgscale.db"
 	cfg := persistTestConfig(dbPath)
 
-	database, err := db.NewHeadscaleDatabase(cfg)
+	database, err := db.NewOrgscaleDatabase(cfg)
 	require.NoError(t, err)
 
 	user := database.CreateUserForTest("persist-user")
@@ -87,7 +87,7 @@ func persistTestConfig(dbPath string) *types.Config {
 			},
 		},
 		Prefixes:  types.PrefixesConfig{V4: &prefixV4, V6: &prefixV6, Allocation: types.IPAllocationStrategySequential},
-		DNSConfig: types.DNSConfig{BaseDomain: "headscale.test"},
+		DNSConfig: types.DNSConfig{BaseDomain: "orgscale.test"},
 		Policy: types.PolicyConfig{
 			Mode: types.PolicyModeDB,
 		},
@@ -99,12 +99,12 @@ func persistTestConfig(dbPath string) *types.Config {
 }
 
 func TestLoadedDuplicateNamesAreResolvedInMemory(t *testing.T) {
-	dbPath := t.TempDir() + "/headscale.db"
+	dbPath := t.TempDir() + "/orgscale.db"
 	cfg := persistTestConfig(dbPath)
 	cfg.DNSConfig.ExtraRecords = []tailcfg.DNSRecord{
 		{Name: "grafana." + cfg.DNSConfig.BaseDomain, Type: "A", Value: "100.64.0.100"},
 	}
-	database, err := db.NewHeadscaleDatabase(cfg)
+	database, err := db.NewOrgscaleDatabase(cfg)
 	require.NoError(t, err)
 
 	user := database.CreateUserForTest("loaded-name-user")
@@ -142,7 +142,7 @@ func TestLoadedDuplicateNamesAreResolvedInMemory(t *testing.T) {
 }
 
 func TestRegistrationPersistsResolvedGivenName(t *testing.T) {
-	dbPath := t.TempDir() + "/headscale.db"
+	dbPath := t.TempDir() + "/orgscale.db"
 	s, err := NewState(persistTestConfig(dbPath))
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = s.Close() })
@@ -383,10 +383,10 @@ func TestSetLastControlAddressRejects(t *testing.T) {
 // a 1:1 NodeKey<->MachineKey binding at poll time; this enforces the same
 // invariant at registration time.
 func TestRegistrationRejectsNodeKeyClaimedByAnotherMachine(t *testing.T) {
-	dbPath := t.TempDir() + "/headscale.db"
+	dbPath := t.TempDir() + "/orgscale.db"
 	cfg := persistTestConfig(dbPath)
 
-	database, err := db.NewHeadscaleDatabase(cfg)
+	database, err := db.NewOrgscaleDatabase(cfg)
 	require.NoError(t, err)
 
 	user := database.CreateUserForTest("nk-user")
@@ -425,10 +425,10 @@ func TestRegistrationRejectsNodeKeyClaimedByAnotherMachine(t *testing.T) {
 // Hostinfo.RequestTags against the in-place sort/compact that derives the
 // approved tag set: the two must not share a backing array.
 func TestRegistrationKeepsRequestTagsIntact(t *testing.T) {
-	dbPath := t.TempDir() + "/headscale.db"
+	dbPath := t.TempDir() + "/orgscale.db"
 	cfg := persistTestConfig(dbPath)
 
-	database, err := db.NewHeadscaleDatabase(cfg)
+	database, err := db.NewOrgscaleDatabase(cfg)
 	require.NoError(t, err)
 
 	user := database.CreateUserForTest("tagger")
@@ -464,10 +464,10 @@ func TestRegistrationKeepsRequestTagsIntact(t *testing.T) {
 // NodeKey to a victim's, poisoning the NodeStore NodeKey index so the victim's
 // MapRequest resolves to the attacker's node and is rejected — a DoS.
 func TestReauthRejectsNodeKeyClaimedByAnotherMachine(t *testing.T) {
-	dbPath := t.TempDir() + "/headscale.db"
+	dbPath := t.TempDir() + "/orgscale.db"
 	cfg := persistTestConfig(dbPath)
 
-	database, err := db.NewHeadscaleDatabase(cfg)
+	database, err := db.NewOrgscaleDatabase(cfg)
 	require.NoError(t, err)
 
 	attacker := database.CreateUserForTest("attacker")
@@ -527,10 +527,10 @@ func TestReauthRejectsNodeKeyClaimedByAnotherMachine(t *testing.T) {
 // endpoints would advertise the re-keyed node to peers endpoint-less, which
 // drives head/unstable tailscale clients into one-way disco-deafness.
 func TestReauthPreservesEndpointsWhenClientOmitsThem(t *testing.T) {
-	dbPath := t.TempDir() + "/headscale.db"
+	dbPath := t.TempDir() + "/orgscale.db"
 	cfg := persistTestConfig(dbPath)
 
-	database, err := db.NewHeadscaleDatabase(cfg)
+	database, err := db.NewOrgscaleDatabase(cfg)
 	require.NoError(t, err)
 
 	user := database.CreateUserForTest("user")
@@ -668,7 +668,7 @@ func TestReloginChanged(t *testing.T) {
 // auth path and poll-time validation enforce, so a node cannot rotate its key
 // to a victim's and poison the NodeStore NodeKey index.
 func TestPreAuthKeyReauthRejectsNodeKeyClaimedByAnotherMachine(t *testing.T) {
-	dbPath := t.TempDir() + "/headscale.db"
+	dbPath := t.TempDir() + "/orgscale.db"
 	cfg := persistTestConfig(dbPath)
 
 	s, err := NewState(cfg)
@@ -734,7 +734,7 @@ func (failingSetNodesPolicyManager) SetNodes(views.Slice[types.NodeView]) (bool,
 
 func TestDeleteNodeTwiceReleasesAddressOnce(t *testing.T) {
 	prefix := netip.MustParsePrefix("100.64.0.0/30")
-	cfg := persistTestConfig(t.TempDir() + "/headscale.db")
+	cfg := persistTestConfig(t.TempDir() + "/orgscale.db")
 	cfg.Prefixes.V4 = &prefix
 	cfg.Prefixes.V6 = nil
 	cfg.Prefixes.Allocation = types.IPAllocationStrategyRandom
@@ -859,9 +859,9 @@ func TestDeleteNodeKeepsStoreOnDBFailure(t *testing.T) {
 }
 
 func TestDeleteNodeReturnsRemovalOnPolicyFailure(t *testing.T) {
-	cfg := persistTestConfig(t.TempDir() + "/headscale.db")
+	cfg := persistTestConfig(t.TempDir() + "/orgscale.db")
 
-	database, err := db.NewHeadscaleDatabase(cfg)
+	database, err := db.NewOrgscaleDatabase(cfg)
 	require.NoError(t, err)
 
 	user := database.CreateUserForTest("persist-user")
@@ -917,11 +917,11 @@ func TestDeleteNodeReturnsRemovalOnPolicyFailure(t *testing.T) {
 // peer map build, of its own; under churn that serialised deletion behind one
 // rebuild each.
 func TestConcurrentDeleteNodesShareNodeStoreBatch(t *testing.T) {
-	cfg := persistTestConfig(t.TempDir() + "/headscale.db")
+	cfg := persistTestConfig(t.TempDir() + "/orgscale.db")
 	cfg.Tuning.NodeStoreBatchSize = 2
 	cfg.Tuning.NodeStoreBatchTimeout = time.Hour
 
-	database, err := db.NewHeadscaleDatabase(cfg)
+	database, err := db.NewOrgscaleDatabase(cfg)
 	require.NoError(t, err)
 
 	user := database.CreateUserForTest("delete-batch-user")
@@ -965,7 +965,7 @@ func TestConcurrentDeleteNodesShareNodeStoreBatch(t *testing.T) {
 }
 
 func TestPreAuthKeyReauthRevertsNodeStoreOnDBFailure(t *testing.T) {
-	dbPath := t.TempDir() + "/headscale.db"
+	dbPath := t.TempDir() + "/orgscale.db"
 	cfg := persistTestConfig(dbPath)
 
 	s, err := NewState(cfg)
@@ -1023,7 +1023,7 @@ func TestPreAuthKeyReauthRevertsNodeStoreOnDBFailure(t *testing.T) {
 // node" and creates its own, leaving duplicate nodes and IP allocations for
 // one machine.
 func TestConcurrentPreAuthKeyRegistrationSameMachineKey(t *testing.T) {
-	dbPath := t.TempDir() + "/headscale.db"
+	dbPath := t.TempDir() + "/orgscale.db"
 	cfg := persistTestConfig(dbPath)
 
 	s, err := NewState(cfg)
@@ -1079,7 +1079,7 @@ func TestConcurrentPreAuthKeyRegistrationSameMachineKey(t *testing.T) {
 // checked, so a client without a credential reaches it with as many machine
 // keys as it likes.
 func TestRejectedRegistrationLeavesNoRegisterLock(t *testing.T) {
-	s, err := NewState(persistTestConfig(t.TempDir() + "/headscale.db"))
+	s, err := NewState(persistTestConfig(t.TempDir() + "/orgscale.db"))
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = s.Close() })
 
@@ -1097,7 +1097,7 @@ func TestRejectedRegistrationLeavesNoRegisterLock(t *testing.T) {
 // TestLockRegistrationSerialisesSameMachineKey pins that dropping unused
 // locks never lets two registrations of one machine key run at once.
 func TestLockRegistrationSerialisesSameMachineKey(t *testing.T) {
-	s, err := NewState(persistTestConfig(t.TempDir() + "/headscale.db"))
+	s, err := NewState(persistTestConfig(t.TempDir() + "/orgscale.db"))
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = s.Close() })
 
@@ -1153,7 +1153,7 @@ func TestUpdatePolicyManagerUsersUnchangedKeepsSnapshot(t *testing.T) {
 // key marks it used in both the database and the node's cached AuthKey, on
 // first registration and when re-registering with a fresh single-use key.
 func TestSingleUsePreAuthKeyUsedInNodeStore(t *testing.T) {
-	dbPath := t.TempDir() + "/headscale.db"
+	dbPath := t.TempDir() + "/orgscale.db"
 
 	s, err := NewState(persistTestConfig(dbPath))
 	require.NoError(t, err)
@@ -1666,9 +1666,9 @@ func TestReloadPolicyEmpty(t *testing.T) {
 }
 
 // TestNewStateEmptyPolicyFile: startup takes an empty policy file as no
-// policy, although a write, a reload and "headscale check policy" refuse it.
+// policy, although a write, a reload and "orgscale check policy" refuse it.
 func TestNewStateEmptyPolicyFile(t *testing.T) {
-	cfg := persistTestConfig(t.TempDir() + "/headscale.db")
+	cfg := persistTestConfig(t.TempDir() + "/orgscale.db")
 	cfg.Policy = types.PolicyConfig{
 		Mode: types.PolicyModeFile,
 		Path: filepath.Join(t.TempDir(), "policy.hujson"),
@@ -1791,7 +1791,7 @@ func TestBackfillNodeIPsSurvivesConcurrentPersist(t *testing.T) {
 	assert.Nil(t, dbNode.IPv6, "database kept the removed IPv6 address")
 }
 
-// nameSkipReasons lists checks of [TestNodeNameReplayCompat] where headscale
+// nameSkipReasons lists checks of [TestNodeNameReplayCompat] where orgscale
 // differs from SaaS, keyed <test_id>/<step>/<node or action index>/<check>.
 // A listed check that matches fails, so a fix must delete its entry.
 var nameSkipReasons = map[string]string{
@@ -1823,7 +1823,7 @@ func TestNodeNameReplayCompat(t *testing.T) {
 	c, err := testcapture.Read(filepath.Join("..", "servertest", "testdata", "steps", "names.hujson"))
 	require.NoError(t, err)
 
-	s, err := NewState(persistTestConfig(t.TempDir() + "/headscale.db"))
+	s, err := NewState(persistTestConfig(t.TempDir() + "/orgscale.db"))
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = s.Close() })
 
@@ -2205,7 +2205,7 @@ func TestLoadedExpiryIsUTC(t *testing.T) {
 
 	expiry := time.Date(2030, time.January, 1, 0, 0, 0, 0, time.UTC)
 
-	database, err := db.NewHeadscaleDatabase(persistTestConfig(dbPath))
+	database, err := db.NewOrgscaleDatabase(persistTestConfig(dbPath))
 	require.NoError(t, err)
 	require.NoError(t, database.DB.Model(&types.Node{}).Where("id = ?", nodeID).
 		Update("expiry", expiry.In(time.FixedZone("", 60*60))).Error)
@@ -2271,9 +2271,9 @@ func TestNewStateBoundsStoredClientReport(t *testing.T) {
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			dbPath := t.TempDir() + "/headscale.db"
+			dbPath := t.TempDir() + "/orgscale.db"
 			cfg := persistTestConfig(dbPath)
-			database, err := db.NewHeadscaleDatabase(cfg)
+			database, err := db.NewOrgscaleDatabase(cfg)
 			require.NoError(t, err)
 
 			user := database.CreateUserForTest("bound-user")
@@ -2850,9 +2850,9 @@ func TestUpdateUserRefreshesNodeCopiesWhenPolicyUpdateFails(t *testing.T) {
 }
 
 func TestUserNameCollisionDoesNotBlockCreationOrRestart(t *testing.T) {
-	dbPath := t.TempDir() + "/headscale.db"
+	dbPath := t.TempDir() + "/orgscale.db"
 	cfg := persistTestConfig(dbPath)
-	database, err := db.NewHeadscaleDatabase(cfg)
+	database, err := db.NewOrgscaleDatabase(cfg)
 	require.NoError(t, err)
 
 	user := database.CreateUserForTest("dup")

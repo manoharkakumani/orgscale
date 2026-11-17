@@ -39,10 +39,10 @@ func setupStormBatcher(tb testing.TB, nodeCount, workers int, policy string) (*T
 	cfg := &types.Config{
 		Database: types.DatabaseConfig{
 			Type:   types.DatabaseSqlite,
-			Sqlite: types.SqliteConfig{Path: tmpDir + "/headscale_test.db"},
+			Sqlite: types.SqliteConfig{Path: tmpDir + "/orgscale_test.db"},
 		},
 		Prefixes:  types.PrefixesConfig{V4: &prefixV4, V6: &prefixV6, Allocation: types.IPAllocationStrategySequential},
-		DNSConfig: types.DNSConfig{BaseDomain: "headscale.test"},
+		DNSConfig: types.DNSConfig{BaseDomain: "orgscale.test"},
 		Policy:    types.PolicyConfig{Mode: types.PolicyModeDB},
 		DERP: types.DERPConfig{
 			Server: types.DERPServerConfig{Enabled: false},
@@ -60,7 +60,7 @@ func setupStormBatcher(tb testing.TB, nodeCount, workers int, policy string) (*T
 		},
 	}
 
-	database, err := db.NewHeadscaleDatabase(cfg)
+	database, err := db.NewOrgscaleDatabase(cfg)
 	require.NoError(tb, err)
 
 	users := database.CreateUsersForTest(1, "testuser")

@@ -222,7 +222,7 @@ func TestAPIv2DeviceUpdateClientUnknownDevice(t *testing.T) {
 // Test data source: testdata/steps/update-client.hujson. Rows by
 // devices:core:read and dns:read tokens are not replayed: SaaS answers them
 // 404 before any scope check, which shows its order, not this endpoint's shape.
-// Nor are GETs: headscale answers a wrong method 405 on every route.
+// Nor are GETs: orgscale answers a wrong method 405 on every route.
 func TestAPIv2DeviceUpdateClientCompat(t *testing.T) {
 	t.Parallel()
 
@@ -299,7 +299,7 @@ func TestAPIv2DeviceUpdateClientCompat(t *testing.T) {
 // update on a device that can update itself: POST update-client answers at
 // once, then update-status says updating until the device runs a new version.
 // The console's /admin/api/public routes are the v2 API inside
-// {"status","data"}, so headscale must answer the data.
+// {"status","data"}, so orgscale must answer the data.
 //
 // Test data source: testdata/steps/update-client-console.hujson, imported
 // from a browser HAR. Its 304s are the browser's cache and are not replayed;
@@ -428,7 +428,7 @@ func captureToken(t *testing.T, r *stepReplay, c *testcapture.Capture, client st
 	return ""
 }
 
-// sendCaptureAction sends a recorded API action to headscale's v2 API, its
+// sendCaptureAction sends a recorded API action to orgscale's v2 API, its
 // labels replaced by ids, with the body and headers SaaS received.
 func sendCaptureAction(t *testing.T, r *stepReplay, a testcapture.Action, ids map[string]string, bearer string) (int, []byte) {
 	t.Helper()

@@ -1,12 +1,12 @@
 # Server stress tests
 
-`TestScale` exercises a real Headscale server, SQLite, policy compilation,
+`TestScale` exercises a real Orgscale server, SQLite, policy compilation,
 the NodeStore, mapper workers, Noise, and Tailscale control clients over the
 existing in-memory network. Every registered node has a live control client.
 The test cases and their policies are together in `scale_test.go`.
 
 The ordinary test suite runs all five policies with 12 nodes. Larger runs
-require `HEADSCALE_STRESS_NODES`; setting it replaces the small node count.
+require `ORGSCALE_STRESS_NODES`; setting it replaces the small node count.
 Nothing large is enabled by `go test ./...` or by omitting `-short`.
 
 | Case               | Expected visibility                                          | Main pressure                                      |
@@ -47,20 +47,20 @@ Use the pinned Go toolchain from `nix develop`, as for the other server tests.
 go test ./hscontrol/servertest -run '^TestScale$' -count=1 -v
 
 # Select a scale and one policy. All nodes are real connected control clients.
-HEADSCALE_STRESS_NODES=500 GOMAXPROCS=4 \
+ORGSCALE_STRESS_NODES=500 GOMAXPROCS=4 \
   go test ./hscontrol/servertest -run '^TestScale/500_nodes/personal_devices$' \
   -count=1 -v -timeout=20m
 
-HEADSCALE_STRESS_NODES=1000 GOMAXPROCS=4 \
+ORGSCALE_STRESS_NODES=1000 GOMAXPROCS=4 \
   go test ./hscontrol/servertest -run '^TestScale/1000_nodes/shared_service$' \
   -count=1 -v -timeout=30m
 
-HEADSCALE_STRESS_NODES=10000 GOMAXPROCS=4 \
+ORGSCALE_STRESS_NODES=10000 GOMAXPROCS=4 \
   go test ./hscontrol/servertest -run '^TestScale/10000_nodes/personal_devices$' \
   -count=1 -v -timeout=60m
 
 # A compute-constrained run: one Go execution thread and one mapper worker.
-HEADSCALE_STRESS_NODES=500 GOMAXPROCS=1 GOMEMLIMIT=512MiB \
+ORGSCALE_STRESS_NODES=500 GOMAXPROCS=1 GOMEMLIMIT=512MiB \
   go test ./hscontrol/servertest -run '^TestScale/500_nodes/personal_devices$' \
   -count=1 -v -timeout=30m
 ```
@@ -91,7 +91,7 @@ timeouts are results, not samples to silently retry or discard.
 
 ```sh
 mkdir -p control_logs/server-scale
-HEADSCALE_STRESS_NODES=500 GOMAXPROCS=4 \
+ORGSCALE_STRESS_NODES=500 GOMAXPROCS=4 \
   go test ./hscontrol/servertest -run '^TestScale/500_nodes/personal_devices$' \
   -count=1 -v -timeout=20m \
   -cpuprofile=control_logs/server-scale/cpu.prof \

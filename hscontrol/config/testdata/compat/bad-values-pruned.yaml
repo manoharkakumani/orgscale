@@ -1,13 +1,13 @@
 # Input today's loader accepts but mangles or ignores.
 server_url: https://hs.example.com
 noise:
-  private_key_path: /var/lib/headscale/noise.key
+  private_key_path: /var/lib/orgscale/noise.key
 prefixes:
   v4: 10.0.0.0/8
 database:
   type: sqlite
   sqlite:
-    path: /var/lib/headscale/db.sqlite
+    path: /var/lib/orgscale/db.sqlite
 dns:
   magic_dns: false
   override_local_dns: false

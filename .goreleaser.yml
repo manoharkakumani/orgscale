@@ -9,14 +9,14 @@ release:
   prerelease: auto
   draft: true
   extra_files:
-    - glob: ./release-assets/headscale-nixos-options.nix
+    - glob: ./release-assets/orgscale-nixos-options.nix
   header: |
     ## Upgrade
 
-    Please follow the steps outlined in the [upgrade guide](https://headscale.net/stable/setup/upgrade/) to update your existing Headscale installation.
+    Please follow the steps outlined in the [upgrade guide](https://headscale.net/stable/setup/upgrade/) to update your existing Orgscale installation.
 
 builds:
-  - id: headscale
+  - id: orgscale
     main: ./cmd/orgscale
     mod_timestamp: "{{ .CommitTimestamp }}"
     env:
@@ -54,20 +54,20 @@ nfpms:
   # See https://goreleaser.com/customization/package/nfpm/
   #
   # Useful tools for debugging .debs:
-  # List file contents: dpkg -c dist/headscale...deb
-  # Package metadata: dpkg --info dist/headscale....deb
+  # List file contents: dpkg -c dist/orgscale...deb
+  # Package metadata: dpkg --info dist/orgscale....deb
   #
   - ids:
-      - headscale
-    package_name: headscale
+      - orgscale
+    package_name: orgscale
     priority: optional
-    vendor: headscale
+    vendor: orgscale
     maintainer: Kristoffer Dalby <kristoffer@dalby.cc>
     homepage: https://github.com/juanfont/headscale
     description: |-
       Open source implementation of the Tailscale control server.
-      Headscale aims to implement a self-hosted, open source alternative to the
-      Tailscale control server. Headscale's goal is to provide self-hosters and
+      Orgscale aims to implement a self-hosted, open source alternative to the
+      Tailscale control server. Orgscale's goal is to provide self-hosters and
       hobbyists with an open-source server they can use for their projects and
       labs. It implements a narrow scope, a single Tailscale network (tailnet),
       suitable for a personal use, or a small open-source organisation.
@@ -77,18 +77,18 @@ nfpms:
       - deb
     contents:
       - src: ./release-assets/config-example.yaml
-        dst: /etc/headscale/config.yaml
+        dst: /etc/orgscale/config.yaml
         type: config|noreplace
         file_info:
           mode: 0644
-      - src: ./packaging/systemd/headscale.service
-        dst: /usr/lib/systemd/system/headscale.service
-      - dst: /var/lib/headscale
+      - src: ./packaging/systemd/orgscale.service
+        dst: /usr/lib/systemd/system/orgscale.service
+      - dst: /var/lib/orgscale
         type: dir
       - src: ./release-assets/config-example.yaml
-        dst: /usr/share/doc/headscale/examples/config-example.yaml
+        dst: /usr/share/doc/orgscale/examples/config-example.yaml
       - src: LICENSE
-        dst: /usr/share/doc/headscale/copyright
+        dst: /usr/share/doc/orgscale/copyright
     scripts:
       postinstall: ./packaging/deb/postinst
       postremove: ./packaging/deb/postrm
@@ -103,7 +103,7 @@ kos:
   - id: ghcr
     repositories:
       - ghcr.io/juanfont/headscale
-      - headscale/headscale
+      - orgscale/orgscale
 
     # bare tells KO to only use the repository
     # for tagging and naming the container.
@@ -113,7 +113,7 @@ kos:
       org.opencontainers.image.source: https://github.com/juanfont/headscale
     annotations:
       org.opencontainers.image.source: https://github.com/juanfont/headscale
-    build: headscale
+    build: orgscale
     main: ./cmd/orgscale
     env:
       - CGO_ENABLED=0
@@ -138,7 +138,7 @@ kos:
   - id: ghcr-debug
     repositories:
       - ghcr.io/juanfont/headscale
-      - headscale/headscale
+      - orgscale/orgscale
 
     bare: true
     base_image: gcr.io/distroless/base-debian13:debug
@@ -146,7 +146,7 @@ kos:
       org.opencontainers.image.source: https://github.com/juanfont/headscale
     annotations:
       org.opencontainers.image.source: https://github.com/juanfont/headscale
-    build: headscale
+    build: orgscale
     main: ./cmd/orgscale
     env:
       - CGO_ENABLED=0

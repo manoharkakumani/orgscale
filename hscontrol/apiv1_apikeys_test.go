@@ -13,13 +13,13 @@ import (
 
 // seedAPIKey creates a single API key and returns its database ID and the
 // masked display prefix the API exposes, so tests can address it by either.
-func seedAPIKey(t *testing.T, app *Headscale) (uint64, string) {
+func seedAPIKey(t *testing.T, app *Orgscale) (uint64, string) {
 	t.Helper()
 
 	_, key, err := app.state.CreateAPIKey(nil)
 	require.NoError(t, err)
 
-	return key.ID, "hskey-api-" + key.Prefix + "-***"
+	return key.ID, "oskey-api-" + key.Prefix + "-***"
 }
 
 func TestAPIV1ApiKeyCreate(t *testing.T) {
@@ -36,7 +36,7 @@ func TestAPIV1ApiKeyCreate(t *testing.T) {
 
 		// The full secret is returned exactly once, on creation.
 		assert.NotEmpty(t, got.APIKey)
-		assert.Contains(t, got.APIKey, "hskey-api-")
+		assert.Contains(t, got.APIKey, "oskey-api-")
 	})
 
 	t.Run("creates secret", func(t *testing.T) {
@@ -138,7 +138,7 @@ func TestAPIV1ApiKeyList(t *testing.T) {
 		assert.Nil(t, got.APIKeys[0]["lastSeen"])
 		assert.Nil(t, got.APIKeys[0]["expiration"])
 		assert.Contains(t, got.APIKeys[0], "createdAt")
-		assert.Contains(t, got.APIKeys[0]["prefix"], "hskey-api-")
+		assert.Contains(t, got.APIKeys[0]["prefix"], "oskey-api-")
 	})
 
 	t.Run("zero expiration emitted as zero instant parity", func(t *testing.T) {

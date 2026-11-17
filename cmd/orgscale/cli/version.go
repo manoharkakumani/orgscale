@@ -13,7 +13,7 @@ func init() {
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print the version.",
-	Long:  "The version of headscale.",
+	Long:  "The version of orgscale.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		info := types.GetVersionInfo()
 

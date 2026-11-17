@@ -26,11 +26,11 @@ func TestConfigError_Render(t *testing.T) {
 			name: "scalar with hint",
 			in: ConfigError{
 				Reason:  "server_url is missing a scheme",
-				Current: []KV{{"server_url", "headscale.example.com"}},
+				Current: []KV{{"server_url", "orgscale.example.com"}},
 				Hint:    "prefix the URL with https:// (recommended) or http://",
 			},
 			want: "Fatal config error: server_url is missing a scheme\n" +
-				`  current: server_url: "headscale.example.com"` + "\n" +
+				`  current: server_url: "orgscale.example.com"` + "\n" +
 				"  hint: prefix the URL with https:// (recommended) or http://\n",
 		},
 		{

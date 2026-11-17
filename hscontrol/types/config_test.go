@@ -24,14 +24,14 @@ import (
 
 // TestConfigJSONOmitsSecrets verifies that marshalling a [Config] to JSON
 // or logging it does not leak the Postgres password, the OIDC client
-// secret, the headscale admin API key, or URL credentials. Operators who
+// secret, the orgscale admin API key, or URL credentials. Operators who
 // widen metrics_listen_addr to 0.0.0.0 should not be able to read these
 // back via debug endpoints reachable over CGNAT/loopback.
 func TestConfigJSONOmitsSecrets(t *testing.T) {
 	const (
 		secretPostgresPass = "p0stgres-secret-marker"
 		secretClientSecret = "oidc-client-secret-marker"    //nolint:gosec // test marker, not a real credential
-		secretAPIKey       = "headscale-cli-api-key-marker" //nolint:gosec // test marker, not a real credential
+		secretAPIKey       = "orgscale-cli-api-key-marker" //nolint:gosec // test marker, not a real credential
 		secretDNSToken     = "dns-provider-token-marker"    //nolint:gosec // test marker, not a real credential
 		secretDERPUser     = "derp-url-username-marker"     //nolint:gosec // test marker, not a real credential
 		secretDERPPass     = "derp-url-password-marker"     //nolint:gosec // test marker, not a real credential
@@ -46,7 +46,7 @@ func TestConfigJSONOmitsSecrets(t *testing.T) {
 	)
 
 	cfg := &Config{
-		ServerURL: "https://" + secretServerUser + ":" + secretServerPass + "@headscale.example.com",
+		ServerURL: "https://" + secretServerUser + ":" + secretServerPass + "@orgscale.example.com",
 		Database: DatabaseConfig{
 			Postgres: PostgresConfig{
 				Pass: secretPostgresPass,
@@ -97,7 +97,7 @@ func TestConfigJSONOmitsSecrets(t *testing.T) {
 	// The URLs are still shown, without userinfo; the running values keep it.
 	assert.Contains(t, string(out), `"https://derp.example/map"`)
 	assert.Contains(t, string(out), `"https://derp.example/token-map"`)
-	assert.Contains(t, string(out), `"ServerURL":"https://headscale.example.com"`)
+	assert.Contains(t, string(out), `"ServerURL":"https://orgscale.example.com"`)
 	assert.Contains(t, string(out), `"Address":"https://cli.example.com"`)
 	assert.Contains(t, string(out), `"Global":["1.1.1.1","https://dns.example.com/dns-query"]`)
 	assert.Contains(t, string(out), `"Split":{"corp.example.com":["https://dns.example.com/q"]}`)
@@ -327,24 +327,24 @@ func TestPostgresConfigDSN(t *testing.T) {
 			cfg: PostgresConfig{
 				Host: "localhost",
 				Port: 5432,
-				Name: "headscale",
+				Name: "orgscale",
 				User: "hs",
 				Pass: "secret",
 				Ssl:  "false",
 			},
-			host: "localhost", port: "5432", user: "hs", pass: "secret", path: "/headscale",
+			host: "localhost", port: "5432", user: "hs", pass: "secret", path: "/orgscale",
 			want: map[string]string{"sslmode": "disable"},
 		},
 		{
 			name: "ssl true leaves the driver default",
-			cfg:  PostgresConfig{Host: "db", Name: "headscale", User: "hs", Ssl: "true"},
-			host: "db", user: "hs", path: "/headscale",
+			cfg:  PostgresConfig{Host: "db", Name: "orgscale", User: "hs", Ssl: "true"},
+			host: "db", user: "hs", path: "/orgscale",
 			want: map[string]string{},
 		},
 		{
 			name: "raw sslmode is passed through",
-			cfg:  PostgresConfig{Host: "db", Name: "headscale", User: "hs", Ssl: "verify-full"},
-			host: "db", user: "hs", path: "/headscale",
+			cfg:  PostgresConfig{Host: "db", Name: "orgscale", User: "hs", Ssl: "verify-full"},
+			host: "db", user: "hs", path: "/orgscale",
 			want: map[string]string{"sslmode": "verify-full"},
 		},
 		// Regression: the DSN used to be concatenated, so a space, quote
@@ -366,16 +366,16 @@ func TestPostgresConfigDSN(t *testing.T) {
 			cfg: PostgresConfig{
 				Host: "/var/run/postgresql",
 				Port: 5433,
-				Name: "headscale",
+				Name: "orgscale",
 				User: "hs",
 			},
-			user: "hs", path: "/headscale",
+			user: "hs", path: "/orgscale",
 			want: map[string]string{"host": "/var/run/postgresql", "port": "5433"},
 		},
 		{
 			name: "ipv6 host is bracketed",
-			cfg:  PostgresConfig{Host: "::1", Port: 5432, Name: "headscale", User: "hs"},
-			host: "::1", port: "5432", user: "hs", path: "/headscale",
+			cfg:  PostgresConfig{Host: "::1", Port: 5432, Name: "orgscale", User: "hs"},
+			host: "::1", port: "5432", user: "hs", path: "/orgscale",
 			want: map[string]string{},
 		},
 	}

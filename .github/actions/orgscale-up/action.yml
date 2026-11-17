@@ -1,6 +1,6 @@
-name: headscale-up
+name: orgscale-up
 description: >-
-  Build headscale with nix, start it over self-signed TLS with embedded DERP, and
+  Build orgscale with nix, start it over self-signed TLS with embedded DERP, and
   join one regular node via a pre-auth key (so the tailnet has a node already in
   the network and a ping target). Outputs the URL and bootstrap credentials.
 
@@ -10,7 +10,7 @@ description: >-
 
 outputs:
   url:
-    description: headscale server URL (https)
+    description: orgscale server URL (https)
     value: ${{ steps.bootstrap.outputs.url }}
   preauth:
     description: reusable pre-auth key for user 'ci'
@@ -25,33 +25,33 @@ runs:
     - uses: NixOS/nix-installer-action@v1.0.0
     - uses: Mic92/hestia@v3.1.0
 
-    - name: Build headscale
+    - name: Build orgscale
       shell: bash
       run: nix build --fallback
 
-    - name: Start headscale (TLS + embedded DERP)
+    - name: Start orgscale (TLS + embedded DERP)
       id: bootstrap
       shell: bash
       run: |
         set -euo pipefail
         mkdir -p /tmp/hs
-        echo "127.0.0.1 headscale" | sudo tee -a /etc/hosts
+        echo "127.0.0.1 orgscale" | sudo tee -a /etc/hosts
 
         # Self-signed cert for the control server, trusted system-wide so the
         # tailscale client and the OAuth token exchange accept it.
         openssl req -x509 -newkey rsa:4096 -sha256 -days 1 -nodes \
           -keyout /tmp/hs/tls.key -out /tmp/hs/tls.crt \
-          -subj '/CN=headscale' -addext 'subjectAltName=DNS:headscale'
-        sudo cp /tmp/hs/tls.crt /usr/local/share/ca-certificates/headscale.crt
+          -subj '/CN=orgscale' -addext 'subjectAltName=DNS:orgscale'
+        sudo cp /tmp/hs/tls.crt /usr/local/share/ca-certificates/orgscale.crt
         sudo update-ca-certificates
 
-        URL="https://headscale:8443"
+        URL="https://orgscale:8443"
 
         cat > config.yaml <<EOF
         server_url: ${URL}
         listen_addr: 0.0.0.0:8443
         metrics_listen_addr: 127.0.0.1:9090
-        unix_socket: /tmp/hs/headscale.sock
+        unix_socket: /tmp/hs/orgscale.sock
         unix_socket_permission: "0770"
         noise:
           private_key_path: /tmp/hs/noise.key
@@ -63,8 +63,8 @@ runs:
           server:
             enabled: true
             region_id: 999
-            region_code: headscale
-            region_name: Headscale Embedded DERP
+            region_code: orgscale
+            region_name: Orgscale Embedded DERP
             stun_listen_addr: 0.0.0.0:3478
             private_key_path: /tmp/hs/derp.key
             automatically_add_embedded_derp_region: true
@@ -96,15 +96,15 @@ runs:
         }
         EOF
 
-        ./result/bin/headscale serve > /tmp/hs/serve.log 2>&1 &
+        ./result/bin/orgscale serve > /tmp/hs/serve.log 2>&1 &
 
         # Wait for readiness via curl's own retry (no fixed sleeps).
         curl -fsS --retry 60 --retry-delay 1 --retry-all-errors --cacert /tmp/hs/tls.crt \
           "${URL}/health" || { cat /tmp/hs/serve.log; exit 1; }
 
         # Not UID: that is a readonly bash builtin.
-        USERID=$(./result/bin/headscale users create ci -o json | jq -r .id)
-        PREAUTH=$(./result/bin/headscale preauthkeys create --user "$USERID" --reusable)
+        USERID=$(./result/bin/orgscale users create ci -o json | jq -r .id)
+        PREAUTH=$(./result/bin/orgscale preauthkeys create --user "$USERID" --reusable)
 
         echo "::add-mask::$PREAUTH"
         {

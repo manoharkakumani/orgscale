@@ -1,8 +1,8 @@
 # Features
 
-Headscale aims to implement a self-hosted, open source alternative to the Tailscale control server. Headscale's goal is
+Orgscale aims to implement a self-hosted, open source alternative to the Tailscale control server. Orgscale's goal is
 to provide self-hosters and hobbyists with an open-source server they can use for their projects and labs. This page
-provides on overview of Headscale's feature and compatibility with the Tailscale control server:
+provides on overview of Orgscale's feature and compatibility with the Tailscale control server:
 
 - [x] Full "base" support of Tailscale's features
 - [x] [Node registration](../ref/registration.md)
@@ -12,7 +12,7 @@ provides on overview of Headscale's feature and compatibility with the Tailscale
     - [x] [MagicDNS](https://tailscale.com/docs/features/magicdns)
     - [x] [Global and restricted nameservers (split DNS)](https://tailscale.com/docs/reference/dns-in-tailscale#nameservers)
     - [x] [search domains](https://tailscale.com/docs/reference/dns-in-tailscale#search-domains)
-    - [x] [Extra DNS records (Headscale only)](../ref/dns.md#setting-extra-dns-records)
+    - [x] [Extra DNS records (Orgscale only)](../ref/dns.md#setting-extra-dns-records)
 - [x] File sharing
     - [x] [Taildrive](https://tailscale.com/docs/features/taildrive)
     - [x] [Taildrop](https://tailscale.com/docs/features/taildrop)

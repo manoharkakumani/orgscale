@@ -36,7 +36,7 @@ import (
 	"tailscale.com/types/key"
 )
 
-// apiv2CompatSkipReasons lists checks where headscale differs from SaaS, keyed
+// apiv2CompatSkipReasons lists checks where orgscale differs from SaaS, keyed
 // <test_id>/<step>/<i>[/<node>]/<check>, where <i> is the action's index in
 // its step, or <test_id>/<object>/[<shape>/]<check> for a field compared
 // over every body that names the object (key:K, client:C, device:x), device
@@ -108,21 +108,21 @@ func notCompared(prefixes []string, key string) bool {
 
 // Differences no planned change removes yet.
 const (
-	mintScopeRefusalStatus      = "TOKEN_SCOPE_REFUSAL_STATUS: SaaS refuses a token scope the client lacks with 403 and a message; headscale with 400 invalid_scope"
-	mintTagsSorted              = "TOKEN_TAGS_SORTED: SaaS's token answer names the tags in the order its client was made with; headscale stores a client's tags sorted"
-	unknownKeyType              = "UNKNOWN_KEY_TYPE: SaaS refuses an unknown keyType with 400 before it checks scopes; headscale checks the scope first and answers 403"
-	emptyKeyListNull            = "EMPTY_KEY_LIST_NULL: SaaS answers a listing that holds no key with keys null; headscale with []"
-	deletedClientGone           = "DELETED_CLIENT_GONE: SaaS keeps a deleted OAuth client readable as invalid and revoked; headscale removes it"
-	deletedClientCredentialText = "DELETED_CLIENT_CREDENTIAL_TEXT: SaaS refuses a deleted client's secret and tokens with API token invalid; headscale says invalid client credentials and unauthorized"
-	missingScopeText            = "MISSING_SCOPE_TEXT: SaaS refuses a delete outside the token's scopes with calling actor does not have enough permissions; headscale names the missing scope"
-	hujsonFormatted             = "HUJSON_FORMATTED: SaaS stores a HuJSON policy formatted, comments kept; headscale stores the bytes as sent"
+	mintScopeRefusalStatus      = "TOKEN_SCOPE_REFUSAL_STATUS: SaaS refuses a token scope the client lacks with 403 and a message; orgscale with 400 invalid_scope"
+	mintTagsSorted              = "TOKEN_TAGS_SORTED: SaaS's token answer names the tags in the order its client was made with; orgscale stores a client's tags sorted"
+	unknownKeyType              = "UNKNOWN_KEY_TYPE: SaaS refuses an unknown keyType with 400 before it checks scopes; orgscale checks the scope first and answers 403"
+	emptyKeyListNull            = "EMPTY_KEY_LIST_NULL: SaaS answers a listing that holds no key with keys null; orgscale with []"
+	deletedClientGone           = "DELETED_CLIENT_GONE: SaaS keeps a deleted OAuth client readable as invalid and revoked; orgscale removes it"
+	deletedClientCredentialText = "DELETED_CLIENT_CREDENTIAL_TEXT: SaaS refuses a deleted client's secret and tokens with API token invalid; orgscale says invalid client credentials and unauthorized"
+	missingScopeText            = "MISSING_SCOPE_TEXT: SaaS refuses a delete outside the token's scopes with calling actor does not have enough permissions; orgscale names the missing scope"
+	hujsonFormatted             = "HUJSON_FORMATTED: SaaS stores a HuJSON policy formatted, comments kept; orgscale stores the bytes as sent"
 )
 
 // SaaS behaviour recorded as it is; following it is the maintainer's call.
 const (
-	deviceOAuthClientMaker = "DEVICE_OAUTH_CLIENT_ID: SaaS names, in oauthClientId, the OAuth client whose token made the device's key; headscale does not record which client that was, so it leaves the field out"
-	missingScopeNotFound   = "MISSING_SCOPE_NOT_FOUND: SaaS answers a call outside the token's scopes with 404 not found; headscale answers 403"
-	unknownScopeGranted    = "UNKNOWN_SCOPE_GRANTED: SaaS ignores an unknown requested scope and grants the client's own; headscale grants the unknown scope alone"
+	deviceOAuthClientMaker = "DEVICE_OAUTH_CLIENT_ID: SaaS names, in oauthClientId, the OAuth client whose token made the device's key; orgscale does not record which client that was, so it leaves the field out"
+	missingScopeNotFound   = "MISSING_SCOPE_NOT_FOUND: SaaS answers a call outside the token's scopes with 404 not found; orgscale answers 403"
+	unknownScopeGranted    = "UNKNOWN_SCOPE_GRANTED: SaaS ignores an unknown requested scope and grants the client's own; orgscale grants the unknown scope alone"
 )
 
 // TestAPIv2OAuthCompat replays OAuth clients, token exchanges, auth keys,
@@ -201,12 +201,12 @@ func runAPICompat(t *testing.T, id string, v1 bool) {
 	}
 }
 
-// apiReplay replays one capture's actions against headscale. SaaS labels
-// ({key:K}, {client:C}, {device:x}, {etag:N}) map to headscale's IDs and
+// apiReplay replays one capture's actions against orgscale. SaaS labels
+// ({key:K}, {client:C}, {device:x}, {etag:N}) map to orgscale's IDs and
 // ETags as the replay creates them.
 type apiReplay struct {
 	c     *testcapture.Capture
-	app   *Headscale
+	app   *Orgscale
 	v2    http.Handler
 	v1    http.Handler
 	useV1 bool
@@ -214,11 +214,11 @@ type apiReplay struct {
 	admin string
 	names map[string]string // SaaS email → capture user name
 
-	ids     map[string]string // SaaS label → headscale ID
-	labels  map[string]string // "<kind>/<headscale ID>" → SaaS label
+	ids     map[string]string // SaaS label → orgscale ID
+	labels  map[string]string // "<kind>/<orgscale ID>" → SaaS label
 	secrets map[string]string // key or client label → secret
 	tokens  map[string]string // principal → access token
-	addrs   map[string]string // SaaS node address → headscale's
+	addrs   map[string]string // SaaS node address → orgscale's
 
 	// ETag relations: where each ETag was first seen, per side.
 	saasETag, hsETag map[string]string
@@ -233,7 +233,7 @@ type apiReplay struct {
 	refusals map[string][2][]byte
 
 	// aggregates holds per-object observations checked over the whole
-	// capture: check → object label → [SaaS, headscale] values seen.
+	// capture: check → object label → [SaaS, orgscale] values seen.
 	aggregates map[string]map[string][2]map[string]bool
 
 	// unlisted holds labels of objects made by steps left out.
@@ -289,12 +289,12 @@ func newAPIReplay(t *testing.T, c *testcapture.Capture, useV1 bool) *apiReplay {
 
 // newAddressedTestApp is [createTestApp] with address prefixes, so joined
 // nodes get addresses the replayed policies can name.
-func newAddressedTestApp(t *testing.T) *Headscale {
+func newAddressedTestApp(t *testing.T) *Orgscale {
 	t.Helper()
 
 	cfg := validConfig(t)
 
-	app, err := NewHeadscale(&cfg)
+	app, err := NewOrgscale(&cfg)
 	require.NoError(t, err)
 
 	app.mapBatcher = mapper.NewBatcherAndMapper(&cfg, app.state)
@@ -304,7 +304,7 @@ func newAddressedTestApp(t *testing.T) *Headscale {
 	return app
 }
 
-// apiCheck is one rendering of an outcome: SaaS's and headscale's.
+// apiCheck is one rendering of an outcome: SaaS's and orgscale's.
 type apiCheck struct {
 	name, want, got string
 }
@@ -537,7 +537,7 @@ func (r *apiReplay) api(t *testing.T, step testcapture.Step, i int, a testcaptur
 		checks = append(checks, messageCheck(t, a.Response, resp))
 	}
 
-	// Labelled also when SaaS refused it, so listings name what headscale
+	// Labelled also when SaaS refused it, so listings name what orgscale
 	// made.
 	if hsOK {
 		r.record(t, a, resp)
@@ -584,7 +584,7 @@ func mediaType(contentType string) string {
 }
 
 // request is the call a sent, with SaaS's labels, emails and addresses
-// replaced by headscale's and its principal's credential.
+// replaced by orgscale's and its principal's credential.
 func (r *apiReplay) request(t *testing.T, a testcapture.Action, isPolicy bool) (string, map[string]string, []byte) {
 	t.Helper()
 
@@ -610,7 +610,7 @@ func (r *apiReplay) request(t *testing.T, a testcapture.Action, isPolicy bool) (
 	case a.Principal == "admin":
 		header["Authorization"] = "Bearer " + r.admin
 	case strings.HasPrefix(a.Principal, "token:"):
-		// A token headscale never issued is refused like a missing one.
+		// A token orgscale never issued is refused like a missing one.
 		header["Authorization"] = "Bearer " + r.tokens[a.Principal]
 	default:
 		t.Fatalf("unknown principal %q", a.Principal)
@@ -648,9 +648,9 @@ func (r *apiReplay) serve(
 	return rec.Code, rec.Header(), rec.Body.Bytes()
 }
 
-// policyBody is a policy body as headscale must receive it: HuJSON and
+// policyBody is a policy body as orgscale must receive it: HuJSON and
 // zero-length bodies are stored as JSON strings, and SaaS's user emails and
-// node addresses become headscale's.
+// node addresses become orgscale's.
 func (r *apiReplay) policyBody(t *testing.T, raw json.RawMessage) []byte {
 	t.Helper()
 
@@ -1001,7 +1001,7 @@ func optional(s *string) string {
 }
 
 // credentialLabel is the SaaS label of an auth key or OAuth client ID
-// headscale sent.
+// orgscale sent.
 func (r *apiReplay) credentialLabel(id *string) string {
 	if id == nil {
 		return "absent"
@@ -1054,7 +1054,7 @@ func (r *apiReplay) aggregateChecks(t *testing.T) {
 	}
 }
 
-// messageCheck passes when SaaS's error message appears in headscale's
+// messageCheck passes when SaaS's error message appears in orgscale's
 // answer, as its message, OAuth error description or one of its details.
 func messageCheck(t *testing.T, saas, hs []byte) apiCheck {
 	t.Helper()

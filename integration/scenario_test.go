@@ -10,7 +10,7 @@ import (
 )
 
 // This file is intended to "test the test framework", by proxy it will also test
-// some Headscale/Tailscale stuff, but mostly in very simple ways.
+// some Orgscale/Tailscale stuff, but mostly in very simple ways.
 
 func IntegrationSkip(t *testing.T) {
 	t.Helper()
@@ -28,7 +28,7 @@ func IntegrationSkip(t *testing.T) {
 // This might mean we approach setup slightly wrong, but for now, ignore
 // the linter
 // nolint:tparallel
-func TestHeadscale(t *testing.T) {
+func TestOrgscale(t *testing.T) {
 	IntegrationSkip(t)
 
 	var err error
@@ -40,15 +40,15 @@ func TestHeadscale(t *testing.T) {
 	require.NoError(t, err)
 	defer scenario.ShutdownAssertNoPanics(t)
 
-	t.Run("start-headscale", func(t *testing.T) {
-		headscale, err := scenario.Headscale(hsic.WithTestName("scenariohs"))
+	t.Run("start-orgscale", func(t *testing.T) {
+		orgscale, err := scenario.Orgscale(hsic.WithTestName("scenariohs"))
 		if err != nil {
 			t.Fatalf("failed to create start headcale: %s", err)
 		}
 
-		err = headscale.WaitForRunning()
+		err = orgscale.WaitForRunning()
 		if err != nil {
-			t.Fatalf("headscale failed to become ready: %s", err)
+			t.Fatalf("orgscale failed to become ready: %s", err)
 		}
 	})
 
@@ -89,15 +89,15 @@ func TestTailscaleNodesJoiningHeadcale(t *testing.T) {
 	require.NoError(t, err)
 	defer scenario.ShutdownAssertNoPanics(t)
 
-	t.Run("start-headscale", func(t *testing.T) {
-		headscale, err := scenario.Headscale(hsic.WithTestName("scenariojoin"))
+	t.Run("start-orgscale", func(t *testing.T) {
+		orgscale, err := scenario.Orgscale(hsic.WithTestName("scenariojoin"))
 		if err != nil {
 			t.Fatalf("failed to create start headcale: %s", err)
 		}
 
-		err = headscale.WaitForRunning()
+		err = orgscale.WaitForRunning()
 		if err != nil {
-			t.Fatalf("headscale failed to become ready: %s", err)
+			t.Fatalf("orgscale failed to become ready: %s", err)
 		}
 	})
 
@@ -123,20 +123,20 @@ func TestTailscaleNodesJoiningHeadcale(t *testing.T) {
 		}
 	})
 
-	t.Run("join-headscale", func(t *testing.T) {
+	t.Run("join-orgscale", func(t *testing.T) {
 		key, err := scenario.CreatePreAuthKey(1, true, false)
 		if err != nil {
 			t.Fatalf("failed to create preauthkey: %s", err)
 		}
 
-		headscale, err := scenario.Headscale()
+		orgscale, err := scenario.Orgscale()
 		if err != nil {
 			t.Fatalf("failed to create start headcale: %s", err)
 		}
 
 		err = scenario.RunTailscaleUp(
 			user,
-			headscale.GetEndpoint(),
+			orgscale.GetEndpoint(),
 			key.Key,
 		)
 		if err != nil {

@@ -128,7 +128,7 @@ func exampleOf(keys []keyInfo, cfg *types.Config, opts ExampleOptions, root stri
 	return b.Bytes(), nil
 }
 
-// clientOnly reports whether path is read only by the headscale CLI, from
+// clientOnly reports whether path is read only by the orgscale CLI, from
 // its own configuration, so a server's configuration has no use for it.
 func clientOnly(path string) bool {
 	return path == "cli" || strings.HasPrefix(path, "cli.")

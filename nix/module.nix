@@ -5,26 +5,26 @@
   ...
 }:
 let
-  cfg = config.services.headscale;
+  cfg = config.services.orgscale;
 
-  dataDir = "/var/lib/headscale";
-  runDir = "/run/headscale";
+  dataDir = "/var/lib/orgscale";
+  runDir = "/run/orgscale";
 
   settingsFormat = pkgs.formats.yaml { };
 
-  # headscale reads a non-empty variable of the unit over the setting.
+  # orgscale reads a non-empty variable of the unit over the setting.
   effective =
     name: setting:
     let
-      v = config.systemd.services.headscale.environment.${name} or null;
+      v = config.systemd.services.orgscale.environment.${name} or null;
     in
     if v == null || v == "" then setting else v;
-  policyMode = effective "HEADSCALE_POLICY_MODE" cfg.settings.policy.mode;
-  policyPath = effective "HEADSCALE_POLICY_PATH" cfg.settings.policy.path;
+  policyMode = effective "ORGSCALE_POLICY_MODE" cfg.settings.policy.mode;
+  policyPath = effective "ORGSCALE_POLICY_PATH" cfg.settings.policy.path;
   # Interpolated as the config and the unit are, so a Nix path is the same store path.
   policyFile = if policyMode == "file" && policyPath != "" then "${policyPath}" else null;
   policyFileCheck = cfg.check.policy && policyFile != null;
-  # Build-time checks run the host's headscale.
+  # Build-time checks run the host's orgscale.
   canExecute = pkgs.stdenv.buildPlatform.canExecute pkgs.stdenv.hostPlatform;
   # The build can read a store path.
   buildTimePolicy = policyFileCheck && lib.hasPrefix "${builtins.storeDir}/" policyFile && canExecute;
@@ -32,18 +32,18 @@ let
 
   # Interpolated as nixpkgs renders Environment=, so a Nix path is the same store path.
   unitEnv = lib.mapAttrsToList (n: v: "${n}=${v}") (
-    lib.filterAttrs (_: v: v != null) config.systemd.services.headscale.environment
+    lib.filterAttrs (_: v: v != null) config.systemd.services.orgscale.environment
   );
 
-  policyCheck = pkgs.runCommand "headscale-policy-check" { } ''
+  policyCheck = pkgs.runCommand "orgscale-policy-check" { } ''
     ${lib.getExe cfg.package} check policy -f ${lib.escapeShellArg policyFile}
     touch $out
   '';
 
   # check config, not check all: the files the config names are not in the sandbox.
-  configCheck = pkgs.runCommand "headscale-config-check" { } ''
+  configCheck = pkgs.runCommand "orgscale-config-check" { } ''
     env -i ${lib.escapeShellArgs unitEnv} ${lib.getExe cfg.package} check config -f ${cfg.configFile} || {
-      echo "headscale: this check sees the unit's environment, not its EnvironmentFile or %-specifiers expanded; services.headscale.check.config = false skips it" >&2
+      echo "orgscale: this check sees the unit's environment, not its EnvironmentFile or %-specifiers expanded; services.orgscale.check.config = false skips it" >&2
       exit 1
     }
     touch $out
@@ -57,20 +57,20 @@ let
       # declares (members holds extraGroups), so those come from the new
       # configuration. With mutableUsers it keeps a hand-made group.
       groups = [
-        "headscale"
+        "orgscale"
       ]
       ++ map (g: g.name) (
-        lib.filter (g: lib.elem "headscale" g.members) (lib.attrValues config.users.groups)
+        lib.filter (g: lib.elem "orgscale" g.members) (lib.attrValues config.users.groups)
       )
       ++ lib.filter (g: g != "") (
         lib.concatMap (g: lib.splitString " " (toString g)) (
-          lib.toList (config.systemd.services.headscale.serviceConfig.SupplementaryGroups or [ ])
+          lib.toList (config.systemd.services.orgscale.serviceConfig.SupplementaryGroups or [ ])
         )
       );
       declared = map (g: g.name) (lib.attrValues config.users.groups);
     in
     pkgs.writeShellApplication {
-      name = "headscale-pre-switch-check";
+      name = "orgscale-pre-switch-check";
       runtimeInputs = [
         pkgs.coreutils
         pkgs.getent
@@ -78,29 +78,29 @@ let
       ];
       text = ''
         # An unchanged unit is not restarted, so there is nothing to protect.
-        unit=etc/systemd/system/headscale.service
+        unit=etc/systemd/system/orgscale.service
         if [ "$(readlink -f "/run/current-system/$unit")" = "$(readlink -f "$1/$unit")" ]; then
-          echo "headscale: unit unchanged, skipping checks"
+          echo "orgscale: unit unchanged, skipping checks"
           exit 0
         fi
         # Activation creates users and groups after this check runs.
-        if ! id -u headscale >/dev/null 2>&1; then
-          echo "headscale: user headscale does not exist yet, skipping checks"
+        if ! id -u orgscale >/dev/null 2>&1; then
+          echo "orgscale: user orgscale does not exist yet, skipping checks"
           exit 0
         fi
-        if ! getent group headscale >/dev/null; then
-          echo "headscale: group headscale does not exist yet, skipping checks"
+        if ! getent group orgscale >/dev/null; then
+          echo "orgscale: group orgscale does not exist yet, skipping checks"
           exit 0
         fi
-        trap '[ "$?" = 0 ] || echo "headscale: to skip, set services.headscale.check.config and check.policy to false, or run once with NIXOS_NO_CHECK=1"' EXIT
+        trap '[ "$?" = 0 ] || echo "orgscale: to skip, set services.orgscale.check.config and check.policy to false, or run once with NIXOS_NO_CHECK=1"' EXIT
 
         # A group this switch creates does not exist yet; setpriv would fail on it.
         want=(${lib.escapeShellArgs groups})
         ${lib.optionalString config.users.mutableUsers ''
           # Not the account's primary group, which the unit does not get, nor a
           # group NixOS declares now, or declared before and activation removes.
-          skip=" $(id -gn headscale 2>/dev/null || true) "${lib.escapeShellArg (toString declared)}" $(cat /var/lib/nixos/declarative-groups 2>/dev/null || true) "
-          for g in $(id -Gn headscale); do
+          skip=" $(id -gn orgscale 2>/dev/null || true) "${lib.escapeShellArg (toString declared)}" $(cat /var/lib/nixos/declarative-groups 2>/dev/null || true) "
+          for g in $(id -Gn orgscale); do
             [[ $skip == *" $g "* ]] || want+=("$g")
           done
         ''}
@@ -112,16 +112,16 @@ let
 
         # As the unit's user and groups, with the unit's environment rather than the caller's.
         hs() {
-          setpriv --reuid=headscale --regid=headscale --groups="$grouplist" -- \
+          setpriv --reuid=orgscale --regid=orgscale --groups="$grouplist" -- \
             env -i ${lib.escapeShellArgs unitEnv} ${lib.getExe cfg.package} "$@"
         }
 
         ${lib.optionalString cfg.check.config ''
-          echo "headscale: checking the new configuration"
+          echo "orgscale: checking the new configuration"
           hs check all -f ${cfg.configFile}
         ''}
         ${lib.optionalString preSwitchPolicy ''
-          echo "headscale: checking the new policy"
+          echo "orgscale: checking the new policy"
           hs check policy -f ${lib.escapeShellArg policyFile}
         ''}
       '';
@@ -150,22 +150,22 @@ let
 in
 {
   # Disable the upstream NixOS module to prevent conflicts
-  disabledModules = [ "services/networking/headscale.nix" ];
+  disabledModules = [ "services/networking/orgscale.nix" ];
 
   options = {
-    services.headscale = {
-      enable = lib.mkEnableOption "headscale, Open Source coordination server for Tailscale";
+    services.orgscale = {
+      enable = lib.mkEnableOption "orgscale, Open Source coordination server for Tailscale";
 
-      package = lib.mkPackageOption pkgs "headscale" { };
+      package = lib.mkPackageOption pkgs "orgscale" { };
 
       configFile = lib.mkOption {
         type = lib.types.path;
         readOnly = true;
-        default = settingsFormat.generate "headscale.yaml" cfg.settings;
-        defaultText = lib.literalMD "{option}`services.headscale.settings` as YAML";
+        default = settingsFormat.generate "orgscale.yaml" cfg.settings;
+        defaultText = lib.literalMD "{option}`services.orgscale.settings` as YAML";
         description = ''
-          Path to the configuration file of headscale:
-          {option}`services.headscale.settings` as YAML.
+          Path to the configuration file of orgscale:
+          {option}`services.orgscale.settings` as YAML.
         '';
       };
 
@@ -174,21 +174,21 @@ in
         default = true;
         description = ''
           While building the system (native builds only), run
-          `headscale check config -f` on
-          {option}`services.headscale.configFile`, so a configuration headscale
+          `orgscale check config -f` on
+          {option}`services.orgscale.configFile`, so a configuration orgscale
           rejects fails `nixos-rebuild build`.
 
-          Before a switch restarts headscale, run the new package's
-          `headscale check all` on the new configuration and abort the switch
+          Before a switch restarts orgscale, run the new package's
+          `orgscale check all` on the new configuration and abort the switch
           if it fails. It checks the configuration and every file it names
           (policy, DERP maps, extra records, TLS pair, existing noise and DERP
-          keys) as the `headscale` user. Keys are read, never created.
+          keys) as the `orgscale` user. Keys are read, never created.
 
           Both run outside the unit, with its `environment` but not its
-          `EnvironmentFile`; the switch check runs only when headscale's unit
+          `EnvironmentFile`; the switch check runs only when orgscale's unit
           changes. Neither reads a `file:` secret, so credentials referenced
           with `file:` pass. Turning off only
-          {option}`services.headscale.check.policy` does not skip the policy
+          {option}`services.orgscale.check.policy` does not skip the policy
           before a switch. Skip the switch check once with `NIXOS_NO_CHECK=1`.
         '';
       };
@@ -197,13 +197,13 @@ in
         type = lib.types.bool;
         default = true;
         description = ''
-          In file policy mode, run `headscale check policy -f` on the new
+          In file policy mode, run `orgscale check policy -f` on the new
           policy: it checks the policy and runs its `tests` and `sshTests`
           against one node for each user and tag the policy names. A policy in
           the Nix store is checked while building the system (native builds
           only), so a bad policy fails `nixos-rebuild build`. Any other policy
-          is checked before a switch restarts headscale.
-          {option}`services.headscale.check.config` checks the policy before a
+          is checked before a switch restarts orgscale.
+          {option}`services.orgscale.check.config` checks the policy before a
           switch too; turn off both to skip every policy check.
         '';
       };
@@ -211,24 +211,24 @@ in
       # Read-only, kept only because nixpkgs' headplane module reads them.
       user = lib.mkOption {
         type = lib.types.str;
-        default = "headscale";
+        default = "orgscale";
         readOnly = true;
-        description = "User account under which headscale runs, created by this module.";
+        description = "User account under which orgscale runs, created by this module.";
       };
 
       group = lib.mkOption {
         type = lib.types.str;
-        default = "headscale";
+        default = "orgscale";
         readOnly = true;
-        description = "Group under which headscale runs, created by this module.";
+        description = "Group under which orgscale runs, created by this module.";
       };
 
       settings = lib.mkOption {
         description = ''
-          headscale's configuration, written to
-          {option}`services.headscale.configFile`. Each option is one key of
+          orgscale's configuration, written to
+          {option}`services.orgscale.configFile`. Each option is one key of
           [Configuration options](https://headscale.net/stable/ref/configuration-options/).
-          A key without an option passes through to headscale, which rejects
+          A key without an option passes through to orgscale, which rejects
           unknown keys.
         '';
         type = lib.types.submodule {
@@ -244,24 +244,24 @@ in
       lib.optional buildTimePolicy policyCheck
       ++ lib.optional (cfg.check.config && canExecute) configCheck;
 
-    system.preSwitchChecks.headscale = lib.mkIf (
+    system.preSwitchChecks.orgscale = lib.mkIf (
       cfg.check.config || preSwitchPolicy
     ) ''${lib.getExe preSwitchCheck} "$@"'';
 
     assertions = [
       {
         assertion = cliKeys == [ ];
-        message = "services.headscale.settings: remove ${lib.concatStringsSep ", " cliKeys}: the server never reads cli.*; headscale's CLI reads ~/.config/headscale/config.yaml or HEADSCALE_CLI_*, and here it would be written to the world-readable Nix store.";
+        message = "services.orgscale.settings: remove ${lib.concatStringsSep ", " cliKeys}: the server never reads cli.*; orgscale's CLI reads ~/.config/orgscale/config.yaml or ORGSCALE_CLI_*, and here it would be written to the world-readable Nix store.";
       }
     ];
 
-    services.headscale.settings = lib.mapAttrsRecursive (_: distroDefault) {
-      # Where NixOS keeps headscale's state and socket. Nix pins the package,
+    services.orgscale.settings = lib.mapAttrsRecursive (_: distroDefault) {
+      # Where NixOS keeps orgscale's state and socket. Nix pins the package,
       # so an update notice cannot be acted on.
       noise.private_key_path = "${dataDir}/noise_private.key";
       derp.server.private_key_path = "${dataDir}/derp_server_private.key";
       database.sqlite.path = "${dataDir}/db.sqlite";
-      unix_socket = "${runDir}/headscale.sock";
+      unix_socket = "${runDir}/orgscale.sock";
       disable_check_updates = true;
     };
 
@@ -271,22 +271,22 @@ in
       # The local CLI reads no file: these point it at the server's socket and
       # update-check setting. Through PAM, so sudo keeps them too.
       sessionVariables = {
-        HEADSCALE_UNIX_SOCKET = cfg.settings.unix_socket;
-        HEADSCALE_DISABLE_CHECK_UPDATES = lib.boolToString cfg.settings.disable_check_updates;
+        ORGSCALE_UNIX_SOCKET = cfg.settings.unix_socket;
+        ORGSCALE_DISABLE_CHECK_UPDATES = lib.boolToString cfg.settings.disable_check_updates;
       };
     };
 
-    users.groups.headscale = { };
+    users.groups.orgscale = { };
 
-    users.users.headscale = {
-      description = "headscale user";
+    users.users.orgscale = {
+      description = "orgscale user";
       home = dataDir;
-      group = "headscale";
+      group = "orgscale";
       isSystemUser = true;
     };
 
-    systemd.services.headscale = {
-      description = "headscale coordination server for Tailscale";
+    systemd.services.orgscale = {
+      description = "orgscale coordination server for Tailscale";
       wants = [ "network-online.target" ];
       after = [ "network-online.target" ];
       wantedBy = [ "multi-user.target" ];
@@ -305,7 +305,7 @@ in
           ExecReload = "${pkgs.coreutils}/bin/kill -HUP $MAINPID";
           Restart = "always";
           RestartSec = "5s";
-          # headscale serve exits 78 (EX_CONFIG) on a configuration it rejects,
+          # orgscale serve exits 78 (EX_CONFIG) on a configuration it rejects,
           # which a restart cannot fix.
           RestartPreventExitStatus = 78;
           Type = "simple";
@@ -314,11 +314,11 @@ in
           Group = cfg.group;
 
           # Hardening options
-          RuntimeDirectory = "headscale";
-          # Allow headscale group access so users can be added and use the CLI.
+          RuntimeDirectory = "orgscale";
+          # Allow orgscale group access so users can be added and use the CLI.
           RuntimeDirectoryMode = "0750";
 
-          StateDirectory = "headscale";
+          StateDirectory = "orgscale";
           StateDirectoryMode = "0750";
 
           ProtectSystem = "strict";

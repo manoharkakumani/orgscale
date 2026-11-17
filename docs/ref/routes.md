@@ -1,6 +1,6 @@
 # Routes
 
-Headscale supports route advertising and can be used to manage [subnet
+Orgscale supports route advertising and can be used to manage [subnet
 routers](https://tailscale.com/docs/features/subnet-routers) and [exit
 nodes](https://tailscale.com/docs/features/exit-nodes) for a tailnet.
 
@@ -24,7 +24,7 @@ router](#automatically-approve-routes-of-a-subnet-router).
 Register a node and advertise the routes it should handle as comma separated list:
 
 ```console
-$ sudo tailscale up --login-server <YOUR_HEADSCALE_URL> --advertise-routes=10.0.0.0/8,192.168.0.0/24
+$ sudo tailscale up --login-server <YOUR_ORGSCALE_URL> --advertise-routes=10.0.0.0/8,192.168.0.0/24
 ```
 
 If the node is already registered, it can advertise new routes or update previously announced routes with:
@@ -37,12 +37,12 @@ Finally, [enable IP forwarding](#enable-ip-forwarding) to route traffic.
 
 #### Enable the subnet router on the control server
 
-The routes of a tailnet can be displayed with the `headscale nodes list-routes` command. A subnet router with the
+The routes of a tailnet can be displayed with the `orgscale nodes list-routes` command. A subnet router with the
 hostname `myrouter` announced the IPv4 networks `10.0.0.0/8` and `192.168.0.0/24`. Those need to be approved before they
 can be used.
 
 ```console
-$ headscale nodes list-routes
+$ orgscale nodes list-routes
 ID | Hostname | Approved | Available      | Serving (Primary)
 1  | myrouter |          | 10.0.0.0/8     |
    |          |          | 192.168.0.0/24 |
@@ -51,14 +51,14 @@ ID | Hostname | Approved | Available      | Serving (Primary)
 Approve all desired routes of a subnet router by specifying them as comma separated list:
 
 ```console
-$ headscale nodes approve-routes --identifier 1 --routes 10.0.0.0/8,192.168.0.0/24
+$ orgscale nodes approve-routes --identifier 1 --routes 10.0.0.0/8,192.168.0.0/24
 Node updated
 ```
 
 The node `myrouter` can now route the IPv4 networks `10.0.0.0/8` and `192.168.0.0/24` for the tailnet.
 
 ```console
-$ headscale nodes list-routes
+$ orgscale nodes list-routes
 ID | Hostname | Approved       | Available      | Serving (Primary)
 1  | myrouter | 10.0.0.0/8     | 10.0.0.0/8     | 10.0.0.0/8
    |          | 192.168.0.0/24 | 192.168.0.0/24 | 192.168.0.0/24
@@ -107,7 +107,7 @@ denied.
 ### Automatically approve routes of a subnet router
 
 The initial setup of a subnet router usually requires manual approval of their announced routes on the control server
-before they can be used by a node in a tailnet. Headscale supports the `autoApprovers` section in a policy to automate
+before they can be used by a node in a tailnet. Orgscale supports the `autoApprovers` section in a policy to automate
 the approval of routes served with a subnet router.
 
 The policy snippet below defines the tag `tag:router` owned by the user `alice`. This tag is used for `routes` in the
@@ -133,7 +133,7 @@ that advertises the tag `tag:router`.
 Advertise the route `192.168.0.0/24` from a subnet router that also advertises the tag `tag:router` when joining the tailnet:
 
 ```console
-$ sudo tailscale up --login-server <YOUR_HEADSCALE_URL> --advertise-tags tag:router --advertise-routes 192.168.0.0/24
+$ sudo tailscale up --login-server <YOUR_ORGSCALE_URL> --advertise-tags tag:router --advertise-routes 192.168.0.0/24
 ```
 
 Please see the [official Tailscale
@@ -153,7 +153,7 @@ node](#automatically-approve-an-exit-node-with-auto-approvers).
 Register a node and make it advertise itself as an exit node:
 
 ```console
-$ sudo tailscale up --login-server <YOUR_HEADSCALE_URL> --advertise-exit-node
+$ sudo tailscale up --login-server <YOUR_ORGSCALE_URL> --advertise-exit-node
 ```
 
 If the node is already registered, it can advertise exit capabilities like this:
@@ -166,12 +166,12 @@ Finally, [enable IP forwarding](#enable-ip-forwarding) to route traffic.
 
 #### Enable the exit node on the control server
 
-The routes of a tailnet can be displayed with the `headscale nodes list-routes` command. An exit node can be recognized
+The routes of a tailnet can be displayed with the `orgscale nodes list-routes` command. An exit node can be recognized
 by its announced routes: `0.0.0.0/0` for IPv4 and `::/0` for IPv6. The exit node with the hostname `myexit` is already
 available, but needs to be approved:
 
 ```console
-$ headscale nodes list-routes
+$ orgscale nodes list-routes
 ID | Hostname | Approved | Available | Serving (Primary)
 1  | myexit   |          | 0.0.0.0/0 |
    |          |          | ::/0      |
@@ -180,14 +180,14 @@ ID | Hostname | Approved | Available | Serving (Primary)
 For exit nodes, it is sufficient to approve either the IPv4 or IPv6 route. The other will be approved automatically.
 
 ```console
-$ headscale nodes approve-routes --identifier 1 --routes 0.0.0.0/0
+$ orgscale nodes approve-routes --identifier 1 --routes 0.0.0.0/0
 Node updated
 ```
 
 The node `myexit` is now approved as exit node for the tailnet:
 
 ```console
-$ headscale nodes list-routes
+$ orgscale nodes list-routes
 ID | Hostname | Approved  | Available | Serving (Primary)
 1  | myexit   | 0.0.0.0/0 | 0.0.0.0/0 | 0.0.0.0/0
    |          | ::/0      | ::/0      | ::/0
@@ -259,7 +259,7 @@ from a user who also has a rule that allows access to the internet without `via`
 ### Automatically approve an exit node with auto approvers
 
 The initial setup of an exit node usually requires manual approval on the control server before it can be used by a node
-in a tailnet. Headscale supports the `autoApprovers` section in a policy to automate the approval of a new exit node as
+in a tailnet. Orgscale supports the `autoApprovers` section in a policy to automate the approval of a new exit node as
 soon as it joins the tailnet.
 
 The policy snippet below defines the tag `tag:exit` owned by the user `alice`. This tag is used for the `exitNode` entry
@@ -282,7 +282,7 @@ in the `autoApprovers` section. A new exit node that advertises the tag `tag:exi
 Advertise a node as exit node and also advertise the tag `tag:exit` when joining the tailnet:
 
 ```console
-$ sudo tailscale up --login-server <YOUR_HEADSCALE_URL> --advertise-tags tag:exit --advertise-exit-node
+$ sudo tailscale up --login-server <YOUR_ORGSCALE_URL> --advertise-tags tag:exit --advertise-exit-node
 ```
 
 Please see the [official Tailscale documentation](https://tailscale.com/docs/reference/syntax/policy-file#autoapprovers)
@@ -342,7 +342,7 @@ more information on automatic exit node selection.
 
 ## High availability
 
-Headscale supports high availability routing. Multiple subnet routers with overlapping routes or multiple exit nodes can
+Orgscale supports high availability routing. Multiple subnet routers with overlapping routes or multiple exit nodes can
 be used to provide high availability for users. If one router node goes offline, another one can serve the same routes
 to clients. Please see the official [Tailscale documentation on high
 availability](https://tailscale.com/docs/how-to/set-up-high-availability#subnet-router-high-availability) for details.
@@ -350,7 +350,7 @@ availability](https://tailscale.com/docs/how-to/set-up-high-availability#subnet-
 This feature is enabled by default when at least two nodes advertise the same prefix. See the configuration options
 `node.routes.ha` in the [configuration file](configuration.md) for details.
 
-Of the routers that are online, healthy and not expired, the one connected to Headscale the longest serves a route. A
+Of the routers that are online, healthy and not expired, the one connected to Orgscale the longest serves a route. A
 router that reconnects becomes a standby, while a router that stays connected takes its routes back once it is approved,
 healthy or unexpired again. When none is available, the route stays with the router that served it last.
 

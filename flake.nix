@@ -1,5 +1,5 @@
 {
-  description = "headscale - Open Source Tailscale Control server";
+  description = "orgscale - Open Source Tailscale Control server";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
@@ -19,26 +19,26 @@
       ...
     }:
     let
-      headscaleVersion = self.shortRev or self.dirtyShortRev;
+      orgscaleVersion = self.shortRev or self.dirtyShortRev;
       commitHash = self.rev or self.dirtyRev;
     in
     {
       # NixOS module
       nixosModules = rec {
         # Defaults the package to this flake's: the pre-switch checks need
-        # `headscale check`. Priority 1001 sits just below mkDefault, so a
+        # `orgscale check`. Priority 1001 sits just below mkDefault, so a
         # user's mkDefault wins instead of conflicting. The overlay, not
         # self.packages, so every system nixpkgs supports evaluates.
-        headscale =
+        orgscale =
           { lib, pkgs, ... }:
           {
             # Dedupes importing it twice, directly and via testkit.
-            key = "${toString ./flake.nix}#nixosModules.headscale";
-            _file = "${toString ./flake.nix}#nixosModules.headscale";
+            key = "${toString ./flake.nix}#nixosModules.orgscale";
+            _file = "${toString ./flake.nix}#nixosModules.orgscale";
             imports = [ ./nix/module.nix ];
-            services.headscale.package = lib.mkOverride 1001 (self.overlays.default pkgs pkgs).headscale;
+            services.orgscale.package = lib.mkOverride 1001 (self.overlays.default pkgs pkgs).orgscale;
           };
-        default = headscale;
+        default = orgscale;
         # Control node for NixOS VM tests of Tailscale clients, and a peer
         # that joins it; nix/README.md.
         testkit = import ./nix/testkit.nix self;
@@ -55,9 +55,9 @@
           vendorHash = (builtins.fromJSON (builtins.readFile ./flakehashes.json)).vendor.sri;
         in
         {
-          headscale = buildGo {
-            pname = "headscale";
-            version = headscaleVersion;
+          orgscale = buildGo {
+            pname = "orgscale";
+            version = orgscaleVersion;
             src = pkgs.lib.cleanSource self;
 
             # Only run unit tests when testing a build
@@ -70,13 +70,13 @@
             subPackages = [ "cmd/orgscale" ];
 
             meta = {
-              mainProgram = "headscale";
+              mainProgram = "orgscale";
             };
           };
 
           hi = buildGo {
             pname = "hi";
-            version = headscaleVersion;
+            version = orgscaleVersion;
             src = pkgs.lib.cleanSource self;
 
             checkFlags = [ "-short" ];
@@ -164,21 +164,21 @@
           ]
           ++ lib.optionals pkgs.stdenv.hostPlatform.isLinux [ traceroute ];
 
-        # Add entry to build a docker image with headscale
+        # Add entry to build a docker image with orgscale
         # caveat: only works on Linux
         #
         # Usage:
-        # nix build .#headscale-docker
+        # nix build .#orgscale-docker
         # docker load < result
-        headscale-docker = pkgs.dockerTools.buildLayeredImage {
-          name = "headscale";
-          tag = headscaleVersion;
+        orgscale-docker = pkgs.dockerTools.buildLayeredImage {
+          name = "orgscale";
+          tag = orgscaleVersion;
           # CA certificates for outbound HTTPS, such as the DERP map.
           contents = [
-            pkgs.headscale
+            pkgs.orgscale
             pkgs.cacert
           ];
-          config.Entrypoint = [ (pkgs.headscale + "/bin/headscale") ];
+          config.Entrypoint = [ (pkgs.orgscale + "/bin/orgscale") ];
           config.Env = [ "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt" ];
         };
 
@@ -190,8 +190,8 @@
         common = {
           inherit pkgs;
           root = ./.;
-          pname = "headscale";
-          version = headscaleVersion;
+          pname = "orgscale";
+          version = orgscaleVersion;
           vendorHash = (builtins.fromJSON (builtins.readFile ./flakehashes.json)).vendor.sri;
           goPkg = pkgs.go_latest;
           # //go:embed targets and test-read files outside the default whitelist.
@@ -233,7 +233,7 @@
           gorace = fc.goTest (
             common
             // {
-              name = "headscale-gorace";
+              name = "orgscale-gorace";
               goRace = true;
               testEnv = "export CGO_ENABLED=1";
               testFlags = [ "-p=2" ];
@@ -278,7 +278,7 @@
 
         # nix/options.generated.nix: what the binary prints, every default
         # and example of its option's type, the examples loaded unchanged by
-        # headscale, and descriptions that render.
+        # orgscale, and descriptions that render.
         nixos-options =
           let
             inherit (pkgs) lib;
@@ -288,8 +288,8 @@
             defaults = eval (each (o: lib.mkIf (!(o ? default)) o.example));
             examples = eval (each (o: o.example));
             doc = pkgs.nixosOptionsDoc { inherit (examples) options; };
-            # Development tool, not shipped: loads a file as headscale does.
-            files = pkgs.headscale.overrideAttrs { subPackages = [ "tools/configgen/files" ]; };
+            # Development tool, not shipped: loads a file as orgscale does.
+            files = pkgs.orgscale.overrideAttrs { subPackages = [ "tools/configgen/files" ]; };
             # Values of the wrong shape: each must fail the option it is set on.
             rejected = {
               listen_addr = [
@@ -313,7 +313,7 @@
               ];
               "prefixes.v6" = [ "fd7a::/129" ];
               "oidc.issuer" = [
-                "headscale.example.com"
+                "orgscale.example.com"
                 "ftp://x"
                 "https://"
               ];
@@ -362,10 +362,10 @@
           assert lib.assertMsg (
             accepted == [ ]
           ) "nixos-options: types accept ${lib.concatStringsSep "; " accepted}";
-          pkgs.runCommand "headscale-nixos-options"
+          pkgs.runCommand "orgscale-nixos-options"
             {
               nativeBuildInputs = [
-                pkgs.headscale
+                pkgs.orgscale
                 pkgs.yq-go
                 pkgs.jq
               ];
@@ -375,7 +375,7 @@
               passAsFile = [ "examples" ];
             }
             ''
-              headscale generate nixos-options | diff -u ${./nix/options.generated.nix} -
+              orgscale generate nixos-options | diff -u ${./nix/options.generated.nix} -
               cp "$examplesPath" examples.json
               ${files}/bin/files -load examples.json > loaded.yaml
               jq -S . examples.json > want.json
@@ -409,17 +409,17 @@
 
         # `nix build`
         packages = with pkgs; {
-          inherit headscale;
-          inherit headscale-docker;
-          default = headscale;
+          inherit orgscale;
+          inherit orgscale-docker;
+          default = orgscale;
         };
 
         # `nix run`
-        apps.headscale = flake-utils.lib.mkApp {
-          drv = pkgs.headscale;
+        apps.orgscale = flake-utils.lib.mkApp {
+          drv = pkgs.orgscale;
         };
         apps.default = flake-utils.lib.mkApp {
-          drv = pkgs.headscale;
+          drv = pkgs.orgscale;
         };
 
         # `nix fmt` is built from the same treefmt module as the formatting
@@ -438,8 +438,8 @@
         checks = pkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux (
           goChecks
           // {
-            headscale = pkgs.testers.runNixOSTest (import ./nix/tests/headscale.nix self);
-            headscale-checks = pkgs.testers.runNixOSTest (import ./nix/tests/checks.nix self);
+            orgscale = pkgs.testers.runNixOSTest (import ./nix/tests/orgscale.nix self);
+            orgscale-checks = pkgs.testers.runNixOSTest (import ./nix/tests/checks.nix self);
             nixos-module = import ./nix/tests/module.nix self pkgs;
             inherit nixos-options;
           }

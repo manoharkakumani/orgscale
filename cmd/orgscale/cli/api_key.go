@@ -36,13 +36,13 @@ func init() {
 
 var apiKeysCmd = &cobra.Command{
 	Use:     "apikeys",
-	Short:   "Handle the Api keys in Headscale",
+	Short:   "Handle the Api keys in Orgscale",
 	Aliases: []string{"apikey", "api"},
 }
 
 var listAPIKeys = &cobra.Command{
 	Use:     cmdList,
-	Short:   "List the Api keys for headscale",
+	Short:   "List the Api keys for orgscale",
 	Aliases: []string{"ls", cmdShow},
 	RunE: clientRunE(func(ctx context.Context, client *clientv1.ClientWithResponses, cmd *cobra.Command, args []string) error {
 		resp, err := client.ListApiKeysWithResponse(ctx)
@@ -66,7 +66,7 @@ var listAPIKeys = &cobra.Command{
 
 				var created string
 				if key.CreatedAt != nil {
-					created = key.CreatedAt.Format(HeadscaleDateTimeFormat)
+					created = key.CreatedAt.Format(OrgscaleDateTimeFormat)
 				}
 
 				rows = append(rows, []string{

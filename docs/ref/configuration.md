@@ -1,14 +1,14 @@
 # Configuration
 
-- Headscale loads its configuration from a YAML file
+- Orgscale loads its configuration from a YAML file
 - It searches for `config.yaml` in the following paths:
-    - `/etc/headscale`
-    - `$HOME/.headscale`
+    - `/etc/orgscale`
+    - `$HOME/.orgscale`
     - the current working directory
 - To load the configuration from a different path, use:
     - the command line flag `-c`, `--config`
-    - the environment variable `HEADSCALE_CONFIG`
-- Validate the configuration file with: `headscale configtest`
+    - the environment variable `ORGSCALE_CONFIG`
+- Validate the configuration file with: `orgscale configtest`
 
 !!! example "Get the [example configuration from the GitHub repository](https://github.com/juanfont/headscale/blob/main/config-example.yaml)"
 
@@ -18,7 +18,7 @@
     === "View on GitHub"
 
         - Development version: <https://github.com/juanfont/headscale/blob/main/config-example.yaml>
-        - Version {{ headscale.version }}: https://github.com/juanfont/headscale/blob/v{{ headscale.version }}/config-example.yaml
+        - Version {{ orgscale.version }}: https://github.com/juanfont/headscale/blob/v{{ orgscale.version }}/config-example.yaml
 
     === "Download with `wget`"
 
@@ -26,8 +26,8 @@
         # Development version
         wget -O config.yaml https://raw.githubusercontent.com/juanfont/headscale/main/config-example.yaml
 
-        # Version {{ headscale.version }}
-        wget -O config.yaml https://raw.githubusercontent.com/juanfont/headscale/v{{ headscale.version }}/config-example.yaml
+        # Version {{ orgscale.version }}
+        wget -O config.yaml https://raw.githubusercontent.com/juanfont/headscale/v{{ orgscale.version }}/config-example.yaml
         ```
 
     === "Download with `curl`"
@@ -36,6 +36,6 @@
         # Development version
         curl -o config.yaml https://raw.githubusercontent.com/juanfont/headscale/main/config-example.yaml
 
-        # Version {{ headscale.version }}
-        curl -o config.yaml https://raw.githubusercontent.com/juanfont/headscale/v{{ headscale.version }}/config-example.yaml
+        # Version {{ orgscale.version }}
+        curl -o config.yaml https://raw.githubusercontent.com/juanfont/headscale/v{{ orgscale.version }}/config-example.yaml
         ```

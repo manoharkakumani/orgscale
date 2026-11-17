@@ -15,7 +15,7 @@ func init() {
 	registrations = append(registrations, registerUsers)
 }
 
-// Headscale models none of type/role/status and has a single tailnet, so these
+// Orgscale models none of type/role/status and has a single tailnet, so these
 // fields are fixed strings. Every account is an active member.
 const (
 	userTypeMember   = "member"
@@ -27,7 +27,7 @@ const (
 	tagTailscaleCompat = "Tailscale compat"
 )
 
-// User is the Tailscale user response. Identity fields map from the Headscale
+// User is the Tailscale user response. Identity fields map from the Orgscale
 // user; type/role/status/tailnetId are constants (see above); the device fields
 // are aggregated from the user's nodes.
 type User struct {
@@ -50,9 +50,9 @@ type (
 		UserID string `doc:"User id (the decimal user id)." path:"id"`
 	}
 	listUsersInput struct {
-		Tailnet string `doc:"Tailnet; must be \"-\" (the single Headscale tailnet)."   path:"tailnet"`
-		Type    string `doc:"Filter by user type; Headscale users are all \"member\"." query:"type"`
-		Role    string `doc:"Filter by user role; Headscale users are all \"member\"." query:"role"`
+		Tailnet string `doc:"Tailnet; must be \"-\" (the single Orgscale tailnet)."   path:"tailnet"`
+		Type    string `doc:"Filter by user type; Orgscale users are all \"member\"." query:"type"`
+		Role    string `doc:"Filter by user role; Orgscale users are all \"member\"." query:"role"`
 	}
 
 	userOutput      struct{ Body User }
@@ -100,7 +100,7 @@ func registerUsers(api huma.API, b Backend) {
 		out := &listUsersOutput{}
 		out.Body.Users = []User{}
 
-		// Headscale has only "member" users. A filter for any other type/role
+		// Orgscale has only "member" users. A filter for any other type/role
 		// matches nothing, so return the empty envelope.
 		if !matchesMember(in.Type) || !matchesMember(in.Role) {
 			return out, nil
@@ -137,13 +137,13 @@ func lookupUser(b Backend, rawID string) (types.UserView, error) {
 	return user.View(), nil
 }
 
-// matchesMember reports whether an optional type/role filter selects Headscale's
+// matchesMember reports whether an optional type/role filter selects Orgscale's
 // only user kind. An empty value means "no filter".
 func matchesMember(filter string) bool {
 	return filter == "" || filter == userTypeMember
 }
 
-// userFromView maps a Headscale user onto the Tailscale User through the
+// userFromView maps a Orgscale user onto the Tailscale User through the
 // UserView accessors. deviceCount, lastSeen, and currentlyConnected are
 // aggregated from the user's nodes in the NodeStore.
 func userFromView(b Backend, view types.UserView) User {

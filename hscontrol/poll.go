@@ -39,7 +39,7 @@ type contextKey string
 const nodeNameContextKey = contextKey("nodeName")
 
 type mapSession struct {
-	h      *Headscale
+	h      *Orgscale
 	req    tailcfg.MapRequest
 	ctx    context.Context //nolint:containedctx
 	capVer tailcfg.CapabilityVersion
@@ -61,7 +61,7 @@ type mapSession struct {
 	log zerolog.Logger
 }
 
-func (h *Headscale) newMapSession(
+func (h *Orgscale) newMapSession(
 	ctx context.Context,
 	req tailcfg.MapRequest,
 	w http.ResponseWriter,

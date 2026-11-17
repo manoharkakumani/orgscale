@@ -20,7 +20,7 @@ import (
 func TestAuthCommandValidation(t *testing.T) {
 	IntegrationSkip(t)
 
-	scenario, headscale := setupCLIScenario(t, "cli-authval", []string{"user1"}, 0)
+	scenario, orgscale := setupCLIScenario(t, "cli-authval", []string{"user1"}, 0)
 	defer scenario.ShutdownAssertNoPanics(t)
 
 	// Well-formed (correct prefix/length) but unknown auth-id: the handler
@@ -42,7 +42,7 @@ func TestAuthCommandValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := headscale.Execute(append([]string{"headscale"}, tt.args...))
+			_, err := orgscale.Execute(append([]string{"orgscale"}, tt.args...))
 			require.ErrorContains(t, err, tt.wantErr)
 		})
 	}

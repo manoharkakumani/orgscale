@@ -20,9 +20,9 @@ func TestReloadPolicyRebuildsPeerMapOnChangeOnly(t *testing.T) {
 		allowAll = `{"grants": [{"src": ["*"], "dst": ["*"], "ip": ["*"]}]}`
 	)
 
-	cfg := persistTestConfig(t.TempDir() + "/headscale.db")
+	cfg := persistTestConfig(t.TempDir() + "/orgscale.db")
 
-	database, err := db.NewHeadscaleDatabase(cfg)
+	database, err := db.NewOrgscaleDatabase(cfg)
 	require.NoError(t, err)
 
 	// Two users: a user's own devices stay peers under any policy.

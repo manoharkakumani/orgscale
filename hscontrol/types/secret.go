@@ -12,7 +12,7 @@ var errSecretEmpty = errors.New("file is empty")
 func ResolveSecret(key, value string) (string, error) {
 	secret, err := Secret(value).Resolve()
 	if err != nil {
-		return "", fmt.Errorf("%s: %w; ensure the file exists, is not empty and is readable by the user running headscale", key, err)
+		return "", fmt.Errorf("%s: %w; ensure the file exists, is not empty and is readable by the user running orgscale", key, err)
 	}
 
 	return secret, nil

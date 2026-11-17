@@ -1,6 +1,6 @@
 {
   "config": {
-    "ServerURL": "https://headscale.example.com",
+    "ServerURL": "https://orgscale.example.com",
     "Addr": "0.0.0.0:8080",
     "MetricsAddr": "",
     "TrustedProxies": null,
@@ -22,7 +22,7 @@
     "PrefixV4": "100.64.0.0/10",
     "PrefixV6": "fd7a:115c:a1e0::/48",
     "IPAllocation": "sequential",
-    "NoisePrivateKeyPath": "/var/lib/headscale/noise_private.key",
+    "NoisePrivateKeyPath": "/var/lib/orgscale/noise_private.key",
     "BaseDomain": "tailnet.example.com",
     "Log": {
       "Format": "text",
@@ -39,7 +39,7 @@
         "ParameterizedQueries": false
       },
       "Sqlite": {
-        "Path": "/var/lib/headscale/db.sqlite",
+        "Path": "/var/lib/orgscale/db.sqlite",
         "WriteAheadLog": true,
         "WALAutoCheckPoint": 1000
       },
@@ -60,7 +60,7 @@
       "ServerRegionID": 0,
       "ServerRegionCode": "",
       "ServerRegionName": "",
-      "ServerPrivateKeyPath": "/var/lib/headscale/derp_server_private.key",
+      "ServerPrivateKeyPath": "/var/lib/orgscale/derp_server_private.key",
       "ServerVerifyClients": true,
       "STUNAddr": "",
       "URLs": [
@@ -94,7 +94,7 @@
         "HTTPListen": ":http",
         "URL": "",
         "Email": "",
-        "CacheDir": "/var/lib/headscale/cache"
+        "CacheDir": "/var/lib/orgscale/cache"
       }
     },
     "DNSConfig": {
@@ -138,7 +138,7 @@
       ],
       "ProviderName": ""
     },
-    "UnixSocket": "/run/headscale/headscale.sock",
+    "UnixSocket": "/run/orgscale/orgscale.sock",
     "UnixSocketPermission": 504,
     "OIDC": {
       "OnlyStartIfOIDCIsAvailable": true,

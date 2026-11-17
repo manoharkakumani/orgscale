@@ -1,4 +1,4 @@
-// Package state provides core state management for Headscale,
+// Package state provides core state management for Orgscale,
 // coordinating between subsystems like database, IP allocation,
 // policy management, and DERP routing.
 //
@@ -201,13 +201,13 @@ type sshCheckAuthRecord struct {
 	src types.NodeView
 }
 
-// State manages Headscale's core state, coordinating between database, policy management,
+// State manages Orgscale's core state, coordinating between database, policy management,
 // IP allocation, and DERP routing. All methods are thread-safe.
 //
 // See [policy.PolicyManager] for policy evaluation and [NodeStore] for the
 // in-memory node cache.
 type State struct {
-	// cfg holds the current Headscale configuration
+	// cfg holds the current Orgscale configuration
 	cfg *types.Config
 
 	// nodeStore provides an in-memory cache for nodes.
@@ -351,7 +351,7 @@ func NewState(cfg *types.Config) (*State, error) {
 		cacheMaxEntries = cfg.Tuning.RegisterCacheMaxEntries
 	}
 
-	db, err := hsdb.NewHeadscaleDatabase(cfg)
+	db, err := hsdb.NewOrgscaleDatabase(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("initializing database: %w", err)
 	}
@@ -2150,7 +2150,7 @@ func (s *State) CreateAPIKey(expiration *time.Time) (string, *types.APIKey, erro
 }
 
 // GetAPIKey retrieves an API key by its prefix.
-// Accepts both display format (hskey-api-{12chars}-***) and database format ({12chars}).
+// Accepts both display format (oskey-api-{12chars}-***) and database format ({12chars}).
 func (s *State) GetAPIKey(displayPrefix string) (*types.APIKey, error) {
 	// Parse the display prefix to extract the database prefix
 	prefix, err := hsdb.ParseAPIKeyPrefix(displayPrefix)
@@ -3778,7 +3778,7 @@ func (s *State) reregisterNodeWithPAK(
 			// Converting a user-owned node to tagged drops the user's key
 			// expiry (tagged nodes disable it by default). But retagging an
 			// already-tagged node must preserve a deliberate FUTURE expiry
-			// set via `headscale nodes expire` - that is a node property, not
+			// set via `orgscale nodes expire` - that is a node property, not
 			// tied to the auth key - and only clear a past expiry with a valid key. This
 			// keeps the retag path symmetric with the same-key relogin path
 			// below rather than silently overriding an admin decision.
@@ -4459,7 +4459,7 @@ func (s *State) UpdateNodeFromMapRequest(id types.NodeID, req tailcfg.MapRequest
 // is only safe once peers already hold an endpoint set to fall back on; the
 // first set a node announces is therefore always broadcast.
 //
-// Limitation: headscale stores bare []netip.AddrPort with no per-endpoint
+// Limitation: orgscale stores bare []netip.AddrPort with no per-endpoint
 // type, so we can only classify the *new* request's endpoints (via the
 // parallel newTypes slice). We therefore gate on whether any newly-added
 // endpoint (present in new, absent from stored) is useful (non-STUN). When

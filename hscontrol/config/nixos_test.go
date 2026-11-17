@@ -102,17 +102,17 @@ func TestGenerateNixOptionsHeader(t *testing.T) {
 	}{
 		{
 			name: "development",
-			want: "# Generated from hscontrol/types/config.go by `headscale generate nixos-options`; do not edit.\n" +
-				"# headscale development tree, not a release\n" +
-				"# Options for services.headscale.settings, not a module: import ./options.generated.nix { inherit lib; }\n" +
+			want: "# Generated from hscontrol/types/config.go by `orgscale generate nixos-options`; do not edit.\n" +
+				"# orgscale development tree, not a release\n" +
+				"# Options for services.orgscale.settings, not a module: import ./options.generated.nix { inherit lib; }\n" +
 				"{ lib, ... }:\n" + nixTypes + "{\n",
 		},
 		{
 			name:    "release",
 			release: &types.VersionInfo{Version: "v1.2.3", Commit: "abc"},
-			want: "# Generated from hscontrol/types/config.go by `headscale generate nixos-options`; do not edit.\n" +
-				"# headscale v1.2.3, commit abc\n" +
-				"# Options for services.headscale.settings, not a module: import ./options.generated.nix { inherit lib; }\n" +
+			want: "# Generated from hscontrol/types/config.go by `orgscale generate nixos-options`; do not edit.\n" +
+				"# orgscale v1.2.3, commit abc\n" +
+				"# Options for services.orgscale.settings, not a module: import ./options.generated.nix { inherit lib; }\n" +
 				"{ lib, ... }:\n" + nixTypes + "{\n",
 		},
 	}
@@ -201,7 +201,7 @@ func TestGenerateNixOptions(t *testing.T) {
 			path: "oidc.client_secret",
 			want: []string{
 				"On NixOS, the value must be `\"\"` or `file:<path>`: load the secret as a systemd credential with ",
-				"`systemd.services.headscale.serviceConfig.LoadCredential = [ \"oidc_client_secret:/run/secrets/oidc_client_secret\" ];`",
+				"`systemd.services.orgscale.serviceConfig.LoadCredential = [ \"oidc_client_secret:/run/secrets/oidc_client_secret\" ];`",
 				// Rendered: "file:\${CREDENTIALS_DIRECTORY}/oidc_client_secret", as Nix source takes it.
 				"`\"file:\\''${CREDENTIALS_DIRECTORY}/oidc_client_secret\"`",
 			},
@@ -209,7 +209,7 @@ func TestGenerateNixOptions(t *testing.T) {
 		{
 			path: "dns.challenge.provider",
 			want: []string{
-				"`systemd.services.headscale.serviceConfig.LoadCredential = [ \"dns_challenge_provider_<setting>:/run/secrets/dns_challenge_provider_<setting>\" ];`",
+				"`systemd.services.orgscale.serviceConfig.LoadCredential = [ \"dns_challenge_provider_<setting>:/run/secrets/dns_challenge_provider_<setting>\" ];`",
 				"`\"file:\\''${CREDENTIALS_DIRECTORY}/dns_challenge_provider_<setting>\"`", "`name` is not a secret.",
 			},
 		},
@@ -217,7 +217,7 @@ func TestGenerateNixOptions(t *testing.T) {
 		{
 			path: "dns.extra_records",
 			want: []string{
-				// An unknown field reaches headscale's check, not a Nix error.
+				// An unknown field reaches orgscale's check, not a Nix error.
 				"\n  type = lib.types.listOf (\n    lib.types.submodule {\n      freeformType = lib.types.attrsOf lib.types.anything;\n      options = {\n        name = lib.mkOption {\n",
 				"\n  default = [ ];\n",
 			},
@@ -229,7 +229,7 @@ func TestGenerateNixOptions(t *testing.T) {
 		},
 		{path: "dns.extra_records.options.value", want: []string{"\n  type = t.ip;\n"}, hide: []string{"\n  default = "}},
 		{path: "log.level", want: []string{"\n  example = \"debug\";\n"}},
-		// Files headscale only reads take a Nix path; key and state files
+		// Files orgscale only reads take a Nix path; key and state files
 		// must be outside the store, so no key is copied into it.
 		{path: "policy.path", want: []string{"\n  type = t.readFile;\n", "On NixOS, paths must be absolute.\n"}},
 		{path: "dns.extra_records_path", want: []string{"\n  type = t.readFile;\n"}},

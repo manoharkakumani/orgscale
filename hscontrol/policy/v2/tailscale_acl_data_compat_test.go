@@ -1,6 +1,6 @@
 // This file implements a data-driven test runner for ACL compatibility tests.
 // It loads HuJSON golden files from testdata/acl_results/acl-*.hujson and
-// compares headscale's ACL engine output against the expected packet filter
+// compares orgscale's ACL engine output against the expected packet filter
 // rules captured from a Tailscale-hosted control plane by an external capture tool.
 //
 // Each file is a testcapture.Capture containing:
@@ -201,17 +201,17 @@ func loadACLTestFile(t *testing.T, path string) *testcapture.Capture {
 	return c
 }
 
-// aclSkipReasons lists checks where headscale differs from SaaS, keyed
+// aclSkipReasons lists checks where orgscale differs from SaaS, keyed
 // <test_id>[/<node>]/<check>.
 var aclSkipReasons = map[string]string{
 	"routes-exit-family-ipv4/refused": aclDefaultRouteAccepted,
 	"routes-exit-family-ipv6/refused": aclDefaultRouteAccepted,
 }
 
-const aclDefaultRouteAccepted = "ACL_DEFAULT_ROUTE_ACCEPTED: headscale accepts literal 0.0.0.0/0 and ::/0 ACL destinations; SaaS rejects them and requires * or autogroup:internet"
+const aclDefaultRouteAccepted = "ACL_DEFAULT_ROUTE_ACCEPTED: orgscale accepts literal 0.0.0.0/0 and ::/0 ACL destinations; SaaS rejects them and requires * or autogroup:internet"
 
 // TestACLCompat is a data-driven test that loads all ACL-*.json test files
-// and compares headscale's ACL engine output against the expected behavior.
+// and compares orgscale's ACL engine output against the expected behavior.
 //
 // Each JSON file contains:
 //   - A full policy with groups, tagOwners, hosts, and acls
@@ -256,7 +256,7 @@ func TestACLCompat(t *testing.T) {
 	}
 }
 
-// testCompatRefusal checks that headscale refuses a policy SaaS refused, with
+// testCompatRefusal checks that orgscale refuses a policy SaaS refused, with
 // SaaS's message in its error; checks are keyed <test_id>/<check> in skips.
 func testCompatRefusal(t *testing.T, skips map[string]string, tf *testcapture.Capture) {
 	t.Helper()
@@ -296,7 +296,7 @@ func testCompatRefusal(t *testing.T, skips map[string]string, tf *testcapture.Ca
 			return ""
 		}
 
-		return fmt.Sprintf("want (tailscale): %q\ngot  (headscale): %q", want, err.Error())
+		return fmt.Sprintf("want (tailscale): %q\ngot  (orgscale): %q", want, err.Error())
 	})
 }
 
@@ -310,7 +310,7 @@ func testACLSuccess(
 ) {
 	t.Helper()
 
-	// Convert Tailscale SaaS user emails to headscale @example.com format.
+	// Convert Tailscale SaaS user emails to orgscale @example.com format.
 	policyJSON := convertPolicyUserEmails(tf.Input.FullPolicy)
 
 	pol, err := unmarshalPolicy(policyJSON)

@@ -20,8 +20,8 @@ func validConfig() types.Config {
 	v4 := netip.MustParsePrefix("100.64.0.0/10")
 
 	cfg := Default()
-	cfg.ServerURL = "https://headscale.example.com"
-	cfg.Noise.PrivateKeyPath = "/var/lib/headscale/noise_private.key"
+	cfg.ServerURL = "https://orgscale.example.com"
+	cfg.Noise.PrivateKeyPath = "/var/lib/orgscale/noise_private.key"
 	cfg.Database.Type = types.DatabaseSqlite
 	cfg.Prefixes.V4 = &v4
 	cfg.DNSConfig.BaseDomain = "tailnet.example.com"
@@ -43,13 +43,13 @@ func TestDefaultHoldsDefaults(t *testing.T) {
 
 	assert.Equal(t, types.ListenAddr("0.0.0.0:8080"), d.Addr)
 	assert.Empty(t, d.MetricsAddr)
-	assert.Equal(t, "/var/lib/headscale/noise_private.key", d.Noise.PrivateKeyPath)
+	assert.Equal(t, "/var/lib/orgscale/noise_private.key", d.Noise.PrivateKeyPath)
 	require.NotNil(t, d.Prefixes.V4)
 	require.NotNil(t, d.Prefixes.V6)
 	assert.Equal(t, netip.MustParsePrefix("100.64.0.0/10"), *d.Prefixes.V4)
 	assert.Equal(t, netip.MustParsePrefix("fd7a:115c:a1e0::/48"), *d.Prefixes.V6)
 	assert.Equal(t, types.DatabaseSqliteShort, d.Database.Type)
-	assert.Equal(t, "/var/lib/headscale/db.sqlite", d.Database.Sqlite.Path)
+	assert.Equal(t, "/var/lib/orgscale/db.sqlite", d.Database.Sqlite.Path)
 	assert.Equal(t, []types.HTTPURL{"https://controlplane.tailscale.com/derpmap/default"}, d.DERP.URLs)
 	assert.True(t, d.DERP.AutoUpdate)
 	assert.Equal(t, 3*time.Hour, d.DERP.UpdateFrequency)
@@ -79,7 +79,7 @@ func TestValidateHintsNameDefaults(t *testing.T) {
 
 	cfg.Addr = ""
 	cfg.UnixSocket = ""
-	cfg.TLS.ACME.Hostname = "headscale.example.com"
+	cfg.TLS.ACME.Hostname = "orgscale.example.com"
 	cfg.TLS.ACME.HTTPListen = ""
 	cfg.TLS.ACME.CacheDir = ""
 
@@ -176,25 +176,25 @@ func TestValidateGoData(t *testing.T) {
 		},
 		{
 			name:    "certificate without key",
-			set:     func(c *types.Config) { c.TLS.CertPath = "/etc/headscale/cert.pem" },
+			set:     func(c *types.Config) { c.TLS.CertPath = "/etc/orgscale/cert.pem" },
 			wantErr: "tls.key_path is required when tls.cert_path is set",
 		},
 		{
 			name:    "key without certificate",
-			set:     func(c *types.Config) { c.TLS.KeyPath = "/etc/headscale/key.pem" },
+			set:     func(c *types.Config) { c.TLS.KeyPath = "/etc/orgscale/key.pem" },
 			wantErr: "tls.cert_path is required when tls.key_path is set",
 		},
 		{
 			name: "keypair",
 			set: func(c *types.Config) {
-				c.TLS.CertPath = "/etc/headscale/cert.pem"
-				c.TLS.KeyPath = "/etc/headscale/key.pem"
+				c.TLS.CertPath = "/etc/orgscale/cert.pem"
+				c.TLS.KeyPath = "/etc/orgscale/key.pem"
 			},
 		},
 		{
 			name: "acme http-01 without listener",
 			set: func(c *types.Config) {
-				c.TLS.ACME.Hostname = "headscale.example.com"
+				c.TLS.ACME.Hostname = "orgscale.example.com"
 				c.TLS.ACME.HTTPListen = ""
 			},
 			wantErr: "tls.acme.http_listen is required when tls.acme.challenge_type is HTTP-01",
@@ -202,7 +202,7 @@ func TestValidateGoData(t *testing.T) {
 		{
 			name: "acme tls-alpn-01 without http listener",
 			set: func(c *types.Config) {
-				c.TLS.ACME.Hostname = "headscale.example.com"
+				c.TLS.ACME.Hostname = "orgscale.example.com"
 				c.TLS.ACME.ChallengeType = types.TLSALPN01ChallengeType
 				c.TLS.ACME.HTTPListen = ""
 			},
@@ -210,7 +210,7 @@ func TestValidateGoData(t *testing.T) {
 		{
 			name: "acme without cache dir",
 			set: func(c *types.Config) {
-				c.TLS.ACME.Hostname = "headscale.example.com"
+				c.TLS.ACME.Hostname = "orgscale.example.com"
 				c.TLS.ACME.CacheDir = ""
 			},
 			wantErr: "tls.acme.cache_dir is required when tls.acme.hostname is set",
@@ -227,8 +227,8 @@ func TestValidateGoData(t *testing.T) {
 			// would point the wrong way.
 			name: "acme next to a certificate",
 			set: func(c *types.Config) {
-				c.TLS.ACME.Hostname = "headscale.example.com"
-				c.TLS.CertPath = "/etc/headscale/cert.pem"
+				c.TLS.ACME.Hostname = "orgscale.example.com"
+				c.TLS.CertPath = "/etc/orgscale/cert.pem"
 			},
 			wantErr: "tls.acme.hostname and tls.cert_path/tls.key_path are mutually exclusive",
 		},
@@ -270,7 +270,7 @@ func TestValidateGoData(t *testing.T) {
 			name: "url",
 			set: func(c *types.Config) {
 				c.OIDC.Issuer = "ftp://marker@idp.example.com"
-				c.OIDC.ClientID = "headscale"
+				c.OIDC.ClientID = "orgscale"
 				c.OIDC.ClientSecret = "secret"
 			},
 			wantErr: "oidc.issuer is not an http:// or https:// URL",
@@ -280,7 +280,7 @@ func TestValidateGoData(t *testing.T) {
 			name: "url unparsable",
 			set: func(c *types.Config) {
 				c.OIDC.Issuer = "https://alice:marker-pass?@idp.example.com"
-				c.OIDC.ClientID = "headscale"
+				c.OIDC.ClientID = "orgscale"
 				c.OIDC.ClientSecret = "secret"
 			},
 			wantErr: "oidc.issuer is not an http:// or https:// URL",
@@ -369,8 +369,8 @@ func TestValidateGoData(t *testing.T) {
 		},
 		{
 			name:    "server url without scheme shown",
-			set:     func(c *types.Config) { c.ServerURL = "headscale.example.com" },
-			wantErr: `server_url: "headscale.example.com"`,
+			set:     func(c *types.Config) { c.ServerURL = "orgscale.example.com" },
+			wantErr: `server_url: "orgscale.example.com"`,
 		},
 		// Built in Go, `""` is the text itself, not an empty value.
 		{
@@ -432,7 +432,7 @@ func TestValidateGoData(t *testing.T) {
 			name: "pkce method",
 			set: func(c *types.Config) {
 				c.OIDC.Issuer = "https://idp.example.com"
-				c.OIDC.ClientID = "headscale"
+				c.OIDC.ClientID = "orgscale"
 				c.OIDC.ClientSecret = "secret"
 				c.OIDC.PKCE.Method = "bogus"
 			},
@@ -446,12 +446,12 @@ func TestValidateGoData(t *testing.T) {
 		// The keys are compared as startup opens them.
 		{
 			name:    "derp key relative alias",
-			set:     sharedKeys("shared.key", "/etc/headscale/shared.key"),
+			set:     sharedKeys("shared.key", "/etc/orgscale/shared.key"),
 			wantErr: "derp.server.private_key_path must differ from noise.private_key_path",
 		},
 		{
 			name:    "derp key unclean alias",
-			set:     sharedKeys("/etc/headscale/shared.key", "/etc/headscale/./keys/../shared.key"),
+			set:     sharedKeys("/etc/orgscale/shared.key", "/etc/orgscale/./keys/../shared.key"),
 			wantErr: "derp.server.private_key_path must differ from noise.private_key_path",
 		},
 		{
@@ -504,7 +504,7 @@ func TestRequiredWhenBlank(t *testing.T) {
 		t.Run(key, func(t *testing.T) {
 			cfg := Default()
 			if key != "server_url" {
-				cfg.ServerURL = "https://headscale.example.com"
+				cfg.ServerURL = "https://orgscale.example.com"
 			}
 
 			blanked := false
@@ -533,10 +533,10 @@ func TestRequiredWhenBlank(t *testing.T) {
 }
 
 // sharedKeys enables the embedded DERP server with these noise and DERP key
-// paths, relative ones resolved against /etc/headscale.
+// paths, relative ones resolved against /etc/orgscale.
 func sharedKeys(noise, derp string) func(*types.Config) {
 	return func(c *types.Config) {
-		c.ConfigDir = "/etc/headscale"
+		c.ConfigDir = "/etc/orgscale"
 		c.Noise.PrivateKeyPath = noise
 		c.DERP.Server.Enabled = true
 		c.DERP.Server.RegionID = 999

@@ -37,7 +37,7 @@ import (
 
 const (
 	acmeTestZone = "example.com."
-	acmeTestHost = "headscale.example.com"
+	acmeTestHost = "orgscale.example.com"
 )
 
 // testACME is an in-process ACME CA (Pebble) with an authoritative DNS
@@ -163,7 +163,7 @@ func freePort(t *testing.T) int {
 	return p
 }
 
-// TestDNS01SolverWait pins that headscale's own certificate waits for the
+// TestDNS01SolverWait pins that orgscale's own certificate waits for the
 // value certmagic published, at the name it published it.
 func TestDNS01SolverWait(t *testing.T) {
 	provider := &dnstest.Provider{}
@@ -197,8 +197,8 @@ func TestDNS01SolverWait(t *testing.T) {
 	assert.Equal(t, provider.Values(fqdn), waited[1:])
 }
 
-// TestACMETLSSettings obtains headscale's own certificate from Pebble with
-// each challenge type, serving it the way [Headscale.Serve] does.
+// TestACMETLSSettings obtains orgscale's own certificate from Pebble with
+// each challenge type, serving it the way [Orgscale.Serve] does.
 func TestACMETLSSettings(t *testing.T) {
 	for _, challenge := range []types.ACMEChallenge{
 		types.DNS01ChallengeType,
@@ -209,7 +209,7 @@ func TestACMETLSSettings(t *testing.T) {
 			httpPort, tlsPort := freePort(t), freePort(t)
 			acme := startTestACME(t, httpPort, tlsPort)
 
-			h := &Headscale{cfg: &types.Config{
+			h := &Orgscale{cfg: &types.Config{
 				ServerURL: "https://" + acmeTestHost,
 				Addr:      types.ListenAddr(net.JoinHostPort("127.0.0.1", strconv.Itoa(tlsPort))),
 				TLS: types.TLSConfig{ACME: types.ACMEConfig{
@@ -266,7 +266,7 @@ func TestACMETLSSettings(t *testing.T) {
 				if assert.NoError(c, err) {
 					_ = conn.Close()
 				}
-			}, 30*time.Second, 200*time.Millisecond, "headscale should serve a certificate from the ACME CA")
+			}, 30*time.Second, 200*time.Millisecond, "orgscale should serve a certificate from the ACME CA")
 
 			if challenge == types.DNS01ChallengeType {
 				assert.NotEmpty(t, acme.provider.Calls(), "DNS-01 must publish through the DNS provider")
@@ -308,7 +308,7 @@ func TestACMERetryStaysOnConfiguredCA(t *testing.T) {
 	// never seen and every validation fails, like a mistyped DNS delegation.
 	published := &dnstest.Provider{}
 
-	h := &Headscale{cfg: &types.Config{
+	h := &Orgscale{cfg: &types.Config{
 		ServerURL: "https://" + acmeTestHost,
 		Addr:      types.ListenAddr(net.JoinHostPort("127.0.0.1", strconv.Itoa(freePort(t)))),
 		TLS: types.TLSConfig{ACME: types.ACMEConfig{
@@ -404,7 +404,7 @@ func TestStaticTLSReload(t *testing.T) {
 
 	write(t, certA, keyA)
 
-	h := &Headscale{cfg: &types.Config{TLS: types.TLSConfig{CertPath: certPath, KeyPath: keyPath}}}
+	h := &Orgscale{cfg: &types.Config{TLS: types.TLSConfig{CertPath: certPath, KeyPath: keyPath}}}
 
 	bundle, err := h.getTLSSettings(t.Context())
 	require.NoError(t, err)
@@ -415,7 +415,7 @@ func TestStaticTLSReload(t *testing.T) {
 	assertServed := func(t *testing.T, want []byte) {
 		t.Helper()
 
-		for _, serverName := range []string{"", "headscale.example.com"} {
+		for _, serverName := range []string{"", "orgscale.example.com"} {
 			assert.Equal(t, want, servedCertificate(t, bundle.Config, serverName), "SNI %q", serverName)
 		}
 	}
@@ -468,7 +468,7 @@ func TestStaticTLSExpiredAtStartup(t *testing.T) {
 	require.NoError(t, os.WriteFile(certPath, certPEM, 0o600))
 	require.NoError(t, os.WriteFile(keyPath, keyPEM, 0o600))
 
-	h := &Headscale{cfg: &types.Config{TLS: types.TLSConfig{CertPath: certPath, KeyPath: keyPath}}}
+	h := &Orgscale{cfg: &types.Config{TLS: types.TLSConfig{CertPath: certPath, KeyPath: keyPath}}}
 
 	bundle, err := h.getTLSSettings(t.Context())
 	require.NoError(t, err)
@@ -476,7 +476,7 @@ func TestStaticTLSExpiredAtStartup(t *testing.T) {
 }
 
 func TestStaticTLSLoadErrorNamesConfigKeys(t *testing.T) {
-	h := &Headscale{cfg: &types.Config{TLS: types.TLSConfig{CertPath: "/nonexistent/cert", KeyPath: "/nonexistent/key"}}}
+	h := &Orgscale{cfg: &types.Config{TLS: types.TLSConfig{CertPath: "/nonexistent/cert", KeyPath: "/nonexistent/key"}}}
 
 	_, err := h.getTLSSettings(t.Context())
 	require.ErrorContains(t, err, "tls.cert_path")
@@ -484,7 +484,7 @@ func TestStaticTLSLoadErrorNamesConfigKeys(t *testing.T) {
 }
 
 func TestPlainHTTPHasNoTLSReload(t *testing.T) {
-	h := &Headscale{cfg: &types.Config{ServerURL: "http://headscale.example.com"}}
+	h := &Orgscale{cfg: &types.Config{ServerURL: "http://orgscale.example.com"}}
 
 	bundle, err := h.getTLSSettings(t.Context())
 	require.NoError(t, err)

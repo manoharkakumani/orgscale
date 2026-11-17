@@ -47,21 +47,21 @@ body:
       label: Environment
       description: |
         Please provide information about your environment.
-        If you are using a container, always provide the headscale version and not only the Docker image version.
+        If you are using a container, always provide the orgscale version and not only the Docker image version.
         Please do not put "latest".
 
-        Describe your "headscale network". Is there a lot of nodes, are the nodes all interconnected, are some subnet routers?
+        Describe your "orgscale network". Is there a lot of nodes, are the nodes all interconnected, are some subnet routers?
 
-        If you are experiencing a problem during an upgrade, please provide the versions of the old and new versions of Headscale and Tailscale.
+        If you are experiencing a problem during an upgrade, please provide the versions of the old and new versions of Orgscale and Tailscale.
 
         examples:
           - **OS**: Ubuntu 24.04
-          - **Headscale version**: 0.24.3
+          - **Orgscale version**: 0.24.3
           - **Tailscale version**: 1.80.0
           - **Number of nodes**: 20
       value: |
         - OS:
-        - Headscale version:
+        - Orgscale version:
         - Tailscale version:
       render: markdown
     validations:
@@ -70,9 +70,9 @@ body:
     attributes:
       label: Runtime environment
       options:
-        - label: Headscale is behind a (reverse) proxy
+        - label: Orgscale is behind a (reverse) proxy
           required: false
-        - label: Headscale runs in a container
+        - label: Orgscale runs in a container
           required: false
   - type: textarea
     attributes:
@@ -87,8 +87,8 @@ body:
 
         - Client netmap dump (see below)
         - Policy configuration
-        - Headscale configuration
-        - Headscale log (with `trace` enabled)
+        - Orgscale configuration
+        - Orgscale log (with `trace` enabled)
 
         Dump the netmap of tailscale clients:
         `tailscale debug netmap > DESCRIPTIVE_NAME.json`

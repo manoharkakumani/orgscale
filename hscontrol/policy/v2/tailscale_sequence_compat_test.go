@@ -30,7 +30,7 @@ import (
 	"tailscale.com/tailcfg"
 )
 
-// policySequenceSkipReasons lists checks where headscale differs from SaaS,
+// policySequenceSkipReasons lists checks where orgscale differs from SaaS,
 // keyed <test_id>/<step>/<node>/<check>. A listed check that matches fails,
 // so a fix must delete its entry.
 var policySequenceSkipReasons = map[string]string{}
@@ -46,7 +46,7 @@ var policySequenceNotCompared = []string{
 }
 
 // TestPolicySequenceCompat follows the capture with one PolicyManager, as
-// headscale does: SetNodes after each node change, SetPolicy for the edit,
+// orgscale does: SetNodes after each node change, SetPolicy for the edit,
 // with nodes rebuilt from the step's device list and route reads. After each
 // step it compares, per node SaaS captured, the filter and SSH rules, and
 // the auto-approval of routes the step advertised. At every step the manager
@@ -73,7 +73,7 @@ func runPolicySequenceCompat(t *testing.T, id string) {
 
 	users := setupGrantsCompatUsers()
 
-	// Node IDs follow join order, as headscale would assign them.
+	// Node IDs follow join order, as orgscale would assign them.
 	ids := map[string]types.NodeID{}
 
 	var (
@@ -244,7 +244,7 @@ type sequenceDevice struct {
 // sequenceNodes builds the nodes SaaS listed after step: addresses, tags and,
 // for untagged devices, the owner from the device list; advertised and
 // approved routes from the step's route reads. It also returns each node's
-// approved routes. A tagged node has no user, as headscale stores it.
+// approved routes. A tagged node has no user, as orgscale stores it.
 func sequenceNodes(
 	t *testing.T,
 	users types.Users,

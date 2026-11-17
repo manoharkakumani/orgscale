@@ -68,7 +68,7 @@ type AuthInfo struct {
 }
 
 type AuthProviderOIDC struct {
-	h         *Headscale
+	h         *Orgscale
 	serverURL string
 	cfg       *types.OIDCConfig
 
@@ -88,7 +88,7 @@ type AuthProviderOIDC struct {
 
 func NewAuthProviderOIDC(
 	ctx context.Context,
-	h *Headscale,
+	h *Orgscale,
 	serverURL string,
 	cfg *types.OIDCConfig,
 	clientSecret string, // cfg.ClientSecret, resolved
@@ -131,7 +131,7 @@ func NewAuthProviderOIDC(
 
 // cookiesSecure reports whether the OIDC cookies should carry the Secure flag.
 // It keys off the configured server_url scheme, not req.TLS, so cookies stay
-// Secure behind a TLS-terminating reverse proxy (where the proxy→Headscale hop
+// Secure behind a TLS-terminating reverse proxy (where the proxy→Orgscale hop
 // is plain HTTP and req.TLS is nil). Deriving it from config avoids trusting a
 // spoofable X-Forwarded-Proto header.
 func (a *AuthProviderOIDC) cookiesSecure() bool {
@@ -693,7 +693,7 @@ func (a *AuthProviderOIDC) createOrUpdateUserFromClaim(
 // rendered the interstitial. It includes a per-session prefix derived
 // from the auth ID so cookies for unrelated registrations on the same
 // browser do not collide.
-const registerConfirmCSRFCookie = "headscale_register_confirm"
+const registerConfirmCSRFCookie = "orgscale_register_confirm"
 
 // registrationLinkSpentMsg is logged when a user returns to a
 // registration link whose session is gone, which is usually a reload or a
@@ -713,7 +713,7 @@ var errRegistrationLinkSpent = newHTTPUserError(
 
 // registerConfirmURL is the browser-facing URL of the confirmation page.
 // It is built from server_url, like [AuthProviderOIDC.RegisterURL] and the
-// OIDC redirect URI, so a Headscale that a reverse proxy serves under a
+// OIDC redirect URI, so a Orgscale that a reverse proxy serves under a
 // path prefix hands the browser a URL that resolves.
 func (a *AuthProviderOIDC) registerConfirmURL(authID types.AuthID) string {
 	return authPathURL(a.serverURL, "register/confirm", authID)
@@ -1138,7 +1138,7 @@ func renderRegistrationSuccessTemplate(
 	reauth bool,
 ) *bytes.Buffer {
 	result := templates.AuthSuccessResult{
-		Title:   "Headscale - Node Reauthenticated",
+		Title:   "Orgscale - Node Reauthenticated",
 		Heading: "Node reauthenticated",
 		Verb:    "Reauthenticated",
 		User:    user.Display(),
@@ -1149,7 +1149,7 @@ func renderRegistrationSuccessTemplate(
 	}
 
 	if !reauth {
-		result.Title = "Headscale - Node Registered"
+		result.Title = "Orgscale - Node Registered"
 		result.Heading = "Node registered"
 		result.Verb = "Registered"
 	}
@@ -1161,7 +1161,7 @@ func renderAuthSuccessTemplate(
 	user *types.User,
 ) *bytes.Buffer {
 	result := templates.AuthSuccessResult{
-		Title:   "Headscale - SSH Session Authorized",
+		Title:   "Orgscale - SSH Session Authorized",
 		Heading: "SSH session authorized",
 		Verb:    "Authorized",
 		User:    user.Display(),

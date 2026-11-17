@@ -1,5 +1,5 @@
 #!/bin/sh
-# postinst script for headscale.
+# postinst script for orgscale.
 
 set -e
 
@@ -15,53 +15,53 @@ set -e
 # for details, see https://www.debian.org/doc/debian-policy/ or
 # the debian-policy package.
 
-HEADSCALE_USER="headscale"
-HEADSCALE_GROUP="headscale"
-HEADSCALE_HOME_DIR="/var/lib/headscale"
-HEADSCALE_SHELL="/usr/sbin/nologin"
-HEADSCALE_SERVICE="headscale.service"
+ORGSCALE_USER="orgscale"
+ORGSCALE_GROUP="orgscale"
+ORGSCALE_HOME_DIR="/var/lib/orgscale"
+ORGSCALE_SHELL="/usr/sbin/nologin"
+ORGSCALE_SERVICE="orgscale.service"
 
 case "$1" in
     configure)
-      groupadd --force --system "$HEADSCALE_GROUP"
-      if ! id -u "$HEADSCALE_USER" >/dev/null 2>&1; then
-        useradd --system --shell "$HEADSCALE_SHELL" \
-          --gid "$HEADSCALE_GROUP" --home-dir "$HEADSCALE_HOME_DIR" \
-          --comment "headscale default user" "$HEADSCALE_USER"
+      groupadd --force --system "$ORGSCALE_GROUP"
+      if ! id -u "$ORGSCALE_USER" >/dev/null 2>&1; then
+        useradd --system --shell "$ORGSCALE_SHELL" \
+          --gid "$ORGSCALE_GROUP" --home-dir "$ORGSCALE_HOME_DIR" \
+          --comment "orgscale default user" "$ORGSCALE_USER"
       fi
 
       # Enable service and keep track of its state
-      if deb-systemd-helper --quiet was-enabled "$HEADSCALE_SERVICE"; then
-        deb-systemd-helper enable "$HEADSCALE_SERVICE" >/dev/null || true
+      if deb-systemd-helper --quiet was-enabled "$ORGSCALE_SERVICE"; then
+        deb-systemd-helper enable "$ORGSCALE_SERVICE" >/dev/null || true
       else
-        deb-systemd-helper update-state "$HEADSCALE_SERVICE" >/dev/null || true
+        deb-systemd-helper update-state "$ORGSCALE_SERVICE" >/dev/null || true
       fi
 
       # Bounce service
       if [ -d /run/systemd/system ]; then
         systemctl --system daemon-reload >/dev/null || true
         # Check what the unit would load: its user, working directory and
-        # HOME, and no HEADSCALE_* variables from this shell. A rejected
-        # configuration is not restarted, so an upgraded headscale keeps the
+        # HOME, and no ORGSCALE_* variables from this shell. A rejected
+        # configuration is not restarted, so an upgraded orgscale keeps the
         # previous version until something else restarts it.
-        if (cd "$HEADSCALE_HOME_DIR" && setpriv --reuid="$HEADSCALE_USER" --regid="$HEADSCALE_GROUP" --init-groups env -i HOME="$HEADSCALE_HOME_DIR" /usr/bin/headscale check config) >/dev/null; then
+        if (cd "$ORGSCALE_HOME_DIR" && setpriv --reuid="$ORGSCALE_USER" --regid="$ORGSCALE_GROUP" --init-groups env -i HOME="$ORGSCALE_HOME_DIR" /usr/bin/orgscale check config) >/dev/null; then
           if [ -n "$2" ]; then
-            deb-systemd-invoke restart "$HEADSCALE_SERVICE" >/dev/null || true
+            deb-systemd-invoke restart "$ORGSCALE_SERVICE" >/dev/null || true
           else
-            deb-systemd-invoke start "$HEADSCALE_SERVICE" >/dev/null || true
+            deb-systemd-invoke start "$ORGSCALE_SERVICE" >/dev/null || true
           fi
         else
           if [ -n "$2" ]; then
-            echo 'headscale was not restarted after the upgrade: its configuration does not pass "headscale check config" (errors above).' >&2
-            echo 'A running headscale keeps the previous version only until it restarts: needrestart after apt, a reboot or a crash starts this version, which refuses the configuration and stays stopped until it is fixed.' >&2
+            echo 'orgscale was not restarted after the upgrade: its configuration does not pass "orgscale check config" (errors above).' >&2
+            echo 'A running orgscale keeps the previous version only until it restarts: needrestart after apt, a reboot or a crash starts this version, which refuses the configuration and stays stopped until it is fixed.' >&2
           else
-            echo 'headscale was not started: its configuration does not pass "headscale check config" (errors above).' >&2
+            echo 'orgscale was not started: its configuration does not pass "orgscale check config" (errors above).' >&2
           fi
-          echo 'Fix what it names in /etc/headscale/config.yaml; a new install needs server_url.' >&2
-          echo '"headscale generate config --minimal" prints the keys every server must set.' >&2
-          echo 'Then run: sudo systemctl restart headscale' >&2
+          echo 'Fix what it names in /etc/orgscale/config.yaml; a new install needs server_url.' >&2
+          echo '"orgscale generate config --minimal" prints the keys every server must set.' >&2
+          echo 'Then run: sudo systemctl restart orgscale' >&2
           echo 'The check does not see "systemctl edit" drop-ins (variables, an EnvironmentFile, or an ExecStart that points at another config);' >&2
-          echo "if headscale's configuration is set there, start it yourself." >&2
+          echo "if orgscale's configuration is set there, start it yourself." >&2
         fi
       fi
     ;;

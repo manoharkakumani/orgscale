@@ -104,7 +104,7 @@ func runViaHACompat(t *testing.T, c *testcapture.Capture) {
 		srv.App.Change(changes...)
 	}
 
-	// Create nodes in SaaS node ID order so headscale assigns
+	// Create nodes in SaaS node ID order so orgscale assigns
 	// sequential DB IDs in the same relative order.
 	clients := map[string]*servertest.TestClient{}
 	order := captureNodeOrder(t, c)
@@ -218,7 +218,7 @@ func runViaHACompat(t *testing.T, c *testcapture.Capture) {
 	}
 }
 
-// viaHAFailoverSkipReasons lists checks where headscale differs from SaaS,
+// viaHAFailoverSkipReasons lists checks where orgscale differs from SaaS,
 // keyed <test_id>/<step>/<viewer>/<check>. A listed check that matches
 // fails, so a fix must delete its entry.
 var viaHAFailoverSkipReasons = map[string]string{}
@@ -342,7 +342,7 @@ func routeOwners(nm *netmap.NetworkMap, alias func(tailcfg.NodeID) (string, bool
 	return strings.Join(out, "; ")
 }
 
-// compareCaptureNetmap compares headscale's [tailcfg.MapResponse] against a
+// compareCaptureNetmap compares orgscale's [tailcfg.MapResponse] against a
 // [testcapture.Node]'s [netmap.NetworkMap] data. Same logic as [compareNetmap] but
 // reads from typed [testcapture] fields instead of goldenFile strings.
 // It takes [require.TestingT] so it can run inside [requireNetmapHolds].
@@ -401,7 +401,7 @@ func compareCaptureNetmap(
 		}
 	}
 
-	// Build peer summaries from headscale [tailcfg.MapResponse].
+	// Build peer summaries from orgscale [tailcfg.MapResponse].
 	gotPeers := map[string]capturePeerSummary{}
 
 	for _, peer := range nm.Peers {
@@ -445,7 +445,7 @@ func compareCaptureNetmap(
 	for name, wantPeer := range wantPeers {
 		gotPeer, visible := gotPeers[name]
 		if !visible {
-			t.Errorf("peer %s: visible in SaaS, missing in headscale (routes=%v)",
+			t.Errorf("peer %s: visible in SaaS, missing in orgscale (routes=%v)",
 				name, wantPeer.RoutePrefixes)
 
 			continue
@@ -464,7 +464,7 @@ func compareCaptureNetmap(
 	// Check for extra peers.
 	for name := range gotPeers {
 		if _, expected := wantPeers[name]; !expected {
-			t.Errorf("peer %s: visible in headscale but NOT in SaaS", name)
+			t.Errorf("peer %s: visible in orgscale but NOT in SaaS", name)
 		}
 	}
 
@@ -472,7 +472,7 @@ func compareCaptureNetmap(
 	if len(want.PacketFilterRules) > 0 {
 		gotLen := nm.PacketFilterRules.Len()
 		assert.Equalf(t, len(want.PacketFilterRules), gotLen,
-			"PacketFilter rule count mismatch (SaaS=%d, headscale=%d)",
+			"PacketFilter rule count mismatch (SaaS=%d, orgscale=%d)",
 			len(want.PacketFilterRules), gotLen,
 		)
 	}
@@ -540,7 +540,7 @@ var captureUserNames = map[string]string{
 	"freya@example.com": "freya",
 }
 
-// createCaptureUsers creates a headscale user for each capture identity,
+// createCaptureUsers creates a orgscale user for each capture identity,
 // keyed by name.
 func createCaptureUsers(t *testing.T, srv *servertest.TestServer) map[string]*types.User {
 	t.Helper()
@@ -553,7 +553,7 @@ func createCaptureUsers(t *testing.T, srv *servertest.TestServer) map[string]*ty
 	return users
 }
 
-// convertCapturePolicy converts a [testcapture.Capture]'s policy for headscale;
+// convertCapturePolicy converts a [testcapture.Capture]'s policy for orgscale;
 // see [convertPolicyEmails].
 func convertCapturePolicy(t *testing.T, c *testcapture.Capture) []byte {
 	t.Helper()
@@ -617,7 +617,7 @@ func requireSkipCaptures(t *testing.T, skips map[string]string, ids ...string) {
 	}
 }
 
-// stepReplay drives a step capture's actions against headscale: policy
+// stepReplay drives a step capture's actions against orgscale: policy
 // pushes, key mints and revokes, joins, relogins, profile switches,
 // restarts, kills, shutdowns, route announcements, logouts, retires and admin
 // calls, the last through the v2 API with the bodies SaaS received. Nothing
@@ -660,7 +660,7 @@ type stepReplay struct {
 	// so it records removals of peers it never held.
 	deltaUpdates bool
 
-	// readAPI, when set, replays reads too and keeps headscale's answer to
+	// readAPI, when set, replays reads too and keeps orgscale's answer to
 	// each admin exchange in answers, by action index, instead of failing on
 	// a status that differs from SaaS's.
 	readAPI bool
@@ -708,13 +708,13 @@ var memStateNodes = map[string]map[string]bool{
 	"ephemeral-lifecycle": {"mem": true, "mem-kill": true},
 }
 
-// apiAnswer is headscale's answer to one replayed admin exchange.
+// apiAnswer is orgscale's answer to one replayed admin exchange.
 type apiAnswer struct {
 	status int
 	body   []byte
 }
 
-// apply runs the step's actions in order and returns the logins headscale
+// apply runs the step's actions in order and returns the logins orgscale
 // refused, by node. Reads are what consumers compare, so they are skipped
 // unless readAPI is set.
 func (r *stepReplay) apply(t *testing.T, step testcapture.Step) map[string]error {
@@ -998,7 +998,7 @@ func (r *stepReplay) remember(alias string) {
 	}
 }
 
-// v2Path maps a SaaS API path onto headscale's v2 API, and its device and
+// v2Path maps a SaaS API path onto orgscale's v2 API, and its device and
 // key labels onto the replay's IDs. A device is its machine's one node, or
 // the last one it held. It reports false for a label the replay never
 // created and for a machine holding several nodes.
@@ -1078,11 +1078,11 @@ func (r *stepReplay) api(t *testing.T, stepName string, i int, a testcapture.Act
 		}
 
 	case a.Method == http.MethodPost && strings.HasPrefix(a.Path, "/tailnet/-/dns/"):
-		// Headscale reads DNS from its config, which a consumer sets from
+		// Orgscale reads DNS from its config, which a consumer sets from
 		// the capture's input; it has no API to change it.
 
 	case a.Method == http.MethodPost && a.Path == "/tailnet/-/acl/validate":
-		// A validation changes nothing, and headscale's v2 API has none;
+		// A validation changes nothing, and orgscale's v2 API has none;
 		// TestAPIv2ACLCompat in .. lists that difference.
 
 	case a.Method == http.MethodPost && a.Path == "/tailnet/-/acl":
@@ -1140,7 +1140,7 @@ func (r *stepReplay) api(t *testing.T, stepName string, i int, a testcapture.Act
 		r.exchange(t, stepName, i, a, path)
 
 	case a.Method == http.MethodPost && strings.HasSuffix(a.Path, "/role"):
-		// Headscale has no user roles; a role decides only what the user's
+		// Orgscale has no user roles; a role decides only what the user's
 		// own API key may call, and the replay mints for him directly.
 
 	case strings.HasPrefix(a.Path, "/device/"):
@@ -1154,7 +1154,7 @@ func (r *stepReplay) api(t *testing.T, stepName string, i int, a testcapture.Act
 	}
 }
 
-// exchange sends a's request to headscale at path. With readAPI the answer
+// exchange sends a's request to orgscale at path. With readAPI the answer
 // is kept for the consumer; otherwise its status must be SaaS's.
 func (r *stepReplay) exchange(t *testing.T, stepName string, i int, a testcapture.Action, path string) {
 	t.Helper()
@@ -1211,7 +1211,7 @@ func (r *stepReplay) node(t *testing.T, alias string) types.NodeView {
 	return nodes[0]
 }
 
-// waitSession holds a join, kill or start until headscale shows the node's
+// waitSession holds a join, kill or start until orgscale shows the node's
 // session up or gone, and a join's routes approved, as the probe waited for
 // the device's control connection. A join's poll starts in the background,
 // and the election keeps the router that came online first.

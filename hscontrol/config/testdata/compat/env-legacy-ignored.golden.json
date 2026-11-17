@@ -22,7 +22,7 @@
     "PrefixV4": "100.64.0.0/10",
     "PrefixV6": "fd7a:115c:a1e0::/48",
     "IPAllocation": "sequential",
-    "NoisePrivateKeyPath": "/var/lib/headscale/noise.key",
+    "NoisePrivateKeyPath": "/var/lib/orgscale/noise.key",
     "BaseDomain": "tailnet.internal",
     "Log": {
       "Format": "text",
@@ -39,7 +39,7 @@
         "ParameterizedQueries": false
       },
       "Sqlite": {
-        "Path": "/var/lib/headscale/db.sqlite",
+        "Path": "/var/lib/orgscale/db.sqlite",
         "WriteAheadLog": true,
         "WALAutoCheckPoint": 1000
       },
@@ -86,15 +86,15 @@
       "IPv6": ""
     },
     "TLS": {
-      "CertPath": "/etc/headscale/tls.crt",
-      "KeyPath": "/etc/headscale/tls.key",
+      "CertPath": "/etc/orgscale/tls.crt",
+      "KeyPath": "/etc/orgscale/tls.key",
       "ACME": {
         "Hostname": "",
         "ChallengeType": "HTTP-01",
         "HTTPListen": ":http",
         "URL": "",
         "Email": "",
-        "CacheDir": "/var/lib/headscale/cache"
+        "CacheDir": "/var/lib/orgscale/cache"
       }
     },
     "DNSConfig": {
@@ -122,7 +122,7 @@
       ],
       "ProviderName": ""
     },
-    "UnixSocket": "/var/run/headscale/headscale.sock",
+    "UnixSocket": "/var/run/orgscale/orgscale.sock",
     "UnixSocketPermission": 504,
     "OIDC": {
       "OnlyStartIfOIDCIsAvailable": true,
@@ -173,10 +173,10 @@
     }
   },
   "warnings": [
-    "configuration variable HEADSCALE_DATABASE_GORM_PREPARE_STMT was removed in 0.30; remove HEADSCALE_DATABASE_GORM_PREPARE_STMT; see the CHANGELOG for context",
-    "configuration variable HEADSCALE_DB_TYPE was removed in 0.30; use HEADSCALE_DATABASE_TYPE",
-    "configuration variable HEADSCALE_DNS_CONFIG_MAGIC_DNS was removed in 0.30; use HEADSCALE_DNS_MAGIC_DNS",
-    "configuration variable HEADSCALE_EPHEMERAL_NODE_INACTIVITY_TIMEOUT was removed in 0.30; use HEADSCALE_NODE_EPHEMERAL_INACTIVITY_TIMEOUT",
-    "configuration variable HEADSCALE_PRIVATE_KEY_PATH was removed in 0.23; use HEADSCALE_NOISE_PRIVATE_KEY_PATH"
+    "configuration variable ORGSCALE_DATABASE_GORM_PREPARE_STMT was removed in 0.30; remove ORGSCALE_DATABASE_GORM_PREPARE_STMT; see the CHANGELOG for context",
+    "configuration variable ORGSCALE_DB_TYPE was removed in 0.30; use ORGSCALE_DATABASE_TYPE",
+    "configuration variable ORGSCALE_DNS_CONFIG_MAGIC_DNS was removed in 0.30; use ORGSCALE_DNS_MAGIC_DNS",
+    "configuration variable ORGSCALE_EPHEMERAL_NODE_INACTIVITY_TIMEOUT was removed in 0.30; use ORGSCALE_NODE_EPHEMERAL_INACTIVITY_TIMEOUT",
+    "configuration variable ORGSCALE_PRIVATE_KEY_PATH was removed in 0.23; use ORGSCALE_NOISE_PRIVATE_KEY_PATH"
   ]
 }

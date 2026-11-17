@@ -15,16 +15,16 @@ let
   );
 in
 {
-  name = "headscale";
+  name = "orgscale";
   meta.maintainers = with lib.maintainers; [
     kradalby
     misterio77
   ];
 
   nodes = {
-    headscale = {
+    orgscale = {
       imports = [ self.nixosModules.testkit ];
-      services.headscale.settings.dns = {
+      services.orgscale.settings.dns = {
         extra_records = [
           {
             name = "foo.bar";
@@ -37,13 +37,13 @@ in
         challenge.provider = {
           name = "rfc2136";
           server = "127.0.0.1:53";
-          key_name = "headscale.";
+          key_name = "orgscale.";
           key_alg = "hmac-sha256.";
           key = "file:\${CREDENTIALS_DIRECTORY}/tsig";
         };
       };
       # Read by serve, never by the checks.
-      systemd.services.headscale.serviceConfig.LoadCredential = [
+      systemd.services.orgscale.serviceConfig.LoadCredential = [
         "tsig:${pkgs.writeText "tsig" "c2VjcmV0"}"
       ];
     };
@@ -63,11 +63,11 @@ in
     from datetime import timedelta
 
     start_all()
-    key = headscale.succeed("hs-authkey test").strip()
+    key = orgscale.succeed("hs-authkey test").strip()
     for peer in [peer1, peer2]:
         peer.succeed(f"hs-join {key}")
 
-    peer1.wait_until_succeeds("tailscale ping --until-direct=false -c 1 peer2 | grep -F 'via DERP(headscale)'")
+    peer1.wait_until_succeeds("tailscale ping --until-direct=false -c 1 peer2 | grep -F 'via DERP(orgscale)'")
     peer2.wait_until_succeeds("tailscale ping --until-direct=false -c 1 peer1.tailnet")
     res = peer1.wait_until_succeeds("${lib.getExe pkgs.dig} +short foo.bar").strip()
     assert res == "100.64.0.2", res
@@ -75,21 +75,21 @@ in
         "tailscale status --json | ${lib.getExe pkgs.jq} -e '.CertDomains == [\"peer1.tailnet\"]'"
     )
 
-    headscale.succeed("headscale policy set -f ${policy}")
+    orgscale.succeed("orgscale policy set -f ${policy}")
     # The default socket needs neither a config file nor a variable.
-    headscale.succeed("env -u HEADSCALE_UNIX_SOCKET headscale nodes list")
+    orgscale.succeed("env -u ORGSCALE_UNIX_SOCKET orgscale nodes list")
     # sudo resets the environment; PAM sets the module's variables again.
-    out = headscale.succeed("env -u HEADSCALE_DISABLE_CHECK_UPDATES sudo printenv HEADSCALE_DISABLE_CHECK_UPDATES")
+    out = orgscale.succeed("env -u ORGSCALE_DISABLE_CHECK_UPDATES sudo printenv ORGSCALE_DISABLE_CHECK_UPDATES")
     assert out.strip() == "true", out
 
     # The docs tell operators to run this; it needs ExecReload in the unit.
-    headscale.succeed("systemctl reload headscale.service")
-    headscale.wait_until_succeeds("journalctl -u headscale.service --grep 'Received SIGHUP'")
+    orgscale.succeed("systemctl reload orgscale.service")
+    orgscale.wait_until_succeeds("journalctl -u orgscale.service --grep 'Received SIGHUP'")
 
     # Clients reconnect after a control restart, peer1 over the TLS listener.
-    headscale.systemctl("restart headscale.service")
-    headscale.wait_until_succeeds(
-        "headscale nodes list -o json | ${lib.getExe pkgs.jq} -e 'length == 2 and all(.[]; .online)'",
+    orgscale.systemctl("restart orgscale.service")
+    orgscale.wait_until_succeeds(
+        "orgscale nodes list -o json | ${lib.getExe pkgs.jq} -e 'length == 2 and all(.[]; .online)'",
         timeout=timedelta(minutes=2),
     )
     peer1.wait_until_succeeds("tailscale ping --until-direct=false -c 1 peer2")

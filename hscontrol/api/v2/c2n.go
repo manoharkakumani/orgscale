@@ -24,7 +24,7 @@ const c2nTimeout = 10 * time.Second
 // sendC2N sends a POST to path on the node's c2n handler, carried in a
 // [tailcfg.PingRequest], and waits for the node's HTTP response.
 func sendC2N(ctx context.Context, b Backend, nodeID types.NodeID, path string) (*http.Response, error) {
-	c2nReq, err := http.NewRequestWithContext(ctx, http.MethodPost, "http://headscale"+path, nil)
+	c2nReq, err := http.NewRequestWithContext(ctx, http.MethodPost, "http://orgscale"+path, nil)
 	if err != nil {
 		return nil, huma.Error500InternalServerError("building c2n request", err)
 	}

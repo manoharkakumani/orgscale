@@ -32,7 +32,7 @@ import (
 	"tailscale.com/types/views"
 )
 
-// lifecycleSkipReasons lists checks where headscale differs from SaaS, keyed
+// lifecycleSkipReasons lists checks where orgscale differs from SaaS, keyed
 // <test_id>/<step>[/<node or action index>]/<check>, with "collection" for
 // the step of what killed nodes leave behind. A listed check that matches
 // fails, so a fix must delete its entry.
@@ -61,7 +61,7 @@ func TestLifecycleSkipEntriesNameCaptures(t *testing.T) {
 }
 
 // stepCheck is one rendering of a step outcome: SaaS's, and how to read
-// headscale's.
+// orgscale's.
 type stepCheck struct {
 	name string
 	want string
@@ -138,7 +138,7 @@ func runRouteLifecycleCompat(t *testing.T, id, observer string, skips map[string
 
 			hsRoutes := func() (deviceRoutes, bool) { return r.hsDeviceRoutes(t, router) }
 
-			// hsPeer is the router as the observer's peer in headscale.
+			// hsPeer is the router as the observer's peer in orgscale.
 			hsPeer := func() (tailcfg.NodeView, string) {
 				nodes := r.machineNodes(router)
 				if len(nodes) != 1 {
@@ -352,13 +352,13 @@ func holdChecks(
 	}
 }
 
-// deviceRoutes is the routes API body, on SaaS and on headscale's v2 API.
+// deviceRoutes is the routes API body, on SaaS and on orgscale's v2 API.
 type deviceRoutes struct {
 	Advertised []string `json:"advertisedRoutes"`
 	Enabled    []string `json:"enabledRoutes"`
 }
 
-// hsDeviceRoutes reads alias's routes from headscale's v2 API, while its
+// hsDeviceRoutes reads alias's routes from orgscale's v2 API, while its
 // machine holds one node.
 func (r *stepReplay) hsDeviceRoutes(t *testing.T, alias string) (deviceRoutes, bool) {
 	t.Helper()
@@ -559,7 +559,7 @@ func peerOnline(p tailcfg.NodeView, missing string) string {
 	return strconv.FormatBool(p.Online().Get())
 }
 
-// peerSeen compares presence only: SaaS sends a coarser time than headscale.
+// peerSeen compares presence only: SaaS sends a coarser time than orgscale.
 func peerSeen(p tailcfg.NodeView, missing string) string {
 	if missing != "" {
 		return missing
@@ -860,7 +860,7 @@ func runEphemeralLifecycleCompat(t *testing.T, id, observer string) {
 
 // killedNode is what a killed node's collection is judged against: both
 // sides' devices and SaaS's observer view before the kill, where the
-// observer's headscale history stood then, and SaaS's observer frames since.
+// observer's orgscale history stood then, and SaaS's observer frames since.
 type killedNode struct {
 	saas, hs     []deviceView
 	prevObs      *netmap.NetworkMap
@@ -1154,7 +1154,7 @@ func registerFlags(attempts []testcapture.RegisterAttempt) string {
 	return strings.Join(out, "; ")
 }
 
-// answerChecks compares the status of each admin exchange headscale
+// answerChecks compares the status of each admin exchange orgscale
 // answered in the step, and the text of a not found, keyed by the action's
 // index.
 func (r *stepReplay) answerChecks(step testcapture.Step) []stepCheck {

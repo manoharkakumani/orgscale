@@ -12,7 +12,7 @@ import (
 )
 
 // WindowsConfigMessage shows a simple message in the browser for how to configure the Windows Tailscale client.
-func (h *Headscale) WindowsConfigMessage(
+func (h *Orgscale) WindowsConfigMessage(
 	writer http.ResponseWriter,
 	req *http.Request,
 ) {
@@ -22,7 +22,7 @@ func (h *Headscale) WindowsConfigMessage(
 }
 
 // AppleConfigMessage shows a simple message in the browser to point the user to the iOS/MacOS profile and instructions for how to install it.
-func (h *Headscale) AppleConfigMessage(
+func (h *Orgscale) AppleConfigMessage(
 	writer http.ResponseWriter,
 	req *http.Request,
 ) {
@@ -31,7 +31,7 @@ func (h *Headscale) AppleConfigMessage(
 	_, _ = writer.Write([]byte(templates.Apple(h.cfg.ServerURL).Render()))
 }
 
-func (h *Headscale) ApplePlatformConfig(
+func (h *Orgscale) ApplePlatformConfig(
 	writer http.ResponseWriter,
 	req *http.Request,
 ) {
@@ -109,11 +109,11 @@ var commonTemplate = textTemplate.Must(
     <key>PayloadUUID</key>
     <string>{{.UUID}}</string>
     <key>PayloadDisplayName</key>
-    <string>Headscale</string>
+    <string>Orgscale</string>
     <key>PayloadDescription</key>
     <string>Configure Tailscale login server to: {{.URL}}</string>
     <key>PayloadIdentifier</key>
-    <string>com.github.juanfont.headscale</string>
+    <string>com.github.juanfont.orgscale</string>
     <key>PayloadRemovalDisallowed</key>
     <false/>
     <key>PayloadType</key>
@@ -135,7 +135,7 @@ var payloadTemplate = textTemplate.Must(textTemplate.New("payloadTemplate").Pars
         <key>PayloadUUID</key>
         <string>{{.UUID}}</string>
         <key>PayloadIdentifier</key>
-        <string>com.github.juanfont.headscale</string>
+        <string>com.github.juanfont.orgscale</string>
         <key>PayloadVersion</key>
         <integer>1</integer>
         <key>PayloadEnabled</key>

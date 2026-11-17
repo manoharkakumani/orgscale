@@ -196,10 +196,10 @@ const (
 
 // Debug environment variable fields.
 const (
-	DebugDeadlock              = "HEADSCALE_DEBUG_DEADLOCK"
-	DebugDERPUseIP             = "HEADSCALE_DEBUG_DERP_USE_IP"
-	DebugDumpConfig            = "HEADSCALE_DEBUG_DUMP_CONFIG"
-	DebugHighCardinalityMetric = "HEADSCALE_DEBUG_HIGH_CARDINALITY_METRICS"
-	DebugProfilingEnabled      = "HEADSCALE_DEBUG_PROFILING_ENABLED"
-	DebugTailSQLEnabled        = "HEADSCALE_DEBUG_TAILSQL_ENABLED"
+	DebugDeadlock              = "ORGSCALE_DEBUG_DEADLOCK"
+	DebugDERPUseIP             = "ORGSCALE_DEBUG_DERP_USE_IP"
+	DebugDumpConfig            = "ORGSCALE_DEBUG_DUMP_CONFIG"
+	DebugHighCardinalityMetric = "ORGSCALE_DEBUG_HIGH_CARDINALITY_METRICS"
+	DebugProfilingEnabled      = "ORGSCALE_DEBUG_PROFILING_ENABLED"
+	DebugTailSQLEnabled        = "ORGSCALE_DEBUG_TAILSQL_ENABLED"
 )

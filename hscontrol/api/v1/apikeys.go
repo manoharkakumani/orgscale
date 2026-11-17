@@ -232,7 +232,7 @@ func apiKeyFromState(k *types.APIKey) ApiKey {
 // apiKeyMaskedPrefix reproduces the unexported types.APIKey.maskedPrefix.
 func apiKeyMaskedPrefix(prefix string) string {
 	if len(prefix) == types.NewAPIKeyPrefixLength {
-		return "hskey-api-" + prefix + "-***"
+		return "oskey-api-" + prefix + "-***"
 	}
 
 	// TODO(kradalby): remove in 0.32 with legacy key formats (announced).

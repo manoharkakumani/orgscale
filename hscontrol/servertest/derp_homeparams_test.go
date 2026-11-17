@@ -12,7 +12,7 @@ import (
 )
 
 // TestDERPHomeParamsReachClient pins what a real client keeps of the
-// DERP region scores headscale sends (#2918). Without scores the map has no
+// DERP region scores orgscale sends (#2918). Without scores the map has no
 // HomeParams, as SaaS sends (nodeattrs-derpmap-* captures). A client keeps
 // its last scores when a later map has none: nil means "no change", and an
 // empty map is dropped by omitempty on the wire. Only a new map session

@@ -156,7 +156,7 @@ var aclMapCompatTests = []string{
 	"acl-rs07", "acl-t10", "acl-u11", "acl-w02",
 }
 
-// viaCompatSkipReasons lists checks where headscale differs from SaaS, keyed
+// viaCompatSkipReasons lists checks where orgscale differs from SaaS, keyed
 // <test_id>/<node>/<check>, or by check alone where every capture differs the
 // same way. A listed check that matches fails, so a fix must delete its entry.
 var viaCompatSkipReasons = map[string]string{}
@@ -202,11 +202,11 @@ func TestACLMapCompat(t *testing.T) {
 }
 
 // TestViaGrantMapCompat loads golden captures from Tailscale SaaS and
-// compares headscale's [tailcfg.MapResponse] structure against the captured [netmap.NetworkMap].
+// compares orgscale's [tailcfg.MapResponse] structure against the captured [netmap.NetworkMap].
 //
 // The comparison is IP-independent: it validates peer visibility, route
 // prefixes in AllowedIPs, and PrimaryRoutes — not literal Tailscale IP
-// addresses which differ between Tailscale SaaS and headscale allocation.
+// addresses which differ between Tailscale SaaS and orgscale allocation.
 //
 // CROSS-DEPENDENCY WARNING:
 // This test reads golden files from ../policy/v2/testdata/grant_results/
@@ -452,7 +452,7 @@ func startCaptureClients(
 
 	// Create clients matching the golden topology: tagged nodes under
 	// tag-user, user-owned nodes under their capture user.
-	// Nodes are created in SaaS registration order so headscale assigns
+	// Nodes are created in SaaS registration order so orgscale assigns
 	// sequential DB IDs in the same relative order. This matters for
 	// PrimaryRoutes election which uses lowest-node-ID-wins — the
 	// tiebreaker must pick the same node as SaaS.
@@ -744,7 +744,7 @@ func (r *failRecorder) FailNow() {
 	r.CollectT.FailNow()
 }
 
-// compareNetmap compares the headscale [tailcfg.MapResponse] against the
+// compareNetmap compares the orgscale [tailcfg.MapResponse] against the
 // captured [netmap.NetworkMap] data in an IP-independent way: the peers (see
 // [comparePeers]), the PacketFilter (source, destination, ports) triples and
 // the user profiles.
@@ -824,7 +824,7 @@ func comparePeers(
 		}
 	}
 
-	// Build headscale peer map.
+	// Build orgscale peer map.
 	gotPeers := map[string]peerSummary{}
 
 	for _, peer := range got.Peers {
@@ -888,7 +888,7 @@ func comparePeers(
 		gotPeer, visible := gotPeers[name]
 		if !visible {
 			wantRoutes := extractRoutePrefixesView(wantPeer.AllowedIPs())
-			check["peers"].Errorf("peer %s: visible in Tailscale SaaS (routes=%v), missing in headscale",
+			check["peers"].Errorf("peer %s: visible in Tailscale SaaS (routes=%v), missing in orgscale",
 				name, wantRoutes)
 
 			continue
@@ -937,17 +937,17 @@ func comparePeers(
 			"peer %s: PrimaryRoutes mismatch", name)
 	}
 
-	// Check for extra peers headscale shows that Tailscale SaaS doesn't.
+	// Check for extra peers orgscale shows that Tailscale SaaS doesn't.
 	for name := range gotPeers {
 		if _, expected := wantPeers[name]; !expected {
-			check["peers"].Errorf("peer %s: visible in headscale but NOT in Tailscale SaaS", name)
+			check["peers"].Errorf("peer %s: visible in orgscale but NOT in Tailscale SaaS", name)
 		}
 	}
 }
 
 // compareUserProfiles compares the profile the viewer holds for itself and
 // for each peer in clients that both sides list; a peer on one side only is
-// the peers check's. Profile IDs differ between SaaS and headscale, so a
+// the peers check's. Profile IDs differ between SaaS and orgscale, so a
 // profile is its login, with SaaS emails mapped to user names, and its
 // display name.
 func compareUserProfiles(
@@ -1031,10 +1031,10 @@ func nodeProfiles(
 }
 
 // comparePacketFilter compares PacketFilter rules as a set of (source,
-// destination, ports or capability) triples. Headscale merges rules
+// destination, ports or capability) triples. Orgscale merges rules
 // that share sources while SaaS keeps one rule per policy entry, so rule
 // count and order differ without changing what the filter allows.
-// Tailscale IPs differ between SaaS and headscale allocation, so both
+// Tailscale IPs differ between SaaS and orgscale allocation, so both
 // sides are re-keyed by peer identity. A key listed in skips must differ.
 func comparePacketFilter(
 	t require.TestingT,
@@ -1177,7 +1177,7 @@ func saasAddrsByNode(
 	return out
 }
 
-// hsAddrsByPeer builds a map from headscale Tailscale address to peer
+// hsAddrsByPeer builds a map from orgscale Tailscale address to peer
 // hostname by walking each live client's self addresses.
 func hsAddrsByPeer(clients map[string]*servertest.TestClient) map[netip.Addr]string {
 	out := map[netip.Addr]string{}
@@ -1237,7 +1237,7 @@ func canonicaliseSrcStrings(
 	return sortedKeys(seen)
 }
 
-// canonicaliseSrcPrefixes is the headscale-side counterpart of
+// canonicaliseSrcPrefixes is the orgscale-side counterpart of
 // [canonicaliseSrcStrings], reading already-parsed [netip.Prefix] values
 // from [tailcfg.Match.Srcs].
 func canonicaliseSrcPrefixes(srcs []netip.Prefix, addrToPeer map[netip.Addr]string) []string {

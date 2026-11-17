@@ -40,7 +40,7 @@ func TestActionRefMatch(t *testing.T) {
 		},
 		{
 			name: "same-repo action",
-			line: "        uses: $/.github/actions/headscale-up\n",
+			line: "        uses: $/.github/actions/orgscale-up\n",
 		},
 	}
 
@@ -71,7 +71,7 @@ func TestRewriteActions(t *testing.T) {
           persist-credentials: false
       - uses: mitchellh/vouch/action/check-pr@v1.5.0
       - uses: self-actuated/block-with-tmux@master
-      - uses: $/.github/actions/headscale-up
+      - uses: $/.github/actions/orgscale-up
 `
 
 	const want = `    steps:
@@ -80,7 +80,7 @@ func TestRewriteActions(t *testing.T) {
           persist-credentials: false
       - uses: mitchellh/vouch/action/check-pr@v1.5.0
       - uses: self-actuated/block-with-tmux@master
-      - uses: $/.github/actions/headscale-up
+      - uses: $/.github/actions/orgscale-up
 `
 
 	// Pre-resolved, so the test needs no network; the branch is never looked up.

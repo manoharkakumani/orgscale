@@ -144,7 +144,7 @@ func TestGenerateExample(t *testing.T) {
 
 			above := commentAbove(text, `server_url: ""`)
 			assert.Contains(t, above, types.ConfigFields(&d)[serverURL].Doc)
-			assert.Contains(t, above, "Required. Example: https://headscale.example.com")
+			assert.Contains(t, above, "Required. Example: https://orgscale.example.com")
 			assert.Contains(t, commentAbove(text, `  level: info`), "One of: `trace`, `debug`, `info`, `warn`, `error`, `fatal`, `panic`, `disabled`.")
 			require.Contains(t, text, "\n  base_domain: tailnet.internal\n")
 			assert.NotContains(t, commentAbove(text, `  base_domain: tailnet.internal`), "Required when")
@@ -187,8 +187,8 @@ func TestKeyComment(t *testing.T) {
 		},
 		{
 			name: "required",
-			key:  keyInfo{ConfigField: types.ConfigField{Doc: "A key."}, Required: true, Example: "https://headscale.example.com"},
-			want: []string{"# A key.", "# Required. Example: https://headscale.example.com"},
+			key:  keyInfo{ConfigField: types.ConfigField{Doc: "A key."}, Required: true, Example: "https://orgscale.example.com"},
+			want: []string{"# A key.", "# Required. Example: https://orgscale.example.com"},
 		},
 		{
 			name: "required when",
@@ -366,7 +366,7 @@ func TestGenerateExampleMinimal(t *testing.T) {
 			name:       "minimal docs",
 			opts:       ExampleOptions{Docs: true, Minimal: true},
 			wantPrefix: minimalHeader + "\n",
-			wantText:   "Required. Example: https://headscale.example.com",
+			wantText:   "Required. Example: https://orgscale.example.com",
 			wantKeys:   []string{"server_url"},
 		},
 		{name: "full docs", opts: ExampleOptions{Docs: true}, wantPrefix: exampleHeader + "\n"},
@@ -394,7 +394,7 @@ func TestGenerateExampleMinimal(t *testing.T) {
 
 			// The leading newline matches a first line too.
 			require.Contains(t, "\n"+text, "\nserver_url: \"\"\n")
-			set := strings.Replace("\n"+text, "\nserver_url: \"\"\n", "\nserver_url: https://headscale.example.com\n", 1)
+			set := strings.Replace("\n"+text, "\nserver_url: \"\"\n", "\nserver_url: https://orgscale.example.com\n", 1)
 			path := filepath.Join(t.TempDir(), "config.yaml")
 			require.NoError(t, os.WriteFile(path, []byte(set), 0o600))
 

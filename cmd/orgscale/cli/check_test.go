@@ -120,7 +120,7 @@ func TestCheckPolicy(t *testing.T) {
 	t.Run("broken config ignored", func(t *testing.T) {
 		bad := filepath.Join(t.TempDir(), "bad.yaml")
 		require.NoError(t, os.WriteFile(bad, []byte("server_url: ["), 0o600))
-		t.Setenv("HEADSCALE_CONFIG", bad)
+		t.Setenv("ORGSCALE_CONFIG", bad)
 
 		cmd, _ := newCheckPolicyCmd(t, writePolicy(t, valid))
 		require.NoError(t, checkPolicyCmd.RunE(cmd, nil))
@@ -133,7 +133,7 @@ func writeServerConfig(t *testing.T, dir, extra string) string {
 	t.Helper()
 
 	p := filepath.Join(dir, "config.yaml")
-	require.NoError(t, os.WriteFile(p, []byte(`server_url: https://headscale.example.com
+	require.NoError(t, os.WriteFile(p, []byte(`server_url: https://orgscale.example.com
 noise:
   private_key_path: noise.key
 prefixes:
@@ -141,7 +141,7 @@ prefixes:
 database:
   type: sqlite3
   sqlite:
-    path: headscale.db
+    path: orgscale.db
 dns:
   magic_dns: false
   override_local_dns: false
@@ -203,7 +203,7 @@ func TestCheckConfig(t *testing.T) {
 
 	t.Run("server_url only", func(t *testing.T) {
 		dir := t.TempDir()
-		cfg := writeFile(t, dir, "config.yaml", "server_url: https://headscale.example.com\n")
+		cfg := writeFile(t, dir, "config.yaml", "server_url: https://orgscale.example.com\n")
 
 		d := config.Default()
 		paths := []string{filepath.Dir(d.Noise.PrivateKeyPath), d.Noise.PrivateKeyPath, d.Database.Sqlite.Path}
@@ -237,12 +237,12 @@ func TestCheckConfig(t *testing.T) {
 		{name: "empty file", file: "# empty\n", want: "server_url is required"},
 		{
 			name: "empty listen_addr",
-			file: "server_url: https://headscale.example.com\nlisten_addr: \"\"\n",
+			file: "server_url: https://orgscale.example.com\nlisten_addr: \"\"\n",
 			want: "listen_addr is required",
 		},
 		{
 			name: "empty sqlite path",
-			file: "server_url: https://headscale.example.com\ndatabase:\n  sqlite:\n    path: \"\"\n",
+			file: "server_url: https://orgscale.example.com\ndatabase:\n  sqlite:\n    path: \"\"\n",
 			want: "database.sqlite.path is required when database.type is sqlite",
 		},
 	} {
@@ -267,10 +267,10 @@ func TestCheckConfig(t *testing.T) {
 	})
 }
 
-// TestCheckConfigEnvOnly: HEADSCALE_SERVER_URL alone, without a file, is a
+// TestCheckConfigEnvOnly: ORGSCALE_SERVER_URL alone, without a file, is a
 // valid configuration.
 func TestCheckConfigEnvOnly(t *testing.T) {
-	stdout, stderr, err := runHeadscale(t, []string{"HOME=" + t.TempDir(), "HEADSCALE_SERVER_URL=https://headscale.example.com"}, "check", "config")
+	stdout, stderr, err := runOrgscale(t, []string{"HOME=" + t.TempDir(), "ORGSCALE_SERVER_URL=https://orgscale.example.com"}, "check", "config")
 	require.NoError(t, err, stderr)
 	require.Equal(t, "Configuration (defaults and environment) is valid\n", stdout)
 }
@@ -352,13 +352,13 @@ func TestCheckSecretsUnread(t *testing.T) {
 		missing := filepath.Join(dir, "missing")
 
 		for k, v := range map[string]string{
-			"HEADSCALE_OIDC_ISSUER":                      "https://idp.example.com",
-			"HEADSCALE_OIDC_CLIENT_ID":                   "headscale",
-			"HEADSCALE_OIDC_CLIENT_SECRET":               "file:" + missing,
-			"HEADSCALE_DATABASE_TYPE":                    "postgres",
-			"HEADSCALE_DATABASE_POSTGRES_PASS":           "file:" + missing,
-			"HEADSCALE_DNS_CHALLENGE_PROVIDER_NAME":      "cloudflare",
-			"HEADSCALE_DNS_CHALLENGE_PROVIDER_API_TOKEN": "file:" + missing,
+			"ORGSCALE_OIDC_ISSUER":                      "https://idp.example.com",
+			"ORGSCALE_OIDC_CLIENT_ID":                   "orgscale",
+			"ORGSCALE_OIDC_CLIENT_SECRET":               "file:" + missing,
+			"ORGSCALE_DATABASE_TYPE":                    "postgres",
+			"ORGSCALE_DATABASE_POSTGRES_PASS":           "file:" + missing,
+			"ORGSCALE_DNS_CHALLENGE_PROVIDER_NAME":      "cloudflare",
+			"ORGSCALE_DNS_CHALLENGE_PROVIDER_API_TOKEN": "file:" + missing,
 		} {
 			t.Setenv(k, v)
 		}
@@ -423,8 +423,8 @@ func TestCheckSecretsUnread(t *testing.T) {
 		t.Run("acme-dns registration "+field+" from file in env json", func(t *testing.T) {
 			dir := t.TempDir()
 
-			t.Setenv("HEADSCALE_DNS_CHALLENGE_PROVIDER_NAME", "acmedns")
-			t.Setenv("HEADSCALE_DNS_CHALLENGE_PROVIDER", fmt.Sprintf(
+			t.Setenv("ORGSCALE_DNS_CHALLENGE_PROVIDER_NAME", "acmedns")
+			t.Setenv("ORGSCALE_DNS_CHALLENGE_PROVIDER", fmt.Sprintf(
 				`{"config":{"Node.Example.com":{"username":"user","password":"pass","subdomain":"reg",%q:"file:%s"}}}`,
 				field, filepath.Join(dir, "missing")))
 
@@ -459,14 +459,14 @@ func TestCheckFileCommands(t *testing.T) {
 // log.level.
 func TestCheckConfigWarnings(t *testing.T) {
 	const (
-		unknown  = "unknown environment variable HEADSCALE_BOGUS"
-		removed  = "configuration variable HEADSCALE_DB_TYPE was removed"
+		unknown  = "unknown environment variable ORGSCALE_BOGUS"
+		removed  = "configuration variable ORGSCALE_DB_TYPE was removed"
 		advisory = "listen_addr should probably end in :443"
 		acme     = "tls:\n  acme:\n    hostname: example.com\n    challenge_type: TLS-ALPN-01\n"
 	)
 
-	t.Setenv("HEADSCALE_BOGUS", "1")
-	t.Setenv("HEADSCALE_DB_TYPE", "sqlite")
+	t.Setenv("ORGSCALE_BOGUS", "1")
+	t.Setenv("ORGSCALE_DB_TYPE", "sqlite")
 
 	dir := t.TempDir()
 	text := writeServerConfig(t, t.TempDir(), acme)

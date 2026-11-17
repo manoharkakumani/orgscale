@@ -7,7 +7,7 @@ import (
 )
 
 // Design System Constants
-// These constants define the visual language for all Headscale HTML templates.
+// These constants define the visual language for all Orgscale HTML templates.
 // They ensure consistency across all pages and make it easy to maintain and update the design.
 
 // Spacing System
@@ -204,7 +204,7 @@ func warningBox(title, message string) *elem.Element {
 func downloadButton(href, text string) *elem.Element {
 	return elem.A(attrs.Props{
 		attrs.Href:     href,
-		attrs.Download: "headscale_macos.mobileconfig",
+		attrs.Download: "orgscale_macos.mobileconfig",
 		attrs.Style: styles.Props{
 			styles.Display:         "inline-flex",
 			styles.AlignItems:      cssCenter,

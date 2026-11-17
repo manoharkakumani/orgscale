@@ -13,9 +13,9 @@ import (
 func Default() types.Config {
 	return types.Config{
 		Addr:                 "0.0.0.0:8080",
-		UnixSocket:           "/var/run/headscale/headscale.sock",
+		UnixSocket:           "/var/run/orgscale/orgscale.sock",
 		UnixSocketPermission: 0o770,
-		Noise:                types.NoiseConfig{PrivateKeyPath: "/var/lib/headscale/noise_private.key"},
+		Noise:                types.NoiseConfig{PrivateKeyPath: "/var/lib/orgscale/noise_private.key"},
 		Prefixes: types.PrefixesConfig{
 			V4:         new(netip.MustParsePrefix("100.64.0.0/10")),
 			V6:         new(netip.MustParsePrefix("fd7a:115c:a1e0::/48")),
@@ -43,7 +43,7 @@ func Default() types.Config {
 		Database: types.DatabaseConfig{
 			Type: types.DatabaseSqliteShort,
 			Sqlite: types.SqliteConfig{
-				Path:              "/var/lib/headscale/db.sqlite",
+				Path:              "/var/lib/orgscale/db.sqlite",
 				WriteAheadLog:     true,
 				WALAutoCheckPoint: 1000, // SQLite default
 			},
@@ -68,7 +68,7 @@ func Default() types.Config {
 		TLS: types.TLSConfig{ACME: types.ACMEConfig{
 			ChallengeType: types.HTTP01ChallengeType,
 			HTTPListen:    ":http",
-			CacheDir:      "/var/lib/headscale/cache",
+			CacheDir:      "/var/lib/orgscale/cache",
 		}},
 		OIDC: types.OIDCConfig{
 			OnlyStartIfOIDCIsAvailable: true,

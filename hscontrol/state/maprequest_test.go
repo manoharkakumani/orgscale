@@ -1126,10 +1126,10 @@ func saasDiscoRotation(t *testing.T) (bool, bool) {
 func benchMapRequestSetup(b *testing.B, n int) (*State, types.NodeID) {
 	b.Helper()
 
-	dbPath := b.TempDir() + "/headscale.db"
+	dbPath := b.TempDir() + "/orgscale.db"
 	cfg := persistTestConfig(dbPath)
 
-	database, err := db.NewHeadscaleDatabase(cfg)
+	database, err := db.NewOrgscaleDatabase(cfg)
 	require.NoError(b, err)
 
 	users := make([]*types.User, 10)
@@ -1248,10 +1248,10 @@ func newAutoApproveTestState(
 ) (*State, []types.NodeID, *atomic.Int64) {
 	t.Helper()
 
-	dbPath := t.TempDir() + "/headscale.db"
+	dbPath := t.TempDir() + "/orgscale.db"
 	cfg := persistTestConfig(dbPath)
 
-	database, err := db.NewHeadscaleDatabase(cfg)
+	database, err := db.NewOrgscaleDatabase(cfg)
 	require.NoError(t, err)
 
 	user := database.CreateUserForTest("aa-user")

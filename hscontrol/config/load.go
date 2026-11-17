@@ -32,7 +32,7 @@ import (
 )
 
 const (
-	configEnvPrefix = "HEADSCALE_"
+	configEnvPrefix = "ORGSCALE_"
 	providerKey     = "dns.challenge.provider"
 )
 
@@ -42,15 +42,15 @@ var configFileNames = []string{
 	"config.json", "config.toml", "config.yaml", "config.yml", "config.hujson", "config.dotenv", "config.env",
 }
 
-// reservedEnvPrefixes name variables with the HEADSCALE_ prefix that are not
+// reservedEnvPrefixes name variables with the ORGSCALE_ prefix that are not
 // configuration, so they never produce an unknown-variable warning.
 var reservedEnvPrefixes = []string{
-	"HEADSCALE_DEBUG_", "HEADSCALE_INTEGRATION_", "HEADSCALE_TEST_",
-	"HEADSCALE_DNS_CHALLENGE_PROVIDER_", "HEADSCALE_SERVICE_", "HEADSCALE_PORT",
+	"ORGSCALE_DEBUG_", "ORGSCALE_INTEGRATION_", "ORGSCALE_TEST_",
+	"ORGSCALE_DNS_CHALLENGE_PROVIDER_", "ORGSCALE_SERVICE_", "ORGSCALE_PORT",
 }
 
 var reservedEnvNames = []string{
-	"HEADSCALE_CONFIG", "HEADSCALE_UPDATE_GOLDEN",
+	"ORGSCALE_CONFIG", "ORGSCALE_UPDATE_GOLDEN",
 }
 
 // configSource is the layered configuration: defaults, then file, then
@@ -87,7 +87,7 @@ func configSearchDirs(environ []string) []string {
 		return ""
 	}
 
-	dirs := []string{"/etc/headscale"}
+	dirs := []string{"/etc/orgscale"}
 	home := get("HOME")
 
 	xdgHome := get("XDG_CONFIG_HOME")
@@ -96,7 +96,7 @@ func configSearchDirs(environ []string) []string {
 	}
 
 	if xdgHome != "" {
-		dirs = append(dirs, filepath.Join(xdgHome, "headscale"))
+		dirs = append(dirs, filepath.Join(xdgHome, "orgscale"))
 	}
 
 	xdgDirs := get("XDG_CONFIG_DIRS")
@@ -106,12 +106,12 @@ func configSearchDirs(environ []string) []string {
 
 	for d := range strings.SplitSeq(xdgDirs, ":") {
 		if d != "" {
-			dirs = append(dirs, filepath.Join(d, "headscale"))
+			dirs = append(dirs, filepath.Join(d, "orgscale"))
 		}
 	}
 
 	if home != "" {
-		dirs = append(dirs, filepath.Join(home, ".headscale"))
+		dirs = append(dirs, filepath.Join(home, ".orgscale"))
 	}
 
 	return append(dirs, ".")
@@ -431,7 +431,7 @@ type Loaded struct {
 }
 
 // Load loads defaults, the configuration file found via path and isFile,
-// and the HEADSCALE_* variables of environ (os.Environ form), rejecting
+// and the ORGSCALE_* variables of environ (os.Environ form), rejecting
 // removed and unknown file keys, and decodes them. It does not validate:
 // see [Validate].
 func Load(path string, isFile bool, environ []string) (*Loaded, error) {
@@ -837,7 +837,7 @@ func (s *configSource) loadEnv(environ []string) error {
 	}
 
 	// Other software shares the prefix (a Kubernetes Service named
-	// headscale-db sets HEADSCALE_DB_PORT), so variables only ever warn.
+	// orgscale-db sets ORGSCALE_DB_PORT), so variables only ever warn.
 	for _, name := range slices.Sorted(maps.Keys(env)) {
 		if names[name] {
 			continue
@@ -899,8 +899,8 @@ func (s *configSource) loadEnv(environ []string) error {
 	return errors.Join(append(errs, s.foldProviderEnv(env))...)
 }
 
-// foldProviderEnv sets HEADSCALE_DNS_CHALLENGE_PROVIDER_NAME, then each
-// HEADSCALE_DNS_CHALLENGE_PROVIDER_<SETTING> of the provider named once the
+// foldProviderEnv sets ORGSCALE_DNS_CHALLENGE_PROVIDER_NAME, then each
+// ORGSCALE_DNS_CHALLENGE_PROVIDER_<SETTING> of the provider named once the
 // rest is loaded. Settings depend on the provider, so the schema cannot list
 // them; a variable no setting of it has is ignored, as the prefix is
 // reserved.

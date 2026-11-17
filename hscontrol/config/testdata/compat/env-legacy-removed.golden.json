@@ -22,7 +22,7 @@
     "PrefixV4": "100.64.0.0/10",
     "PrefixV6": "fd7a:115c:a1e0::/48",
     "IPAllocation": "sequential",
-    "NoisePrivateKeyPath": "/var/lib/headscale/noise.key",
+    "NoisePrivateKeyPath": "/var/lib/orgscale/noise.key",
     "BaseDomain": "tailnet.internal",
     "Log": {
       "Format": "text",
@@ -39,7 +39,7 @@
         "ParameterizedQueries": false
       },
       "Sqlite": {
-        "Path": "/var/lib/headscale/db.sqlite",
+        "Path": "/var/lib/orgscale/db.sqlite",
         "WriteAheadLog": true,
         "WALAutoCheckPoint": 1000
       },
@@ -94,7 +94,7 @@
         "HTTPListen": ":http",
         "URL": "",
         "Email": "",
-        "CacheDir": "/var/lib/headscale/cache"
+        "CacheDir": "/var/lib/orgscale/cache"
       }
     },
     "DNSConfig": {
@@ -122,7 +122,7 @@
       ],
       "ProviderName": ""
     },
-    "UnixSocket": "/var/run/headscale/headscale.sock",
+    "UnixSocket": "/var/run/orgscale/orgscale.sock",
     "UnixSocketPermission": 504,
     "OIDC": {
       "OnlyStartIfOIDCIsAvailable": true,
@@ -173,8 +173,8 @@
     }
   },
   "warnings": [
-    "configuration variable HEADSCALE_ACL_POLICY_PATH was removed in 0.30; use HEADSCALE_POLICY_PATH",
-    "configuration variable HEADSCALE_OIDC_EXPIRY was removed in 0.29; use HEADSCALE_NODE_EXPIRY",
-    "configuration variable HEADSCALE_RANDOMIZE_CLIENT_PORT was removed in 0.29; set \"randomizeClientPort\": true at the top level of the policy file, or grant the cap per node via a \"nodeAttrs\" entry"
+    "configuration variable ORGSCALE_ACL_POLICY_PATH was removed in 0.30; use ORGSCALE_POLICY_PATH",
+    "configuration variable ORGSCALE_OIDC_EXPIRY was removed in 0.29; use ORGSCALE_NODE_EXPIRY",
+    "configuration variable ORGSCALE_RANDOMIZE_CLIENT_PORT was removed in 0.29; set \"randomizeClientPort\": true at the top level of the policy file, or grant the cap per node via a \"nodeAttrs\" entry"
   ]
 }

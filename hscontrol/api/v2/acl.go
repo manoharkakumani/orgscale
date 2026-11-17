@@ -32,7 +32,7 @@ const (
 // of "ts-default" matches against. Allow-all, matching the cluster's behaviour
 // with no configured policy.
 const defaultPolicy = `{
-	// Headscale default policy. Allows all communication.
+	// Orgscale default policy. Allows all communication.
 	"acls": [
 		{"action": "accept", "src": ["*"], "dst": ["*:*"]},
 	],

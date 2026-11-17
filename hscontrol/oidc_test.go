@@ -253,10 +253,10 @@ func newOIDCPendingProvider(t *testing.T, capacity int) *AuthProviderOIDC {
 
 	a := &AuthProviderOIDC{
 		h:         createTestApp(t),
-		serverURL: "https://headscale.example",
+		serverURL: "https://orgscale.example",
 		cfg:       &types.OIDCConfig{},
 		oauth2Config: &oauth2.Config{
-			ClientID: "headscale-test",
+			ClientID: "orgscale-test",
 			Endpoint: oauth2.Endpoint{
 				AuthURL:   "https://issuer.example/authorize",
 				AuthStyle: oauth2.AuthStyleInParams,
@@ -1057,7 +1057,7 @@ func TestSetCSRFCookieSecure(t *testing.T) {
 // whether the state cookie the callback deletes is actually gone on the
 // next hit.
 type oidcBrowser struct {
-	app       *Headscale
+	app       *Orgscale
 	idp       *mockoidc.MockOIDC
 	srv       *httptest.Server
 	publicURL string
@@ -1363,7 +1363,7 @@ func TestSetRegisterConfirmCookieSameSite(t *testing.T) {
 }
 
 // TestRegisterConfirmURLFollowsServerURLPrefix covers the deployment
-// where a reverse proxy serves Headscale under a path prefix. The
+// where a reverse proxy serves Orgscale under a path prefix. The
 // redirect target, the form action and the cookie scope are all seen by
 // the browser, so they carry the prefix even though the routed path does
 // not.

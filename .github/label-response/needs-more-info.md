@@ -9,7 +9,7 @@ To help us investigate and resolve this, we need more information. Please provid
 
 ### Environment Details
 
-- **Headscale version**: (run `headscale version`)
+- **Orgscale version**: (run `orgscale version`)
 - **Tailscale client version**: (run `tailscale version`)
 - **Operating System**: (e.g., Ubuntu 24.04, macOS 14, Windows 11)
 - **Deployment method**: (binary, Docker, Kubernetes, etc.)
@@ -45,9 +45,9 @@ Please follow our [Debugging and Troubleshooting Guide](https://headscale.net/st
    >
    > Without logs from both sides, we cannot diagnose connectivity issues.
 
-4. **Headscale server logs** with `log.level: trace` enabled
+4. **Orgscale server logs** with `log.level: trace` enabled
 
-5. **Headscale configuration** (with sensitive values redacted - see rules below)
+5. **Orgscale configuration** (with sensitive values redacted - see rules below)
 
 6. **ACL/Policy configuration** (if using ACLs)
 

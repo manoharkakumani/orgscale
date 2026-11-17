@@ -134,7 +134,7 @@ func TestGenerateConfigRunningRoundTrip(t *testing.T) {
 					args = append(args, "--no-docs")
 				}
 
-				stdout, stderr, err := runHeadscale(t, nil, args...)
+				stdout, stderr, err := runOrgscale(t, nil, args...)
 				require.NoError(t, err, stderr)
 				assert.Equal(t, docs, regexp.MustCompile(`(?m)^\s*#`).MatchString(stdout), "documentation comments")
 
@@ -251,8 +251,8 @@ func TestGenerateConfigCommand(t *testing.T) {
 	)
 
 	home := t.TempDir()
-	require.NoError(t, os.Mkdir(filepath.Join(home, ".headscale"), 0o700))
-	writeFile(t, filepath.Join(home, ".headscale"), "config.yaml", "bogus_key: 1\n")
+	require.NoError(t, os.Mkdir(filepath.Join(home, ".orgscale"), 0o700))
+	writeFile(t, filepath.Join(home, ".orgscale"), "config.yaml", "bogus_key: 1\n")
 
 	dir := t.TempDir()
 	broken := writeFile(t, dir, "broken.yaml", "bogus_key: 1\n")
@@ -286,9 +286,9 @@ func TestGenerateConfigCommand(t *testing.T) {
 		return writeFile(t, dir, name+".yaml", "unix_socket: "+filepath.Join(dir, "ok.sock")+"\nlog:\n  "+setting+"\n")
 	}
 
-	env := []string{"HOME=" + home, "HEADSCALE_BOGUS=1"}
+	env := []string{"HOME=" + home, "ORGSCALE_BOGUS=1"}
 	// The console form: log.format: json does not apply.
-	const warning = "WRN unknown environment variable HEADSCALE_BOGUS"
+	const warning = "WRN unknown environment variable ORGSCALE_BOGUS"
 
 	tests := []struct {
 		name       string
@@ -319,7 +319,7 @@ func TestGenerateConfigCommand(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			stdout, stderr, err := runHeadscale(t, env, tt.args...)
+			stdout, stderr, err := runOrgscale(t, env, tt.args...)
 			if tt.wantErr {
 				require.Error(t, err)
 				assert.Empty(t, stdout)
@@ -328,7 +328,7 @@ func TestGenerateConfigCommand(t *testing.T) {
 
 				var doc map[string]any
 				require.NoError(t, yaml.Unmarshal([]byte(stdout), &doc), stdout)
-				assert.NotContains(t, stdout, "HEADSCALE_BOGUS")
+				assert.NotContains(t, stdout, "ORGSCALE_BOGUS")
 			}
 
 			if tt.wantStderr == nil {
@@ -392,7 +392,7 @@ func TestGenerateNixOSOptionsCommand(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			stdout, stderr, err := runHeadscale(t, []string{"HEADSCALE_BOGUS=1"}, append([]string{"-c", broken}, tt.args...)...)
+			stdout, stderr, err := runOrgscale(t, []string{"ORGSCALE_BOGUS=1"}, append([]string{"-c", broken}, tt.args...)...)
 			if tt.wantStderr == "" {
 				require.NoError(t, err, stderr)
 				assert.Empty(t, stderr)

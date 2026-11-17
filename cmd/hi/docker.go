@@ -43,7 +43,7 @@ func runTestContainer(ctx context.Context, config *RunConfig) error {
 	defer cli.Close()
 
 	runID := dockertestutil.GenerateRunID()
-	containerName := "headscale-test-suite-" + runID
+	containerName := "orgscale-test-suite-" + runID
 	logsDir := filepath.Join(config.LogsDir, runID)
 
 	if config.Verbose {
@@ -206,7 +206,7 @@ func runTestContainer(ctx context.Context, config *RunConfig) error {
 // Source-based runs and local runs without a server image use the Go image.
 func testRunnerImage(config *RunConfig) string {
 	if config.TestBinary != "" {
-		if image := os.Getenv("HEADSCALE_INTEGRATION_HEADSCALE_IMAGE"); image != "" {
+		if image := os.Getenv("ORGSCALE_INTEGRATION_ORGSCALE_IMAGE"); image != "" {
 			return image
 		}
 	}
@@ -250,8 +250,8 @@ func createTestContainer(ctx context.Context, cli *client.Client, config *RunCon
 	runID := dockertestutil.ExtractRunIDFromContainerName(containerName)
 
 	env := []string{
-		fmt.Sprintf("HEADSCALE_INTEGRATION_POSTGRES=%d", boolToInt(config.UsePostgres)),
-		"HEADSCALE_INTEGRATION_RUN_ID=" + runID,
+		fmt.Sprintf("ORGSCALE_INTEGRATION_POSTGRES=%d", boolToInt(config.UsePostgres)),
+		"ORGSCALE_INTEGRATION_RUN_ID=" + runID,
 	}
 
 	// Pass through CI environment variable for CI detection
@@ -259,12 +259,12 @@ func createTestContainer(ctx context.Context, cli *client.Client, config *RunCon
 		env = append(env, "CI="+ci)
 	}
 
-	// Pass through all HEADSCALE_INTEGRATION_* environment variables
+	// Pass through all ORGSCALE_INTEGRATION_* environment variables
 	for _, e := range os.Environ() {
-		if strings.HasPrefix(e, "HEADSCALE_INTEGRATION_") {
+		if strings.HasPrefix(e, "ORGSCALE_INTEGRATION_") {
 			// Skip the ones we already set explicitly
-			if strings.HasPrefix(e, "HEADSCALE_INTEGRATION_POSTGRES=") ||
-				strings.HasPrefix(e, "HEADSCALE_INTEGRATION_RUN_ID=") {
+			if strings.HasPrefix(e, "ORGSCALE_INTEGRATION_POSTGRES=") ||
+				strings.HasPrefix(e, "ORGSCALE_INTEGRATION_RUN_ID=") {
 				continue
 			}
 
@@ -320,8 +320,8 @@ func createTestContainer(ctx context.Context, cli *client.Client, config *RunCon
 			ReadOnly: true,
 		})
 	} else {
-		goCache := os.Getenv("HEADSCALE_INTEGRATION_GO_CACHE")
-		goBuildCache := os.Getenv("HEADSCALE_INTEGRATION_GO_BUILD_CACHE")
+		goCache := os.Getenv("ORGSCALE_INTEGRATION_GO_CACHE")
+		goBuildCache := os.Getenv("ORGSCALE_INTEGRATION_GO_BUILD_CACHE")
 
 		if goCache != "" {
 			binds = append(binds, goCache+":/go")
@@ -644,7 +644,7 @@ func isPermanentDockerPullError(err error) bool {
 		strings.Contains(msg, "no such image")
 }
 
-// listControlFiles displays the headscale test artifacts created in the control logs directory.
+// listControlFiles displays the orgscale test artifacts created in the control logs directory.
 func listControlFiles(logsDir string) {
 	entries, err := os.ReadDir(logsDir)
 	if err != nil {
@@ -660,7 +660,7 @@ func listControlFiles(logsDir string) {
 
 	for _, entry := range entries {
 		name := entry.Name()
-		// Only show headscale (hs-*) files and directories
+		// Only show orgscale (hs-*) files and directories
 		if !strings.HasPrefix(name, "hs-") {
 			continue
 		}
@@ -684,7 +684,7 @@ func listControlFiles(logsDir string) {
 	log.Printf("Test artifacts saved to: %s", logsDir)
 
 	if len(logFiles) > 0 {
-		log.Printf("Headscale logs:")
+		log.Printf("Orgscale logs:")
 
 		for _, file := range logFiles {
 			log.Printf("  %s", file)
@@ -692,7 +692,7 @@ func listControlFiles(logsDir string) {
 	}
 
 	if len(dataFiles) > 0 || len(dataDirs) > 0 {
-		log.Printf("Headscale data:")
+		log.Printf("Orgscale data:")
 
 		for _, file := range dataFiles {
 			log.Printf("  %s", file)
@@ -834,7 +834,7 @@ func extractContainerLogs(ctx context.Context, cli *client.Client, containerID, 
 	}
 	defer logReader.Close()
 
-	// Create log files following the headscale naming convention
+	// Create log files following the orgscale naming convention
 	stdoutPath := filepath.Join(logsDir, containerName+".stdout.log")
 	stderrPath := filepath.Join(logsDir, containerName+".stderr.log")
 

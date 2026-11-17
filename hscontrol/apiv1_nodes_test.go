@@ -36,7 +36,7 @@ func newNodeSeed(user, hostname string, tags ...string) nodeSeed {
 
 // register inserts the user, a matching pre-auth key, and the node itself using
 // the seed's fixed keys, returning the created node ID.
-func (s nodeSeed) register(t *testing.T, app *Headscale) types.NodeID {
+func (s nodeSeed) register(t *testing.T, app *Orgscale) types.NodeID {
 	t.Helper()
 
 	user := app.state.CreateUserForTest(s.user)
@@ -59,8 +59,8 @@ func (s nodeSeed) register(t *testing.T, app *Headscale) types.NodeID {
 	return node.ID()
 }
 
-func seedNodes(seeds ...nodeSeed) func(t *testing.T, app *Headscale) {
-	return func(t *testing.T, app *Headscale) {
+func seedNodes(seeds ...nodeSeed) func(t *testing.T, app *Orgscale) {
+	return func(t *testing.T, app *Orgscale) {
 		t.Helper()
 
 		for _, s := range seeds {
@@ -391,7 +391,7 @@ func TestAPIV1NodeRegister(t *testing.T) {
 		mk := key.NewMachine()
 		nk := key.NewNode()
 
-		seed := func(t *testing.T, app *Headscale) {
+		seed := func(t *testing.T, app *Orgscale) {
 			t.Helper()
 
 			app.state.CreateUserForTest("alice")

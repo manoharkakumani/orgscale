@@ -38,13 +38,13 @@ func TestGenerateRegionInsecureTLS(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			envknob.Setenv("HEADSCALE_DEBUG_INSECURE_TLS_LISTEN_ADDR", tt.knob)
-			t.Cleanup(func() { envknob.Setenv("HEADSCALE_DEBUG_INSECURE_TLS_LISTEN_ADDR", "") })
+			envknob.Setenv("ORGSCALE_DEBUG_INSECURE_TLS_LISTEN_ADDR", tt.knob)
+			t.Cleanup(func() { envknob.Setenv("ORGSCALE_DEBUG_INSECURE_TLS_LISTEN_ADDR", "") })
 
 			d := &DERPServer{
-				serverURL: "http://headscale",
+				serverURL: "http://orgscale",
 				cfg: &types.DERPConfig{
-					Server: types.DERPServerConfig{RegionID: 999, RegionCode: "headscale", STUNAddr: "[::]:3478"},
+					Server: types.DERPServerConfig{RegionID: 999, RegionCode: "orgscale", STUNAddr: "[::]:3478"},
 				},
 			}
 
@@ -59,7 +59,7 @@ func TestGenerateRegionInsecureTLS(t *testing.T) {
 			require.Len(t, region.Nodes, 1)
 
 			node := region.Nodes[0]
-			assert.Equal(t, "headscale", node.HostName)
+			assert.Equal(t, "orgscale", node.HostName)
 			assert.Equal(t, tt.wantPort, node.DERPPort)
 			assert.Equal(t, tt.wantInsecure, node.InsecureForTests)
 			assert.Equal(t, 3478, node.STUNPort)

@@ -123,7 +123,7 @@ func shortList(names []string) string {
 // gateFlake proves the flake still evaluates before anything expensive runs.
 func gateFlake(ctx context.Context, r *repo) error {
 	if _, err := r.run(ctx, "nix", "eval", "--raw", //nolint:noinlineerr
-		fmt.Sprintf(".#packages.%s.headscale.name", r.System)); err != nil {
+		fmt.Sprintf(".#packages.%s.orgscale.name", r.System)); err != nil {
 		return err
 	}
 

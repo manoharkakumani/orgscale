@@ -143,7 +143,7 @@ func CreateCertificate(hostname string) (caCertPEM, certPEM, keyPEM []byte, err 
 	ca := &x509.Certificate{
 		SerialNumber: big.NewInt(2019),
 		Subject: pkix.Name{
-			Organization: []string{"Headscale testing INC"},
+			Organization: []string{"Orgscale testing INC"},
 			Country:      []string{"NL"},
 			Locality:     []string{"Leiden"},
 		},
@@ -187,7 +187,7 @@ func CreateCertificate(hostname string) (caCertPEM, certPEM, keyPEM []byte, err 
 		SerialNumber: big.NewInt(1658),
 		Subject: pkix.Name{
 			CommonName:   hostname,
-			Organization: []string{"Headscale testing INC"},
+			Organization: []string{"Orgscale testing INC"},
 			Country:      []string{"NL"},
 			Locality:     []string{"Leiden"},
 		},

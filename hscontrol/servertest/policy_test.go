@@ -307,7 +307,7 @@ func TestIPv6OnlyPrefixACL(t *testing.T) {
 		"test2 PacketFilter should NOT contain IPv4 destination 100.64.0.2 when policy only specifies IPv6 hosts")
 }
 
-// rejectedPolicySkipReasons lists refused captures where headscale differs,
+// rejectedPolicySkipReasons lists refused captures where orgscale differs,
 // keyed <test_id>/<check>. A listed check that passes fails, so a fix must
 // delete its entry.
 var rejectedPolicySkipReasons = map[string]string{
@@ -324,14 +324,14 @@ var rejectedPolicySkipReasons = map[string]string{
 }
 
 const (
-	noTailnetDomains        = "NO_TAILNET_DOMAINS: headscale does not check user:*@domain or localpart:*@domain against the tailnet's domains"
-	aclDefaultRouteAccepted = "ACL_DEFAULT_ROUTE_ACCEPTED: headscale accepts literal 0.0.0.0/0 and ::/0 ACL destinations; SaaS rejects them and requires * or autogroup:internet"
+	noTailnetDomains        = "NO_TAILNET_DOMAINS: orgscale does not check user:*@domain or localpart:*@domain against the tailnet's domains"
+	aclDefaultRouteAccepted = "ACL_DEFAULT_ROUTE_ACCEPTED: orgscale accepts literal 0.0.0.0/0 and ::/0 ACL destinations; SaaS rejects them and requires * or autogroup:internet"
 	tailscaleDERPIPs        = "TAILSCALE_DERP_IPS: SaaS refuses a policy derpMap node on a Tailscale DERP server's IP; that takes its live server list"
 )
 
 // TestRejectedPolicyLeavesLivePolicyCompat posts every policy SaaS refused to
 // the v2 API over the baseline tscap's reset leaves: tagOwners only.
-// Headscale must refuse it too and keep enforcing and serving the baseline,
+// Orgscale must refuse it too and keep enforcing and serving the baseline,
 // as SaaS did.
 //
 // Test data source: ../policy/v2/testdata/*_results/, the error captures.
@@ -368,14 +368,14 @@ func TestRejectedPolicyLeavesLivePolicyCompat(t *testing.T) {
 			key := c.TestID + "/refused"
 			if reason, listed := rejectedPolicySkipReasons[key]; listed {
 				require.NotEqualf(t, http.StatusBadRequest, rec.Code,
-					"headscale refuses this policy; delete rejectedPolicySkipReasons[%q]", key)
+					"orgscale refuses this policy; delete rejectedPolicySkipReasons[%q]", key)
 				require.Equalf(t, http.StatusOK, rec.Code,
-					"listed as accepted; headscale answered %d: %s", rec.Code, rec.Body)
+					"listed as accepted; orgscale answered %d: %s", rec.Code, rec.Body)
 				t.Skip(reason)
 			}
 
 			require.Equalf(t, http.StatusBadRequest, rec.Code,
-				"SaaS refused this policy; headscale answered %d: %s", rec.Code, rec.Body)
+				"SaaS refused this policy; orgscale answered %d: %s", rec.Code, rec.Body)
 
 			assert.Equal(t, before, livePolicy(t, srv, handler, apiKey),
 				"a refused policy must leave the live policy as it was")

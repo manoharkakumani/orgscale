@@ -1,5 +1,5 @@
-# A policy headscale rejects must fail the build, and a config or policy it
-# rejects must fail a switch before headscale restarts.
+# A policy orgscale rejects must fail the build, and a config or policy it
+# rejects must fail a switch before orgscale restarts.
 self:
 { lib, pkgs, ... }:
 let
@@ -45,10 +45,10 @@ let
   # The build-time check a system with this store-path policy must pass.
   policyBuild =
     policy:
-    lib.findFirst (d: d.name == "headscale-policy-check") (throw "no headscale-policy-check")
+    lib.findFirst (d: d.name == "orgscale-policy-check") (throw "no orgscale-policy-check")
       (pkgs.nixos {
-        imports = [ self.nixosModules.headscale ];
-        services.headscale = {
+        imports = [ self.nixosModules.orgscale ];
+        services.orgscale = {
           enable = true;
           settings.policy = {
             mode = "file";
@@ -62,57 +62,57 @@ let
   };
 
   # Outside the store, so only the switch can check it.
-  mutablePolicy = "/var/lib/headscale/policy.json";
+  mutablePolicy = "/var/lib/orgscale/policy.json";
   # Readable only through hshand, a group made by hand.
   handGroupPolicy = "/var/lib/hshand/policy.json";
   # Readable only through the group hsread.
   groupPolicy = "/var/lib/hsread/policy.json";
   # Written broken by the test: only the switch reads named files.
-  badRecords = "/var/lib/headscale/extra-records.json";
-  badServerUrl = lib.mkForce "ftp://headscale";
+  badRecords = "/var/lib/orgscale/extra-records.json";
+  badServerUrl = lib.mkForce "ftp://orgscale";
 in
 {
-  name = "headscale-checks";
+  name = "orgscale-checks";
   meta.maintainers = with lib.maintainers; [ kradalby ];
 
-  nodes.headscale = {
+  nodes.orgscale = {
     imports = [
       self.nixosModules.testkit
-      # Specialisations that set more than services.headscale.
+      # Specialisations that set more than services.orgscale.
       {
         specialisation = lib.mapAttrs (_: c: { configuration = c; }) {
           # A bad value here would fail the build check, which sees it too.
-          unitEnv.systemd.services.headscale.environment.HEADSCALE_DNS_EXTRA_RECORDS_PATH = badRecords;
+          unitEnv.systemd.services.orgscale.environment.ORGSCALE_DNS_EXTRA_RECORDS_PATH = badRecords;
           # hsnew is created by this switch, so the check leaves it out.
           supplementaryGroup = {
-            services.headscale.settings.policy.path = lib.mkForce groupPolicy;
+            services.orgscale.settings.policy.path = lib.mkForce groupPolicy;
             users.groups.hsnew = { };
-            systemd.services.headscale.serviceConfig.SupplementaryGroups = [
+            systemd.services.orgscale.serviceConfig.SupplementaryGroups = [
               "hsread"
               "hsnew"
             ];
           };
           extraGroup = {
-            services.headscale.settings.policy.path = lib.mkForce groupPolicy;
-            users.users.headscale.extraGroups = [ "hsread" ];
+            services.orgscale.settings.policy.path = lib.mkForce groupPolicy;
+            users.users.orgscale.extraGroups = [ "hsread" ];
           };
           memberGroup = {
-            services.headscale.settings.policy.path = lib.mkForce groupPolicy;
-            users.groups.hsread.members = [ "headscale" ];
+            services.orgscale.settings.policy.path = lib.mkForce groupPolicy;
+            users.groups.hsread.members = [ "orgscale" ];
           };
         };
       }
     ];
-    services.headscale.settings = {
+    services.orgscale.settings = {
       policy = {
         mode = "file";
         path = valid;
       };
-      # The CLI calls below find it through HEADSCALE_UNIX_SOCKET.
-      unix_socket = "/run/headscale/moved.sock";
+      # The CLI calls below find it through ORGSCALE_UNIX_SOCKET.
+      unix_socket = "/run/orgscale/moved.sock";
     };
     users.groups.hsread = { };
-    specialisation = lib.mapAttrs (_: c: { configuration.services.headscale = c; }) {
+    specialisation = lib.mapAttrs (_: c: { configuration.services.orgscale = c; }) {
       badRecords.settings.dns.extra_records_path = badRecords;
       mutable.settings.policy.path = lib.mkForce mutablePolicy;
       policyOnly = {
@@ -120,7 +120,7 @@ in
         check.config = false;
       };
       # Builds only because check.config = false also drops the build check;
-      # headscale itself refuses it.
+      # orgscale itself refuses it.
       unchecked = {
         settings.server_url = badServerUrl;
         check = {
@@ -136,7 +136,7 @@ in
         challenge.provider = {
           name = "rfc2136";
           server = "127.0.0.1:53";
-          key_name = "headscale.";
+          key_name = "orgscale.";
           key_alg = "hmac-sha256.";
           key = "file:\${CREDENTIALS_DIRECTORY}/tsig";
         };
@@ -147,7 +147,7 @@ in
   testScript =
     { nodes, ... }:
     let
-      toplevel = nodes.headscale.system.build.toplevel;
+      toplevel = nodes.orgscale.system.build.toplevel;
       jq = lib.getExe pkgs.jq;
     in
     ''
@@ -157,17 +157,17 @@ in
           return f"${toplevel}/specialisation/{spec}/bin/switch-to-configuration {action} 2>&1"
 
       def main_pid():
-          return headscale.succeed("systemctl show -P MainPID headscale.service").strip()
+          return orgscale.succeed("systemctl show -P MainPID orgscale.service").strip()
 
       def served_policy():
-          return headscale.succeed("headscale policy get | ${jq} -S .")
+          return orgscale.succeed("orgscale policy get | ${jq} -S .")
 
       def put_policy(src, mode="644"):
-          headscale.succeed(f"install -m {mode} {src} ${mutablePolicy}")
+          orgscale.succeed(f"install -m {mode} {src} ${mutablePolicy}")
 
       def assert_rejected(spec, why):
-          out = headscale.fail(stc(spec, "test"))
-          assert "Pre-switch check 'headscale' failed" in out, out
+          out = orgscale.fail(stc(spec, "test"))
+          assert "Pre-switch check 'orgscale' failed" in out, out
           assert why in out, out
           assert "NIXOS_NO_CHECK=1" in out, "no skip hint:\n" + out
           return out
@@ -180,16 +180,16 @@ in
               build_log = open(f"{path}/testBuildFailure.log").read()
               assert why in build_log, build_log
 
-      headscale.wait_for_unit("headscale.service")
-      headscale.wait_until_succeeds("headscale health", timeout=timedelta(seconds=60))
-      headscale.fail("test -e /etc/headscale/config.yaml")
-      # sudo resets the environment; PAM sets HEADSCALE_UNIX_SOCKET again.
-      headscale.succeed("env -u HEADSCALE_UNIX_SOCKET sudo -u headscale headscale health")
+      orgscale.wait_for_unit("orgscale.service")
+      orgscale.wait_until_succeeds("orgscale health", timeout=timedelta(seconds=60))
+      orgscale.fail("test -e /etc/orgscale/config.yaml")
+      # sudo resets the environment; PAM sets ORGSCALE_UNIX_SOCKET again.
+      orgscale.succeed("env -u ORGSCALE_UNIX_SOCKET sudo -u orgscale orgscale health")
 
-      with subtest("rejected switches leave the running headscale alone"):
+      with subtest("rejected switches leave the running orgscale alone"):
           pid = main_pid()
           before = served_policy()
-          headscale.succeed("echo '{' > ${badRecords}")
+          orgscale.succeed("echo '{' > ${badRecords}")
           assert_rejected("badRecords", "dns.extra_records_path")
           assert_rejected("unitEnv", "dns.extra_records_path")
           put_policy("${undefinedGroup}")
@@ -198,69 +198,69 @@ in
           assert_rejected("mutable", "test(s) failed")
           out = assert_rejected("policyOnly", "test(s) failed")
           assert "checking the new configuration" not in out, out
-          # Checked as the headscale user, who cannot read this file.
+          # Checked as the orgscale user, who cannot read this file.
           put_policy("${valid}", "600")
           assert_rejected("mutable", "permission denied")
-          assert main_pid() == pid, "headscale was restarted"
+          assert main_pid() == pid, "orgscale was restarted"
           assert served_policy() == before, "old policy no longer served"
-          headscale.succeed("headscale health")
+          orgscale.succeed("orgscale health")
 
       with subtest("a passing switch check"):
           put_policy("${valid}")
           # The caller's environment does not reach the check.
-          headscale.succeed("HEADSCALE_SERVER_URL=ftp://headscale " + stc("mutable", "check"))
+          orgscale.succeed("ORGSCALE_SERVER_URL=ftp://orgscale " + stc("mutable", "check"))
 
       with subtest("the check has the unit's groups"):
-          headscale.succeed("install -d -m 750 -g hsread ${builtins.dirOf groupPolicy}")
-          headscale.succeed("install -m 640 -g hsread ${valid} ${groupPolicy}")
-          headscale.succeed(stc("supplementaryGroup", "check"))
-          headscale.succeed(stc("extraGroup", "check"))
-          headscale.succeed(stc("memberGroup", "check"))
-          headscale.succeed("groupadd hshand && usermod -aG hshand headscale")
-          headscale.succeed("install -d -m 750 -g hshand ${builtins.dirOf handGroupPolicy}")
-          headscale.succeed("install -m 640 -g hshand ${valid} ${handGroupPolicy}")
-          headscale.succeed(stc("handGroup", "check"))
+          orgscale.succeed("install -d -m 750 -g hsread ${builtins.dirOf groupPolicy}")
+          orgscale.succeed("install -m 640 -g hsread ${valid} ${groupPolicy}")
+          orgscale.succeed(stc("supplementaryGroup", "check"))
+          orgscale.succeed(stc("extraGroup", "check"))
+          orgscale.succeed(stc("memberGroup", "check"))
+          orgscale.succeed("groupadd hshand && usermod -aG hshand orgscale")
+          orgscale.succeed("install -d -m 750 -g hshand ${builtins.dirOf handGroupPolicy}")
+          orgscale.succeed("install -m 640 -g hshand ${valid} ${handGroupPolicy}")
+          orgscale.succeed(stc("handGroup", "check"))
 
       with subtest("a file: secret is skipped, not read"):
-          out = headscale.succeed(stc("credential", "check"))
+          out = orgscale.succeed(stc("credential", "check"))
           assert "secret, not read" in out, out
 
       with subtest("skips"):
-          out = headscale.succeed("${toplevel}/bin/switch-to-configuration check 2>&1")
+          out = orgscale.succeed("${toplevel}/bin/switch-to-configuration check 2>&1")
           assert "unit unchanged" in out, out
 
       with subtest("escape hatches"):
-          headscale.succeed(stc("unchecked", "check"))
-          headscale.succeed("NIXOS_NO_CHECK=1 " + stc("badRecords", "check"))
+          orgscale.succeed(stc("unchecked", "check"))
+          orgscale.succeed("NIXOS_NO_CHECK=1 " + stc("badRecords", "check"))
 
       with subtest("a valid switch goes through and applies the policy"):
           pid = main_pid()
-          headscale.succeed(stc("testsPass", "test"))
-          headscale.wait_until_succeeds("headscale health", timeout=timedelta(seconds=60))
-          assert main_pid() != pid, "headscale was not restarted"
-          want = headscale.succeed("${jq} -S . ${testsPass}")
+          orgscale.succeed(stc("testsPass", "test"))
+          orgscale.wait_until_succeeds("orgscale health", timeout=timedelta(seconds=60))
+          assert main_pid() != pid, "orgscale was not restarted"
+          want = orgscale.succeed("${jq} -S . ${testsPass}")
           assert served_policy() == want, "new policy not served"
 
-      with subtest("a configuration headscale rejects is not restarted"):
+      with subtest("a configuration orgscale rejects is not restarted"):
           # The switch may report the unit failed; the unit is what counts.
-          headscale.execute(stc("unchecked", "test"))
-          headscale.wait_until_succeeds("systemctl is-failed headscale.service", timeout=timedelta(seconds=60))
-          status = headscale.succeed("systemctl show -P ExecMainStatus headscale.service").strip()
+          orgscale.execute(stc("unchecked", "test"))
+          orgscale.wait_until_succeeds("systemctl is-failed orgscale.service", timeout=timedelta(seconds=60))
+          status = orgscale.succeed("systemctl show -P ExecMainStatus orgscale.service").strip()
           assert status == "78", f"exit status {status}, want 78"
-          restarts = headscale.succeed("systemctl show -P NRestarts headscale.service")
+          restarts = orgscale.succeed("systemctl show -P NRestarts orgscale.service")
           # Past RestartSec.
-          headscale.sleep(10)
-          headscale.succeed("systemctl is-failed headscale.service")
-          assert headscale.succeed("systemctl show -P NRestarts headscale.service") == restarts, "headscale was restarted"
+          orgscale.sleep(10)
+          orgscale.succeed("systemctl is-failed orgscale.service")
+          assert orgscale.succeed("systemctl show -P NRestarts orgscale.service") == restarts, "orgscale was restarted"
 
-      # Last: it takes headscale's account away.
+      # Last: it takes orgscale's account away.
       with subtest("an account activation has yet to create skips the checks"):
-          headscale.succeed("systemctl stop headscale.service")
-          headscale.succeed("groupmod -n hsgone headscale")
-          out = headscale.succeed(stc("mutable", "check"))
-          assert "group headscale does not exist yet" in out, out
-          headscale.succeed("usermod -l hsgone headscale")
-          out = headscale.succeed(stc("mutable", "check"))
-          assert "user headscale does not exist yet" in out, out
+          orgscale.succeed("systemctl stop orgscale.service")
+          orgscale.succeed("groupmod -n hsgone orgscale")
+          out = orgscale.succeed(stc("mutable", "check"))
+          assert "group orgscale does not exist yet" in out, out
+          orgscale.succeed("usermod -l hsgone orgscale")
+          out = orgscale.succeed(stc("mutable", "check"))
+          assert "user orgscale does not exist yet" in out, out
     '';
 }

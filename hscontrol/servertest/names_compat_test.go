@@ -27,7 +27,7 @@ import (
 	"tailscale.com/types/netmap"
 )
 
-// nameSkipReasons lists checks where headscale differs from SaaS, keyed
+// nameSkipReasons lists checks where orgscale differs from SaaS, keyed
 // <test_id>/<step>/<node or action index>/<check>. A listed check that
 // matches fails, so a fix must delete its entry.
 var nameSkipReasons = map[string]string{
@@ -122,7 +122,7 @@ func (n *nameReplay) replay(t *testing.T, c *testcapture.Capture, evaluated map[
 }
 
 // applyStep runs the step's actions one at a time, as the probe let each land
-// before the next, and returns headscale's answer to each admin exchange by
+// before the next, and returns orgscale's answer to each admin exchange by
 // its index in the step.
 func (n *nameReplay) applyStep(t *testing.T, step testcapture.Step) map[int]apiAnswer {
 	t.Helper()
@@ -147,10 +147,10 @@ func (n *nameReplay) applyStep(t *testing.T, step testcapture.Step) map[int]apiA
 	return answers
 }
 
-// service replays what headscale has no Services for, and reports whether a
+// service replays what orgscale has no Services for, and reports whether a
 // was such an action. A Service publishes its name as an extra DNS record,
 // so creating and deleting one sets the records. Serving it, the grants and
-// approvers that name it, and the client's own DNS answers have no headscale
+// approvers that name it, and the client's own DNS answers have no orgscale
 // side.
 func (n *nameReplay) service(t *testing.T, stepName string, a testcapture.Action) bool {
 	t.Helper()
@@ -330,7 +330,7 @@ func (n *nameReplay) checks(t *testing.T, step testcapture.Step, devices []saasD
 	return checks
 }
 
-// hsDevice reads alias's device from headscale's v2 API, while its machine
+// hsDevice reads alias's device from orgscale's v2 API, while its machine
 // holds one node.
 func (n *nameReplay) hsDevice(t *testing.T, alias string) (saasDevice, string) {
 	t.Helper()
@@ -349,7 +349,7 @@ func (n *nameReplay) hsDevice(t *testing.T, alias string) (saasDevice, string) {
 	return dev, ""
 }
 
-// hsSeen is alias's node as headscale's viewer sees it.
+// hsSeen is alias's node as orgscale's viewer sees it.
 func (n *nameReplay) hsSeen(alias string) (tailcfg.NodeView, string) {
 	nodes := n.machineNodes(alias)
 	if len(nodes) != 1 {
@@ -428,7 +428,7 @@ func renderRecords(nm *netmap.NetworkMap) string {
 	return sortedStrings(out)
 }
 
-// errorMessage is an error body's text: SaaS's message, or headscale's
+// errorMessage is an error body's text: SaaS's message, or orgscale's
 // detail and error messages.
 func errorMessage(body []byte) string {
 	var e struct {

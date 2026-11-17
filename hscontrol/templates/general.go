@@ -8,7 +8,7 @@ import (
 )
 
 // mdTypesetBody creates a body element with md-typeset styling
-// that matches the official Headscale documentation design.
+// that matches the official Orgscale documentation design.
 // Uses CSS classes with styles defined in [assets.CSS].
 func mdTypesetBody(children ...elem.Node) *elem.Element {
 	return elem.Body(
@@ -83,9 +83,9 @@ func codeBlockText(code string) *elem.Element {
 	return elem.Pre(nil, elem.Code(nil, elem.Text(code)))
 }
 
-// headscaleLogo returns the Headscale SVG logo for consistent branding across all pages.
-// The logo is styled by the .headscale-logo CSS class.
-func headscaleLogo() elem.Node {
+// orgscaleLogo returns the Orgscale SVG logo for consistent branding across all pages.
+// The logo is styled by the .orgscale-logo CSS class.
+func orgscaleLogo() elem.Node {
 	// Return the embedded SVG as-is
 	return elem.Raw(assets.SVG)
 }
@@ -107,16 +107,16 @@ func pageFooter() *elem.Element {
 			attrs.Href:   "https://github.com/juanfont/headscale",
 			attrs.Rel:    "noreferrer noopener",
 			attrs.Target: "_blank",
-		}, elem.Text("Headscale")),
+		}, elem.Text("Orgscale")),
 	)
 }
 
-// page renders a standard Headscale page: the given title in the document
-// head, and a body that begins with the Headscale logo, contains the supplied
+// page renders a standard Orgscale page: the given title in the document
+// head, and a body that begins with the Orgscale logo, contains the supplied
 // content nodes in order, and ends with the shared footer.
 func page(title string, content ...elem.Node) *elem.Element {
 	body := make([]elem.Node, 0, len(content)+2)
-	body = append(body, headscaleLogo())
+	body = append(body, orgscaleLogo())
 	body = append(body, content...)
 	body = append(body, pageFooter())
 

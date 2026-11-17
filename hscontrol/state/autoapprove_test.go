@@ -281,7 +281,7 @@ func TestWithdrawnRouteKeepsOnlyAdminApprovals(t *testing.T) {
 		require.NoError(t, s.Close())
 
 		// A row as the migration leaves it: approved, with no marks.
-		database, err := db.NewHeadscaleDatabase(persistTestConfig(dbPath))
+		database, err := db.NewOrgscaleDatabase(persistTestConfig(dbPath))
 		require.NoError(t, err)
 		require.NoError(t, database.DB.Exec(
 			`UPDATE nodes SET approved_routes = ?, auto_approved_routes = NULL, host_info = ? WHERE id = ?`,

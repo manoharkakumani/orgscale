@@ -18,9 +18,9 @@ import (
 
 // Tailscale's policy file `tests` block validates a policy against operator
 // assertions: from a given src, named dst:port pairs must be accepted, and
-// (optionally) other dst:port pairs must be denied. `headscale policy set`
+// (optionally) other dst:port pairs must be denied. `orgscale policy set`
 // and file-mode reload after a change reject the write if any assertion
-// fails; `headscale check policy` runs them against stand-ins, see
+// fails; `orgscale check policy` runs them against stand-ins, see
 // [CheckPolicy].
 // Boot-time loading of an already-stored policy runs them too but only logs
 // failures, so a stale referenced entity (e.g. a deleted user) cannot lock
@@ -774,7 +774,7 @@ func portsAllowed(requested []tailcfg.PortRange, allowed tailcfg.PortRange) bool
 	return false
 }
 
-// Stand-in nodes take addresses from the ranges headscale allocates from
+// Stand-in nodes take addresses from the ranges orgscale allocates from
 // by default, so `*` and whole-tailnet ranges reach them as they reach real
 // nodes.
 var (
@@ -782,7 +782,7 @@ var (
 	standInPrefix6 = netip.MustParsePrefix("fd7a:115c:a1e0::/48")
 )
 
-// CheckPolicy runs [ValidatePolicy], the check `headscale policy set` runs,
+// CheckPolicy runs [ValidatePolicy], the check `orgscale policy set` runs,
 // against stand-ins from [standIns] instead of a tailnet.
 func CheckPolicy(b []byte) error {
 	pol, err := ParsePolicy(b)

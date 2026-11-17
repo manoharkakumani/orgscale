@@ -13,11 +13,11 @@ import (
 )
 
 func TestNodeNameCannotShadowExtraRecord(t *testing.T) {
-	cfg := persistTestConfig(t.TempDir() + "/headscale.db")
+	cfg := persistTestConfig(t.TempDir() + "/orgscale.db")
 	cfg.DNSConfig.ExtraRecords = []tailcfg.DNSRecord{
 		{Name: "grafana." + cfg.DNSConfig.BaseDomain, Type: "A", Value: "100.64.0.100"},
 	}
-	cfg.StartDNS(nil) // as NewHeadscale does, so SetExtraRecords takes
+	cfg.StartDNS(nil) // as NewOrgscale does, so SetExtraRecords takes
 	s, err := NewState(cfg)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = s.Close() })
@@ -92,12 +92,12 @@ func TestNodeNameCannotShadowExtraRecord(t *testing.T) {
 // and then breaks map generation for the node and its peers (issue #3346):
 // admin-facing writes must not be able to introduce an unmappable name.
 func TestRenameNodeRejectsNameExceedingFQDNLimit(t *testing.T) {
-	dbPath := t.TempDir() + "/headscale.db"
+	dbPath := t.TempDir() + "/orgscale.db"
 	cfg := persistTestConfig(dbPath)
 	// A long base domain so a 63-char label overflows the 255-char FQDN bound.
 	cfg.DNSConfig.BaseDomain = strings.Repeat("b", 200) + ".example.com"
 
-	database, err := db.NewHeadscaleDatabase(cfg)
+	database, err := db.NewOrgscaleDatabase(cfg)
 	require.NoError(t, err)
 
 	user := database.CreateUserForTest("rename-user")

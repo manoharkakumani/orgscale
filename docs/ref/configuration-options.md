@@ -5,9 +5,9 @@
     This page is generated from the doc comments in `hscontrol/types/config.go` by
     `go generate ./hscontrol/types/`. Edit the comments there, not this page.
 
-Every key headscale reads, in the order `headscale generate config` prints them, with its type, default,
+Every key orgscale reads, in the order `orgscale generate config` prints them, with its type, default,
 environment variable and an example for a configuration file, the environment and NixOS. Keys that no longer
-work are listed under [Removed keys](#removed-keys). [Configuration](configuration.md) explains where headscale
+work are listed under [Removed keys](#removed-keys). [Configuration](configuration.md) explains where orgscale
 finds its configuration, how to check it, and shows the full example.
 
 ## Conventions { #conventions }
@@ -16,13 +16,13 @@ finds its configuration, how to check it, and shows the full example.
 
 | Type                                                 | Format                                                                                                                         | Example                                                   |
 | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------- |
-| <span id="type-string"></span>string                 | Text. Quote it where YAML would read another type, as in `"0x1F"` or `"null"`.                                                 | `/var/lib/headscale/db.sqlite`                            |
+| <span id="type-string"></span>string                 | Text. Quote it where YAML would read another type, as in `"0x1F"` or `"null"`.                                                 | `/var/lib/orgscale/db.sqlite`                             |
 | <span id="type-boolean"></span>boolean               | `true` or `false`.                                                                                                             | `true`                                                    |
 | <span id="type-integer"></span>integer               | A whole number.                                                                                                                | `1024`                                                    |
 | <span id="type-duration"></span>duration             | A number with a unit, `ms`, `s`, `m`, `h`, `d`, `w` or `y`, units combined largest first; `0` needs none.                      | `1h30m`                                                   |
 | <span id="type-file-mode"></span>file mode           | Octal permission bits, quoted.                                                                                                 | `"0770"`                                                  |
 | <span id="type-listen-address"></span>listen address | `host:port`. An empty host listens on every address; the port may be `http` or `https`.                                        | `0.0.0.0:8080`                                            |
-| <span id="type-URL"></span>URL                       | An absolute `http://` or `https://` URL with a host.                                                                           | `https://headscale.example.com`                           |
+| <span id="type-URL"></span>URL                       | An absolute `http://` or `https://` URL with a host.                                                                           | `https://orgscale.example.com`                            |
 | <span id="type-prefix"></span>prefix                 | An IP range in CIDR notation.                                                                                                  | `100.64.0.0/10`                                           |
 | secret                                               | Text, or `file:<path>` to read it from a file.                                                                                 | `file:/run/secrets/oidc_client_secret`                    |
 | <span id="type-enum"></span>enum                     | One of the values listed with the key.                                                                                         | `sqlite`                                                  |
@@ -33,22 +33,22 @@ finds its configuration, how to check it, and shows the full example.
 
 ### Environment variables { #env }
 
-Every key can also be set with an environment variable: `HEADSCALE_` and the key's path in capitals, with `_` for
-`.`, e.g. `HEADSCALE_LOG_LEVEL` for `log.level`. Each key below names its variable. A variable wins over the
+Every key can also be set with an environment variable: `ORGSCALE_` and the key's path in capitals, with `_` for
+`.`, e.g. `ORGSCALE_LOG_LEVEL` for `log.level`. Each key below names its variable. A variable wins over the
 configuration file, which wins over the default. An empty variable, like a key written with no value in the
 file, counts as unset and keeps the default. A variable set to `""` means what `""` means in the configuration
 file: it clears a key with a default, as `prefixes.v6: ""` does, and is an error where the file's `""` is one. A
-list also clears with `[]`. Quote the value so the quotes reach headscale:
+list also clears with `[]`. Quote the value so the quotes reach orgscale:
 
 ```shell
-export HEADSCALE_PREFIXES_V6='""'
-export HEADSCALE_DERP_URLS='[]'
+export ORGSCALE_PREFIXES_V6='""'
+export ORGSCALE_DERP_URLS='[]'
 ```
 
 ```yaml title="docker-compose.yaml"
 environment:
-  HEADSCALE_PREFIXES_V6: '""'
-  HEADSCALE_DERP_URLS: '[]'
+  ORGSCALE_PREFIXES_V6: '""'
+  ORGSCALE_DERP_URLS: '[]'
 ```
 
 An env file (a Compose `env_file`, a systemd `EnvironmentFile=`) and a systemd `Environment=` strip one level of
@@ -59,18 +59,18 @@ A list is a JSON array or, unless its values are objects, its values separated b
 which replaces the map in the configuration file instead of merging into it. The examples below write every list
 and map as JSON.
 
-A `HEADSCALE_` variable that names no key logs a warning, and one for a removed key also says what to do instead.
-Other software uses the same prefix, so neither stops headscale.
+A `ORGSCALE_` variable that names no key logs a warning, and one for a removed key also says what to do instead.
+Other software uses the same prefix, so neither stops orgscale.
 
-A DNS provider setting that takes text can also be set on its own as `HEADSCALE_DNS_CHALLENGE_PROVIDER_<SETTING>`,
-e.g. `HEADSCALE_DNS_CHALLENGE_PROVIDER_API_TOKEN`; see [`dns.challenge.provider`](#dns.challenge.provider).
+A DNS provider setting that takes text can also be set on its own as `ORGSCALE_DNS_CHALLENGE_PROVIDER_<SETTING>`,
+e.g. `ORGSCALE_DNS_CHALLENGE_PROVIDER_API_TOKEN`; see [`dns.challenge.provider`](#dns.challenge.provider).
 
 ### Secrets { #secrets }
 
 A secret takes the value itself or `file:<path>`, which reads it from that file. Environment variables in the path
 are expanded, as in `file:${CREDENTIALS_DIRECTORY}/oidc_client_secret`, and whitespace around the file's contents
-is trimmed; an empty file is an error. Headscale reads the file only where the secret is used, and
-`headscale check config` and `headscale check all` never read it. `headscale generate config --running` and
+is trimmed; an empty file is an error. Orgscale reads the file only where the secret is used, and
+`orgscale check config` and `orgscale check all` never read it. `orgscale generate config --running` and
 `/debug/config` show a literal secret as `<redacted>` and a `file:` reference as written.
 
 The secrets are [`database.postgres.pass`](#database.postgres.pass), [`oidc.client_secret`](#oidc.client_secret), [`cli.api_key`](#cli.api_key) and every setting of [`dns.challenge.provider`](#dns.challenge.provider), where a non-string one, such as acme-dns `config`, is the JSON in the file.
@@ -78,41 +78,41 @@ The secrets are [`database.postgres.pass`](#database.postgres.pass), [`oidc.clie
 On NixOS, keep a secret out of the Nix store: load it as a systemd credential and point the key at it.
 
 ```nix
-services.headscale.settings.oidc.client_secret = "file:\${CREDENTIALS_DIRECTORY}/oidc_client_secret";
-systemd.services.headscale.serviceConfig.LoadCredential = [ "oidc_client_secret:/run/secrets/oidc_client_secret" ];
+services.orgscale.settings.oidc.client_secret = "file:\${CREDENTIALS_DIRECTORY}/oidc_client_secret";
+systemd.services.orgscale.serviceConfig.LoadCredential = [ "oidc_client_secret:/run/secrets/oidc_client_secret" ];
 ```
 
 ## `server_url` { #server_url data-toc-label="server_url" }
 
 - **Type:** [string](#type-string)
 - **Required**
-- **Env:** `HEADSCALE_SERVER_URL`
+- **Env:** `ORGSCALE_SERVER_URL`
 
-The URL clients connect to, with its `http://` or `https://` scheme, e.g. `https://headscale.example.com:443`. A trailing slash is trimmed on load. Its host must not be [`dns.base_domain`](#dns.base_domain) or a name below it.
+The URL clients connect to, with its `http://` or `https://` scheme, e.g. `https://orgscale.example.com:443`. A trailing slash is trimmed on load. Its host must not be [`dns.base_domain`](#dns.base_domain) or a name below it.
 
 === "YAML"
 
     ```yaml
-    server_url: https://headscale.example.com
+    server_url: https://orgscale.example.com
     ```
 
 === "Environment"
 
     ```shell
-    export HEADSCALE_SERVER_URL=https://headscale.example.com
+    export ORGSCALE_SERVER_URL=https://orgscale.example.com
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.server_url = "https://headscale.example.com";
+    services.orgscale.settings.server_url = "https://orgscale.example.com";
     ```
 
 ## `listen_addr` { #listen_addr data-toc-label="listen_addr" }
 
 - **Type:** [listen address](#type-listen-address)
 - **Default:** `0.0.0.0:8080`
-- **Env:** `HEADSCALE_LISTEN_ADDR`
+- **Env:** `ORGSCALE_LISTEN_ADDR`
 
 The host:port the server listens on for clients, the API and the web pages. It serves HTTPS when [`tls.cert_path`](#tls.cert_path) or [`tls.acme.hostname`](#tls.acme.hostname) is set, plain HTTP otherwise. The default listens on every address, IPv4 and IPv6 alike.
 
@@ -125,20 +125,20 @@ The host:port the server listens on for clients, the API and the web pages. It s
 === "Environment"
 
     ```shell
-    export HEADSCALE_LISTEN_ADDR=127.0.0.1:8080
+    export ORGSCALE_LISTEN_ADDR=127.0.0.1:8080
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.listen_addr = "127.0.0.1:8080";
+    services.orgscale.settings.listen_addr = "127.0.0.1:8080";
     ```
 
 ## `metrics_listen_addr` { #metrics_listen_addr data-toc-label="metrics_listen_addr" }
 
 - **Type:** [listen address](#type-listen-address)
 - **Default:** `""`
-- **Env:** `HEADSCALE_METRICS_LISTEN_ADDR`
+- **Env:** `ORGSCALE_METRICS_LISTEN_ADDR`
 
 The host:port serving `/metrics` and `/debug`; keep it private. Empty disables this listener.
 
@@ -151,46 +151,46 @@ The host:port serving `/metrics` and `/debug`; keep it private. Empty disables t
 === "Environment"
 
     ```shell
-    export HEADSCALE_METRICS_LISTEN_ADDR=127.0.0.1:9090
+    export ORGSCALE_METRICS_LISTEN_ADDR=127.0.0.1:9090
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.metrics_listen_addr = "127.0.0.1:9090";
+    services.orgscale.settings.metrics_listen_addr = "127.0.0.1:9090";
     ```
 
 ## `unix_socket` { #unix_socket data-toc-label="unix_socket" }
 
 - **Type:** [string](#type-string)
-- **Default:** `/var/run/headscale/headscale.sock`
-- **Env:** `HEADSCALE_UNIX_SOCKET`
+- **Default:** `/var/run/orgscale/orgscale.sock`
+- **Env:** `ORGSCALE_UNIX_SOCKET`
 
 Where the server serves the API without authentication, for the CLI on the same host. The CLI connects to it when [`cli.address`](#cli.address) is empty.
 
 === "YAML"
 
     ```yaml
-    unix_socket: /run/headscale/headscale.sock
+    unix_socket: /run/orgscale/orgscale.sock
     ```
 
 === "Environment"
 
     ```shell
-    export HEADSCALE_UNIX_SOCKET=/run/headscale/headscale.sock
+    export ORGSCALE_UNIX_SOCKET=/run/orgscale/orgscale.sock
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.unix_socket = "/run/headscale/headscale.sock";
+    services.orgscale.settings.unix_socket = "/run/orgscale/orgscale.sock";
     ```
 
 ## `unix_socket_permission` { #unix_socket_permission data-toc-label="unix_socket_permission" }
 
 - **Type:** [file mode](#type-file-mode)
 - **Default:** `"0770"`
-- **Env:** `HEADSCALE_UNIX_SOCKET_PERMISSION`
+- **Env:** `ORGSCALE_UNIX_SOCKET_PERMISSION`
 
 The file mode of [`unix_socket`](#unix_socket), in quoted octal (`"0770"`): unquoted, YAML reads `0770` as the number 504.
 
@@ -203,20 +203,20 @@ The file mode of [`unix_socket`](#unix_socket), in quoted octal (`"0770"`): unqu
 === "Environment"
 
     ```shell
-    export HEADSCALE_UNIX_SOCKET_PERMISSION=0660
+    export ORGSCALE_UNIX_SOCKET_PERMISSION=0660
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.unix_socket_permission = "0660";
+    services.orgscale.settings.unix_socket_permission = "0660";
     ```
 
 ## `trusted_proxies` { #trusted_proxies data-toc-label="trusted_proxies" }
 
 - **Type:** [list of prefixes](#type-list)
 - **Default:** `[]`
-- **Env:** `HEADSCALE_TRUSTED_PROXIES` ([space-separated or JSON array](#env))
+- **Env:** `ORGSCALE_TRUSTED_PROXIES` ([space-separated or JSON array](#env))
 
 The CIDRs of reverse proxies whose `True-Client-IP`, `X-Real-IP` and `X-Forwarded-For` headers are honoured. Empty ignores those headers. Set without a proxy in front, clients can spoof their source IP in logs and the v2 API.
 
@@ -231,13 +231,13 @@ The CIDRs of reverse proxies whose `True-Client-IP`, `X-Real-IP` and `X-Forwarde
 === "Environment"
 
     ```shell
-    export HEADSCALE_TRUSTED_PROXIES='["192.0.2.10/32","2001:db8::10/128"]'
+    export ORGSCALE_TRUSTED_PROXIES='["192.0.2.10/32","2001:db8::10/128"]'
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.trusted_proxies = [
+    services.orgscale.settings.trusted_proxies = [
       "192.0.2.10/32"
       "2001:db8::10/128"
     ];
@@ -247,9 +247,9 @@ The CIDRs of reverse proxies whose `True-Client-IP`, `X-Real-IP` and `X-Forwarde
 
 - **Type:** [boolean](#type-boolean)
 - **Default:** `false`
-- **Env:** `HEADSCALE_DISABLE_CHECK_UPDATES`
+- **Env:** `ORGSCALE_DISABLE_CHECK_UPDATES`
 
-Skips the check for a newer headscale release that commands make at start.
+Skips the check for a newer orgscale release that commands make at start.
 
 === "YAML"
 
@@ -260,13 +260,13 @@ Skips the check for a newer headscale release that commands make at start.
 === "Environment"
 
     ```shell
-    export HEADSCALE_DISABLE_CHECK_UPDATES=true
+    export ORGSCALE_DISABLE_CHECK_UPDATES=true
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.disable_check_updates = true;
+    services.orgscale.settings.disable_check_updates = true;
     ```
 
 ## `noise` { #noise data-toc-label="noise" }
@@ -277,34 +277,34 @@ The Noise protocol (TS2021) clients connect over.
 
     ```yaml
     noise:
-      private_key_path: /var/lib/headscale/noise_private.key
+      private_key_path: /var/lib/orgscale/noise_private.key
     ```
 
 ### `noise.private_key_path` { #noise.private_key_path data-toc-label="private_key_path" }
 
 - **Type:** [string](#type-string)
-- **Default:** `/var/lib/headscale/noise_private.key`
-- **Env:** `HEADSCALE_NOISE_PRIVATE_KEY_PATH`
+- **Default:** `/var/lib/orgscale/noise_private.key`
+- **Env:** `ORGSCALE_NOISE_PRIVATE_KEY_PATH`
 
-The file holding the Noise private key, which encrypts traffic between headscale and clients, relative to the configuration file. A missing file is created with a new key.
+The file holding the Noise private key, which encrypts traffic between orgscale and clients, relative to the configuration file. A missing file is created with a new key.
 
 === "YAML"
 
     ```yaml
     noise:
-      private_key_path: /opt/headscale/noise_private.key
+      private_key_path: /opt/orgscale/noise_private.key
     ```
 
 === "Environment"
 
     ```shell
-    export HEADSCALE_NOISE_PRIVATE_KEY_PATH=/opt/headscale/noise_private.key
+    export ORGSCALE_NOISE_PRIVATE_KEY_PATH=/opt/orgscale/noise_private.key
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.noise.private_key_path = "/opt/headscale/noise_private.key";
+    services.orgscale.settings.noise.private_key_path = "/opt/orgscale/noise_private.key";
     ```
 
 Replaces `private_key_path` ([removed](#private_key_path)).
@@ -327,7 +327,7 @@ The IP ranges node addresses are allocated from. Keep at least one of [`prefixes
 
 - **Type:** [prefix](#type-prefix)
 - **Default:** `100.64.0.0/10`
-- **Env:** `HEADSCALE_PREFIXES_V4`
+- **Env:** `ORGSCALE_PREFIXES_V4`
 
 The IPv4 range, e.g. `100.64.0.0/10`. Empty gives nodes no IPv4 address.
 
@@ -341,13 +341,13 @@ The IPv4 range, e.g. `100.64.0.0/10`. Empty gives nodes no IPv4 address.
 === "Environment"
 
     ```shell
-    export HEADSCALE_PREFIXES_V4=100.64.0.0/24
+    export ORGSCALE_PREFIXES_V4=100.64.0.0/24
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.prefixes.v4 = "100.64.0.0/24";
+    services.orgscale.settings.prefixes.v4 = "100.64.0.0/24";
     ```
 
 Replaces `ip_prefixes` ([removed](#ip_prefixes)).
@@ -356,7 +356,7 @@ Replaces `ip_prefixes` ([removed](#ip_prefixes)).
 
 - **Type:** [prefix](#type-prefix)
 - **Default:** `fd7a:115c:a1e0::/48`
-- **Env:** `HEADSCALE_PREFIXES_V6`
+- **Env:** `ORGSCALE_PREFIXES_V6`
 
 The IPv6 range, e.g. `fd7a:115c:a1e0::/48`. Empty gives nodes no IPv6 address.
 
@@ -370,13 +370,13 @@ The IPv6 range, e.g. `fd7a:115c:a1e0::/48`. Empty gives nodes no IPv6 address.
 === "Environment"
 
     ```shell
-    export HEADSCALE_PREFIXES_V6=fd7a:115c:a1e0::/64
+    export ORGSCALE_PREFIXES_V6=fd7a:115c:a1e0::/64
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.prefixes.v6 = "fd7a:115c:a1e0::/64";
+    services.orgscale.settings.prefixes.v6 = "fd7a:115c:a1e0::/64";
     ```
 
 Replaces `ip_prefixes` ([removed](#ip_prefixes)).
@@ -385,7 +385,7 @@ Replaces `ip_prefixes` ([removed](#ip_prefixes)).
 
 - **Type:** [enum](#type-enum): `sequential`, `random`
 - **Default:** `sequential`
-- **Env:** `HEADSCALE_PREFIXES_ALLOCATION`
+- **Env:** `ORGSCALE_PREFIXES_ALLOCATION`
 
 How a new node's addresses are picked.
 
@@ -404,18 +404,18 @@ How a new node's addresses are picked.
 === "Environment"
 
     ```shell
-    export HEADSCALE_PREFIXES_ALLOCATION=random
+    export ORGSCALE_PREFIXES_ALLOCATION=random
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.prefixes.allocation = "random";
+    services.orgscale.settings.prefixes.allocation = "random";
     ```
 
 ## `policy` { #policy data-toc-label="policy" }
 
-Where the access control policy is kept: in a file headscale reads, or in the database. See [Policy](policy.md).
+Where the access control policy is kept: in a file orgscale reads, or in the database. See [Policy](policy.md).
 
 ??? example "All `policy` keys and defaults"
 
@@ -429,7 +429,7 @@ Where the access control policy is kept: in a file headscale reads, or in the da
 
 - **Type:** [string](#type-string)
 - **Default:** `""`
-- **Env:** `HEADSCALE_POLICY_PATH`
+- **Env:** `ORGSCALE_POLICY_PATH`
 
 The HuJSON policy file read when [`policy.mode`](#policy.mode) is `file`, relative to the configuration file. Empty starts without a policy, which allows all traffic.
 
@@ -437,19 +437,19 @@ The HuJSON policy file read when [`policy.mode`](#policy.mode) is `file`, relati
 
     ```yaml
     policy:
-      path: /etc/headscale/policy.hujson
+      path: /etc/orgscale/policy.hujson
     ```
 
 === "Environment"
 
     ```shell
-    export HEADSCALE_POLICY_PATH=/etc/headscale/policy.hujson
+    export ORGSCALE_POLICY_PATH=/etc/orgscale/policy.hujson
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.policy.path = "/etc/headscale/policy.hujson";
+    services.orgscale.settings.policy.path = "/etc/orgscale/policy.hujson";
     ```
 
 Replaces `acl_policy_path` ([removed](#acl_policy_path)).
@@ -458,14 +458,14 @@ Replaces `acl_policy_path` ([removed](#acl_policy_path)).
 
 - **Type:** [enum](#type-enum): `file`, `database`
 - **Default:** `file`
-- **Env:** `HEADSCALE_POLICY_MODE`
+- **Env:** `ORGSCALE_POLICY_MODE`
 
 Where the policy is kept: in the file [`policy.path`](#policy.path), or in the database, edited through the CLI or API.
 
-| Value      | Meaning                                                                                                                  |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `file`     | Reads the policy from [`policy.path`](#policy.path). Send headscale `SIGHUP` to reload it after an edit.                 |
-| `database` | Keeps the policy in the database, set with `headscale policy set` or the API. [`policy.path`](#policy.path) is not read. |
+| Value      | Meaning                                                                                                                 |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `file`     | Reads the policy from [`policy.path`](#policy.path). Send orgscale `SIGHUP` to reload it after an edit.                 |
+| `database` | Keeps the policy in the database, set with `orgscale policy set` or the API. [`policy.path`](#policy.path) is not read. |
 
 === "YAML"
 
@@ -477,18 +477,18 @@ Where the policy is kept: in the file [`policy.path`](#policy.path), or in the d
 === "Environment"
 
     ```shell
-    export HEADSCALE_POLICY_MODE=database
+    export ORGSCALE_POLICY_MODE=database
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.policy.mode = "database";
+    services.orgscale.settings.policy.mode = "database";
     ```
 
 ## `log` { #log data-toc-label="log" }
 
-Headscale's own log output. See [Debugging](debug.md#application-logging).
+Orgscale's own log output. See [Debugging](debug.md#application-logging).
 
 ??? example "All `log` keys and defaults"
 
@@ -502,7 +502,7 @@ Headscale's own log output. See [Debugging](debug.md#application-logging).
 
 - **Type:** [enum](#type-enum): `trace`, `debug`, `info`, `warn`, `error`, `fatal`, `panic`, `disabled`
 - **Default:** `info`
-- **Env:** `HEADSCALE_LOG_LEVEL`
+- **Env:** `ORGSCALE_LOG_LEVEL`
 
 The lowest level logged.
 
@@ -516,13 +516,13 @@ The lowest level logged.
 === "Environment"
 
     ```shell
-    export HEADSCALE_LOG_LEVEL=debug
+    export ORGSCALE_LOG_LEVEL=debug
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.log.level = "debug";
+    services.orgscale.settings.log.level = "debug";
     ```
 
 Replaces `log_level` ([removed](#log_level)).
@@ -531,7 +531,7 @@ Replaces `log_level` ([removed](#log_level)).
 
 - **Type:** [enum](#type-enum): `text`, `json`
 - **Default:** `text`
-- **Env:** `HEADSCALE_LOG_FORMAT`
+- **Env:** `ORGSCALE_LOG_FORMAT`
 
 How log lines are written.
 
@@ -550,13 +550,13 @@ How log lines are written.
 === "Environment"
 
     ```shell
-    export HEADSCALE_LOG_FORMAT=json
+    export ORGSCALE_LOG_FORMAT=json
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.log.format = "json";
+    services.orgscale.settings.log.format = "json";
     ```
 
 Replaces `json_logs` ([removed](#json_logs)).
@@ -582,9 +582,9 @@ Covers node key expiry, ephemeral nodes and subnet routes.
 
 - **Type:** [duration](#type-duration)
 - **Default:** `0s`
-- **Env:** `HEADSCALE_NODE_EXPIRY`
+- **Env:** `ORGSCALE_NODE_EXPIRY`
 
-The key expiry given to a non-tagged node that registers without one, whatever the method (auth key, CLI, web, OIDC). An expiry the client asks for, [`oidc.use_expiry_from_token`](#oidc.use_expiry_from_token) and an admin's `headscale nodes expire` still apply. Tagged nodes never get this default. Zero or negative disables the default.
+The key expiry given to a non-tagged node that registers without one, whatever the method (auth key, CLI, web, OIDC). An expiry the client asks for, [`oidc.use_expiry_from_token`](#oidc.use_expiry_from_token) and an admin's `orgscale nodes expire` still apply. Tagged nodes never get this default. Zero or negative disables the default.
 
 === "YAML"
 
@@ -596,13 +596,13 @@ The key expiry given to a non-tagged node that registers without one, whatever t
 === "Environment"
 
     ```shell
-    export HEADSCALE_NODE_EXPIRY=2160h
+    export ORGSCALE_NODE_EXPIRY=2160h
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.node.expiry = "2160h";
+    services.orgscale.settings.node.expiry = "2160h";
     ```
 
 Replaces `oidc.expiry` ([removed](#oidc.expiry)).
@@ -623,7 +623,7 @@ Covers ephemeral nodes, which register with an ephemeral auth key and are delete
 
 - **Type:** [duration](#type-duration)
 - **Default:** `30m`
-- **Env:** `HEADSCALE_NODE_EPHEMERAL_INACTIVITY_TIMEOUT`
+- **Env:** `ORGSCALE_NODE_EPHEMERAL_INACTIVITY_TIMEOUT`
 
 How long an ephemeral node can be offline before it is automatically deleted. It must exceed 65s, the client keepalive plus a margin.
 
@@ -638,13 +638,13 @@ How long an ephemeral node can be offline before it is automatically deleted. It
 === "Environment"
 
     ```shell
-    export HEADSCALE_NODE_EPHEMERAL_INACTIVITY_TIMEOUT=1h
+    export ORGSCALE_NODE_EPHEMERAL_INACTIVITY_TIMEOUT=1h
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.node.ephemeral.inactivity_timeout = "1h";
+    services.orgscale.settings.node.ephemeral.inactivity_timeout = "1h";
     ```
 
 Replaces `ephemeral_node_inactivity_timeout` ([removed](#ephemeral_node_inactivity_timeout)).
@@ -665,7 +665,7 @@ Covers the routes nodes advertise. See [Routes](routes.md).
 
 #### `node.routes.ha` { #node.routes.ha data-toc-label="ha" }
 
-Health probing of HA subnet routers. When two or more nodes advertise the same route, headscale pings each over Noise and moves the route away from one that does not answer in time. See [High availability](routes.md#high-availability).
+Health probing of HA subnet routers. When two or more nodes advertise the same route, orgscale pings each over Noise and moves the route away from one that does not answer in time. See [High availability](routes.md#high-availability).
 
 ??? example "All `node.routes.ha` keys and defaults"
 
@@ -681,7 +681,7 @@ Health probing of HA subnet routers. When two or more nodes advertise the same r
 
 - **Type:** [duration](#type-duration)
 - **Default:** `10s`
-- **Env:** `HEADSCALE_NODE_ROUTES_HA_PROBE_INTERVAL`
+- **Env:** `ORGSCALE_NODE_ROUTES_HA_PROBE_INTERVAL`
 
 How often HA subnet routers are probed; a positive interval must be at least 2s. Zero or negative disables probing, and with it the [`node.routes.ha.probe_timeout`](#node.routes.ha.probe_timeout) rules.
 
@@ -697,20 +697,20 @@ How often HA subnet routers are probed; a positive interval must be at least 2s.
 === "Environment"
 
     ```shell
-    export HEADSCALE_NODE_ROUTES_HA_PROBE_INTERVAL=30s
+    export ORGSCALE_NODE_ROUTES_HA_PROBE_INTERVAL=30s
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.node.routes.ha.probe_interval = "30s";
+    services.orgscale.settings.node.routes.ha.probe_interval = "30s";
     ```
 
 ##### `node.routes.ha.probe_timeout` { #node.routes.ha.probe_timeout data-toc-label="probe_timeout" }
 
 - **Type:** [duration](#type-duration)
 - **Default:** `5s`
-- **Env:** `HEADSCALE_NODE_ROUTES_HA_PROBE_TIMEOUT`
+- **Env:** `ORGSCALE_NODE_ROUTES_HA_PROBE_TIMEOUT`
 
 The maximum time to wait for a probe response before declaring a node unhealthy; at least 1s and less than [`node.routes.ha.probe_interval`](#node.routes.ha.probe_interval).
 
@@ -726,13 +726,13 @@ The maximum time to wait for a probe response before declaring a node unhealthy;
 === "Environment"
 
     ```shell
-    export HEADSCALE_NODE_ROUTES_HA_PROBE_TIMEOUT=3s
+    export ORGSCALE_NODE_ROUTES_HA_PROBE_TIMEOUT=3s
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.node.routes.ha.probe_timeout = "3s";
+    services.orgscale.settings.node.routes.ha.probe_timeout = "3s";
     ```
 
 ## `preauth_keys` { #preauth_keys data-toc-label="preauth_keys" }
@@ -750,7 +750,7 @@ Covers the cleanup of revoked pre-auth keys. See [Pre authenticated key](registr
 
 - **Type:** [duration](#type-duration)
 - **Default:** `168h`
-- **Env:** `HEADSCALE_PREAUTH_KEYS_REVOKED_RETENTION`
+- **Env:** `ORGSCALE_PREAUTH_KEYS_REVOKED_RETENTION`
 
 How long a soft-revoked pre-auth key (revoked via the v2 API's DELETE) is kept retrievable before the background collector hard-deletes it. Keys still backing a node are kept until the node is deleted. A zero or negative duration disables the collector.
 
@@ -764,13 +764,13 @@ How long a soft-revoked pre-auth key (revoked via the v2 API's DELETE) is kept r
 === "Environment"
 
     ```shell
-    export HEADSCALE_PREAUTH_KEYS_REVOKED_RETENTION=720h
+    export ORGSCALE_PREAUTH_KEYS_REVOKED_RETENTION=720h
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.preauth_keys.revoked_retention = "720h";
+    services.orgscale.settings.preauth_keys.revoked_retention = "720h";
     ```
 
 ## `derp` { #derp data-toc-label="derp" }
@@ -801,7 +801,7 @@ The DERP map: the relay servers clients use when they cannot connect directly, f
 
 ### `derp.server` { #derp.server data-toc-label="server" }
 
-The embedded DERP server, a relay and STUN server run by headscale itself. See [Enable embedded DERP](derp.md#enable-embedded-derp).
+The embedded DERP server, a relay and STUN server run by orgscale itself. See [Enable embedded DERP](derp.md#enable-embedded-derp).
 
 ??? example "All `derp.server` keys and defaults"
 
@@ -824,7 +824,7 @@ The embedded DERP server, a relay and STUN server run by headscale itself. See [
 
 - **Type:** [boolean](#type-boolean)
 - **Default:** `false`
-- **Env:** `HEADSCALE_DERP_SERVER_ENABLED`
+- **Env:** `ORGSCALE_DERP_SERVER_ENABLED`
 
 Runs the embedded DERP server. DERP needs TLS, so [`server_url`](#server_url) must be `https://`.
 
@@ -839,20 +839,20 @@ Runs the embedded DERP server. DERP needs TLS, so [`server_url`](#server_url) mu
 === "Environment"
 
     ```shell
-    export HEADSCALE_DERP_SERVER_ENABLED=true
+    export ORGSCALE_DERP_SERVER_ENABLED=true
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.derp.server.enabled = true;
+    services.orgscale.settings.derp.server.enabled = true;
     ```
 
 #### `derp.server.region_id` { #derp.server.region_id data-toc-label="region_id" }
 
 - **Type:** [integer](#type-integer)
 - **Default:** `0`
-- **Env:** `HEADSCALE_DERP_SERVER_REGION_ID`
+- **Env:** `ORGSCALE_DERP_SERVER_REGION_ID`
 
 The embedded server's region ID; required and positive when [`derp.server.enabled`](#derp.server.enabled) is true. Tailscale keeps 900-999 for your own regions. It replaces a region with the same ID from the other sources.
 
@@ -867,20 +867,20 @@ The embedded server's region ID; required and positive when [`derp.server.enable
 === "Environment"
 
     ```shell
-    export HEADSCALE_DERP_SERVER_REGION_ID=999
+    export ORGSCALE_DERP_SERVER_REGION_ID=999
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.derp.server.region_id = 999;
+    services.orgscale.settings.derp.server.region_id = 999;
     ```
 
 #### `derp.server.region_code` { #derp.server.region_code data-toc-label="region_code" }
 
 - **Type:** [string](#type-string)
 - **Default:** `""`
-- **Env:** `HEADSCALE_DERP_SERVER_REGION_CODE`
+- **Env:** `ORGSCALE_DERP_SERVER_REGION_CODE`
 
 The region's short code, shown by Tailscale clients.
 
@@ -889,26 +889,26 @@ The region's short code, shown by Tailscale clients.
     ```yaml
     derp:
       server:
-        region_code: headscale
+        region_code: orgscale
     ```
 
 === "Environment"
 
     ```shell
-    export HEADSCALE_DERP_SERVER_REGION_CODE=headscale
+    export ORGSCALE_DERP_SERVER_REGION_CODE=orgscale
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.derp.server.region_code = "headscale";
+    services.orgscale.settings.derp.server.region_code = "orgscale";
     ```
 
 #### `derp.server.region_name` { #derp.server.region_name data-toc-label="region_name" }
 
 - **Type:** [string](#type-string)
 - **Default:** `""`
-- **Env:** `HEADSCALE_DERP_SERVER_REGION_NAME`
+- **Env:** `ORGSCALE_DERP_SERVER_REGION_NAME`
 
 The region's name, shown by Tailscale clients.
 
@@ -917,26 +917,26 @@ The region's name, shown by Tailscale clients.
     ```yaml
     derp:
       server:
-        region_name: Headscale Embedded DERP
+        region_name: Orgscale Embedded DERP
     ```
 
 === "Environment"
 
     ```shell
-    export HEADSCALE_DERP_SERVER_REGION_NAME='Headscale Embedded DERP'
+    export ORGSCALE_DERP_SERVER_REGION_NAME='Orgscale Embedded DERP'
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.derp.server.region_name = "Headscale Embedded DERP";
+    services.orgscale.settings.derp.server.region_name = "Orgscale Embedded DERP";
     ```
 
 #### `derp.server.verify_clients` { #derp.server.verify_clients data-toc-label="verify_clients" }
 
 - **Type:** [boolean](#type-boolean)
 - **Default:** `true`
-- **Env:** `HEADSCALE_DERP_SERVER_VERIFY_CLIENTS`
+- **Env:** `ORGSCALE_DERP_SERVER_VERIFY_CLIENTS`
 
 Admits only nodes registered with this server.
 
@@ -951,20 +951,20 @@ Admits only nodes registered with this server.
 === "Environment"
 
     ```shell
-    export HEADSCALE_DERP_SERVER_VERIFY_CLIENTS=false
+    export ORGSCALE_DERP_SERVER_VERIFY_CLIENTS=false
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.derp.server.verify_clients = false;
+    services.orgscale.settings.derp.server.verify_clients = false;
     ```
 
 #### `derp.server.stun_listen_addr` { #derp.server.stun_listen_addr data-toc-label="stun_listen_addr" }
 
 - **Type:** [listen address](#type-listen-address)
 - **Default:** `""`
-- **Env:** `HEADSCALE_DERP_SERVER_STUN_LISTEN_ADDR`
+- **Env:** `ORGSCALE_DERP_SERVER_STUN_LISTEN_ADDR`
 
 The UDP host:port of the STUN server, which helps clients with NAT traversal; required when [`derp.server.enabled`](#derp.server.enabled) is true.
 
@@ -979,20 +979,20 @@ The UDP host:port of the STUN server, which helps clients with NAT traversal; re
 === "Environment"
 
     ```shell
-    export HEADSCALE_DERP_SERVER_STUN_LISTEN_ADDR=0.0.0.0:3478
+    export ORGSCALE_DERP_SERVER_STUN_LISTEN_ADDR=0.0.0.0:3478
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.derp.server.stun_listen_addr = "0.0.0.0:3478";
+    services.orgscale.settings.derp.server.stun_listen_addr = "0.0.0.0:3478";
     ```
 
 #### `derp.server.private_key_path` { #derp.server.private_key_path data-toc-label="private_key_path" }
 
 - **Type:** [string](#type-string)
 - **Default:** `""`
-- **Env:** `HEADSCALE_DERP_SERVER_PRIVATE_KEY_PATH`
+- **Env:** `ORGSCALE_DERP_SERVER_PRIVATE_KEY_PATH`
 
 The file holding the DERP server's private key, relative to the configuration file; required when [`derp.server.enabled`](#derp.server.enabled) is true. A missing file is created with a new key. It must differ from [`noise.private_key_path`](#noise.private_key_path).
 
@@ -1001,26 +1001,26 @@ The file holding the DERP server's private key, relative to the configuration fi
     ```yaml
     derp:
       server:
-        private_key_path: /var/lib/headscale/derp_server_private.key
+        private_key_path: /var/lib/orgscale/derp_server_private.key
     ```
 
 === "Environment"
 
     ```shell
-    export HEADSCALE_DERP_SERVER_PRIVATE_KEY_PATH=/var/lib/headscale/derp_server_private.key
+    export ORGSCALE_DERP_SERVER_PRIVATE_KEY_PATH=/var/lib/orgscale/derp_server_private.key
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.derp.server.private_key_path = "/var/lib/headscale/derp_server_private.key";
+    services.orgscale.settings.derp.server.private_key_path = "/var/lib/orgscale/derp_server_private.key";
     ```
 
 #### `derp.server.ipv4` { #derp.server.ipv4 data-toc-label="ipv4" }
 
 - **Type:** [string](#type-string)
 - **Default:** `""`
-- **Env:** `HEADSCALE_DERP_SERVER_IPV4`
+- **Env:** `ORGSCALE_DERP_SERVER_IPV4`
 
 The server's public IPv4 address, published in the DERP map so clients reach it without DNS. Empty publishes none.
 
@@ -1035,20 +1035,20 @@ The server's public IPv4 address, published in the DERP map so clients reach it 
 === "Environment"
 
     ```shell
-    export HEADSCALE_DERP_SERVER_IPV4=198.51.100.1
+    export ORGSCALE_DERP_SERVER_IPV4=198.51.100.1
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.derp.server.ipv4 = "198.51.100.1";
+    services.orgscale.settings.derp.server.ipv4 = "198.51.100.1";
     ```
 
 #### `derp.server.ipv6` { #derp.server.ipv6 data-toc-label="ipv6" }
 
 - **Type:** [string](#type-string)
 - **Default:** `""`
-- **Env:** `HEADSCALE_DERP_SERVER_IPV6`
+- **Env:** `ORGSCALE_DERP_SERVER_IPV6`
 
 The server's public IPv6 address, published in the DERP map so clients reach it without DNS. Empty publishes none.
 
@@ -1063,20 +1063,20 @@ The server's public IPv6 address, published in the DERP map so clients reach it 
 === "Environment"
 
     ```shell
-    export HEADSCALE_DERP_SERVER_IPV6=2001:db8::1
+    export ORGSCALE_DERP_SERVER_IPV6=2001:db8::1
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.derp.server.ipv6 = "2001:db8::1";
+    services.orgscale.settings.derp.server.ipv6 = "2001:db8::1";
     ```
 
 #### `derp.server.automatically_add_embedded_derp_region` { #derp.server.automatically_add_embedded_derp_region data-toc-label="automatically_add_embedded_derp_region" }
 
 - **Type:** [boolean](#type-boolean)
 - **Default:** `true`
-- **Env:** `HEADSCALE_DERP_SERVER_AUTOMATICALLY_ADD_EMBEDDED_DERP_REGION`
+- **Env:** `ORGSCALE_DERP_SERVER_AUTOMATICALLY_ADD_EMBEDDED_DERP_REGION`
 
 Adds the embedded server's region to the DERP map. When it is false and [`derp.server.enabled`](#derp.server.enabled) is true, [`derp.paths`](#derp.paths) is required: write the region there yourself.
 
@@ -1091,22 +1091,22 @@ Adds the embedded server's region to the DERP map. When it is false and [`derp.s
 === "Environment"
 
     ```shell
-    export HEADSCALE_DERP_SERVER_AUTOMATICALLY_ADD_EMBEDDED_DERP_REGION=false
+    export ORGSCALE_DERP_SERVER_AUTOMATICALLY_ADD_EMBEDDED_DERP_REGION=false
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.derp.server.automatically_add_embedded_derp_region = false;
+    services.orgscale.settings.derp.server.automatically_add_embedded_derp_region = false;
     ```
 
 ### `derp.urls` { #derp.urls data-toc-label="urls" }
 
 - **Type:** [list of URLs](#type-list)
 - **Default:** `['https://controlplane.tailscale.com/derpmap/default']`
-- **Env:** `HEADSCALE_DERP_URLS` ([space-separated or JSON array](#env))
+- **Env:** `ORGSCALE_DERP_URLS` ([space-separated or JSON array](#env))
 
-DERP maps in JSON to fetch. One that fails to load is logged and skipped; startup fails only when no region remains. The default is Tailscale's map: headscale fetches it from Tailscale and clients relay through Tailscale's servers. `[]` keeps to your own.
+DERP maps in JSON to fetch. One that fails to load is logged and skipped; startup fails only when no region remains. The default is Tailscale's map: orgscale fetches it from Tailscale and clients relay through Tailscale's servers. `[]` keeps to your own.
 
 === "YAML"
 
@@ -1119,13 +1119,13 @@ DERP maps in JSON to fetch. One that fails to load is logged and skipped; startu
 === "Environment"
 
     ```shell
-    export HEADSCALE_DERP_URLS='["https://derp.example.com/derpmap.json"]'
+    export ORGSCALE_DERP_URLS='["https://derp.example.com/derpmap.json"]'
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.derp.urls = [
+    services.orgscale.settings.derp.urls = [
       "https://derp.example.com/derpmap.json"
     ];
     ```
@@ -1134,7 +1134,7 @@ DERP maps in JSON to fetch. One that fails to load is logged and skipped; startu
 
 - **Type:** [list of strings](#type-list)
 - **Default:** `[]`
-- **Env:** `HEADSCALE_DERP_PATHS` ([space-separated or JSON array](#env))
+- **Env:** `ORGSCALE_DERP_PATHS` ([space-separated or JSON array](#env))
 
 DERP map files. The extension picks the format: `.yaml` or `.yml`, or Tailscale JSON as `.json` or `.hujson`, both accepting comments and trailing commas.
 
@@ -1143,20 +1143,20 @@ DERP map files. The extension picks the format: `.yaml` or `.yml`, or Tailscale 
     ```yaml
     derp:
       paths:
-        - /etc/headscale/derp.yaml
+        - /etc/orgscale/derp.yaml
     ```
 
 === "Environment"
 
     ```shell
-    export HEADSCALE_DERP_PATHS='["/etc/headscale/derp.yaml"]'
+    export ORGSCALE_DERP_PATHS='["/etc/orgscale/derp.yaml"]'
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.derp.paths = [
-      "/etc/headscale/derp.yaml"
+    services.orgscale.settings.derp.paths = [
+      "/etc/orgscale/derp.yaml"
     ];
     ```
 
@@ -1166,7 +1166,7 @@ Replaces `derp_map_path` ([removed](#derp_map_path)).
 
 - **Type:** [boolean](#type-boolean)
 - **Default:** `true`
-- **Env:** `HEADSCALE_DERP_AUTO_UPDATE_ENABLED`
+- **Env:** `ORGSCALE_DERP_AUTO_UPDATE_ENABLED`
 
 Reloads [`derp.urls`](#derp.urls) and [`derp.paths`](#derp.paths) every [`derp.update_frequency`](#derp.update_frequency).
 
@@ -1180,20 +1180,20 @@ Reloads [`derp.urls`](#derp.urls) and [`derp.paths`](#derp.paths) every [`derp.u
 === "Environment"
 
     ```shell
-    export HEADSCALE_DERP_AUTO_UPDATE_ENABLED=false
+    export ORGSCALE_DERP_AUTO_UPDATE_ENABLED=false
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.derp.auto_update_enabled = false;
+    services.orgscale.settings.derp.auto_update_enabled = false;
     ```
 
 ### `derp.update_frequency` { #derp.update_frequency data-toc-label="update_frequency" }
 
 - **Type:** [duration](#type-duration)
 - **Default:** `3h`
-- **Env:** `HEADSCALE_DERP_UPDATE_FREQUENCY`
+- **Env:** `ORGSCALE_DERP_UPDATE_FREQUENCY`
 
 How often [`derp.auto_update_enabled`](#derp.auto_update_enabled) reloads the DERP map. Zero disables reloading.
 
@@ -1207,18 +1207,18 @@ How often [`derp.auto_update_enabled`](#derp.auto_update_enabled) reloads the DE
 === "Environment"
 
     ```shell
-    export HEADSCALE_DERP_UPDATE_FREQUENCY=24h
+    export ORGSCALE_DERP_UPDATE_FREQUENCY=24h
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.derp.update_frequency = "24h";
+    services.orgscale.settings.derp.update_frequency = "24h";
     ```
 
 ## `database` { #database data-toc-label="database" }
 
-Where headscale stores nodes, users and keys. SQLite is recommended; PostgreSQL is supported for legacy deployments only. [`database.sqlite`](#database.sqlite) is read only for SQLite, [`database.postgres`](#database.postgres) only for PostgreSQL.
+Where orgscale stores nodes, users and keys. SQLite is recommended; PostgreSQL is supported for legacy deployments only. [`database.sqlite`](#database.sqlite) is read only for SQLite, [`database.postgres`](#database.postgres) only for PostgreSQL.
 
 ??? example "All `database` keys and defaults"
 
@@ -1231,7 +1231,7 @@ Where headscale stores nodes, users and keys. SQLite is recommended; PostgreSQL 
         skip_err_record_not_found: false
         parameterized_queries: false
       sqlite:
-        path: /var/lib/headscale/db.sqlite
+        path: /var/lib/orgscale/db.sqlite
         write_ahead_log: true
         wal_autocheckpoint: 1000
       postgres:
@@ -1250,7 +1250,7 @@ Where headscale stores nodes, users and keys. SQLite is recommended; PostgreSQL 
 
 - **Type:** [enum](#type-enum): `sqlite`, `sqlite3`, `postgres`
 - **Default:** `sqlite`
-- **Env:** `HEADSCALE_DATABASE_TYPE`
+- **Env:** `ORGSCALE_DATABASE_TYPE`
 
 The database backend. SQLite is recommended; PostgreSQL is supported for legacy deployments only.
 
@@ -1270,13 +1270,13 @@ The database backend. SQLite is recommended; PostgreSQL is supported for legacy 
 === "Environment"
 
     ```shell
-    export HEADSCALE_DATABASE_TYPE=sqlite
+    export ORGSCALE_DATABASE_TYPE=sqlite
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.database.type = "sqlite";
+    services.orgscale.settings.database.type = "sqlite";
     ```
 
 Replaces `db_type` ([removed](#db_type)).
@@ -1285,7 +1285,7 @@ Replaces `db_type` ([removed](#db_type)).
 
 - **Type:** [boolean](#type-boolean)
 - **Default:** `false`
-- **Env:** `HEADSCALE_DATABASE_DEBUG`
+- **Env:** `ORGSCALE_DATABASE_DEBUG`
 
 Turns on query logging: ordinary queries at log level debug, shown only when [`log.level`](#log.level) is `debug` or `trace`, slow ones at warn and failed ones at error. Off, no query is logged. [`database.gorm`](#database.gorm) shapes the query log. See [Database logging](debug.md#database-logging).
 
@@ -1299,13 +1299,13 @@ Turns on query logging: ordinary queries at log level debug, shown only when [`l
 === "Environment"
 
     ```shell
-    export HEADSCALE_DATABASE_DEBUG=true
+    export ORGSCALE_DATABASE_DEBUG=true
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.database.debug = true;
+    services.orgscale.settings.database.debug = true;
     ```
 
 ### `database.gorm` { #database.gorm data-toc-label="gorm" }
@@ -1326,7 +1326,7 @@ Query logging, applied only when [`database.debug`](#database.debug) is true.
 
 - **Type:** [integer](#type-integer)
 - **Default:** `0`
-- **Env:** `HEADSCALE_DATABASE_GORM_SLOW_THRESHOLD`
+- **Env:** `ORGSCALE_DATABASE_GORM_SLOW_THRESHOLD`
 
 The query time, in milliseconds, above which a query is logged as a warning. Zero disables the warning.
 
@@ -1341,20 +1341,20 @@ The query time, in milliseconds, above which a query is logged as a warning. Zer
 === "Environment"
 
     ```shell
-    export HEADSCALE_DATABASE_GORM_SLOW_THRESHOLD=1000
+    export ORGSCALE_DATABASE_GORM_SLOW_THRESHOLD=1000
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.database.gorm.slow_threshold = 1000;
+    services.orgscale.settings.database.gorm.slow_threshold = 1000;
     ```
 
 #### `database.gorm.skip_err_record_not_found` { #database.gorm.skip_err_record_not_found data-toc-label="skip_err_record_not_found" }
 
 - **Type:** [boolean](#type-boolean)
 - **Default:** `false`
-- **Env:** `HEADSCALE_DATABASE_GORM_SKIP_ERR_RECORD_NOT_FOUND`
+- **Env:** `ORGSCALE_DATABASE_GORM_SKIP_ERR_RECORD_NOT_FOUND`
 
 Logs a query that finds no record as an ordinary query, not as an error.
 
@@ -1369,20 +1369,20 @@ Logs a query that finds no record as an ordinary query, not as an error.
 === "Environment"
 
     ```shell
-    export HEADSCALE_DATABASE_GORM_SKIP_ERR_RECORD_NOT_FOUND=true
+    export ORGSCALE_DATABASE_GORM_SKIP_ERR_RECORD_NOT_FOUND=true
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.database.gorm.skip_err_record_not_found = true;
+    services.orgscale.settings.database.gorm.skip_err_record_not_found = true;
     ```
 
 #### `database.gorm.parameterized_queries` { #database.gorm.parameterized_queries data-toc-label="parameterized_queries" }
 
 - **Type:** [boolean](#type-boolean)
 - **Default:** `false`
-- **Env:** `HEADSCALE_DATABASE_GORM_PARAMETERIZED_QUERIES`
+- **Env:** `ORGSCALE_DATABASE_GORM_PARAMETERIZED_QUERIES`
 
 Logs queries without their parameter values.
 
@@ -1397,13 +1397,13 @@ Logs queries without their parameter values.
 === "Environment"
 
     ```shell
-    export HEADSCALE_DATABASE_GORM_PARAMETERIZED_QUERIES=true
+    export ORGSCALE_DATABASE_GORM_PARAMETERIZED_QUERIES=true
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.database.gorm.parameterized_queries = true;
+    services.orgscale.settings.database.gorm.parameterized_queries = true;
     ```
 
 ### `database.sqlite` { #database.sqlite data-toc-label="sqlite" }
@@ -1415,7 +1415,7 @@ SQLite, read only when [`database.type`](#database.type) is `sqlite` or `sqlite3
     ```yaml
     database:
       sqlite:
-        path: /var/lib/headscale/db.sqlite
+        path: /var/lib/orgscale/db.sqlite
         write_ahead_log: true
         wal_autocheckpoint: 1000
     ```
@@ -1423,8 +1423,8 @@ SQLite, read only when [`database.type`](#database.type) is `sqlite` or `sqlite3
 #### `database.sqlite.path` { #database.sqlite.path data-toc-label="path" }
 
 - **Type:** [string](#type-string)
-- **Default:** `/var/lib/headscale/db.sqlite`
-- **Env:** `HEADSCALE_DATABASE_SQLITE_PATH`
+- **Default:** `/var/lib/orgscale/db.sqlite`
+- **Env:** `ORGSCALE_DATABASE_SQLITE_PATH`
 
 The database file, relative to the configuration file; `:memory:` keeps the database in memory.
 
@@ -1433,19 +1433,19 @@ The database file, relative to the configuration file; `:memory:` keeps the data
     ```yaml
     database:
       sqlite:
-        path: /opt/headscale/db.sqlite
+        path: /opt/orgscale/db.sqlite
     ```
 
 === "Environment"
 
     ```shell
-    export HEADSCALE_DATABASE_SQLITE_PATH=/opt/headscale/db.sqlite
+    export ORGSCALE_DATABASE_SQLITE_PATH=/opt/orgscale/db.sqlite
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.database.sqlite.path = "/opt/headscale/db.sqlite";
+    services.orgscale.settings.database.sqlite.path = "/opt/orgscale/db.sqlite";
     ```
 
 Replaces `db_path` ([removed](#db_path)).
@@ -1454,9 +1454,9 @@ Replaces `db_path` ([removed](#db_path)).
 
 - **Type:** [boolean](#type-boolean)
 - **Default:** `true`
-- **Env:** `HEADSCALE_DATABASE_SQLITE_WRITE_AHEAD_LOG`
+- **Env:** `ORGSCALE_DATABASE_SQLITE_WRITE_AHEAD_LOG`
 
-Runs SQLite in write-ahead log (WAL) mode, applies [`database.sqlite.wal_autocheckpoint`](#database.sqlite.wal_autocheckpoint) and compacts the database (`VACUUM`) on shutdown. False uses SQLite's rollback journal (`DELETE`) with `synchronous=FULL`, and converts a database left in WAL mode when headscale opens it.
+Runs SQLite in write-ahead log (WAL) mode, applies [`database.sqlite.wal_autocheckpoint`](#database.sqlite.wal_autocheckpoint) and compacts the database (`VACUUM`) on shutdown. False uses SQLite's rollback journal (`DELETE`) with `synchronous=FULL`, and converts a database left in WAL mode when orgscale opens it.
 
 === "YAML"
 
@@ -1469,20 +1469,20 @@ Runs SQLite in write-ahead log (WAL) mode, applies [`database.sqlite.wal_autoche
 === "Environment"
 
     ```shell
-    export HEADSCALE_DATABASE_SQLITE_WRITE_AHEAD_LOG=false
+    export ORGSCALE_DATABASE_SQLITE_WRITE_AHEAD_LOG=false
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.database.sqlite.write_ahead_log = false;
+    services.orgscale.settings.database.sqlite.write_ahead_log = false;
     ```
 
 #### `database.sqlite.wal_autocheckpoint` { #database.sqlite.wal_autocheckpoint data-toc-label="wal_autocheckpoint" }
 
 - **Type:** [integer](#type-integer)
 - **Default:** `1000`
-- **Env:** `HEADSCALE_DATABASE_SQLITE_WAL_AUTOCHECKPOINT`
+- **Env:** `ORGSCALE_DATABASE_SQLITE_WAL_AUTOCHECKPOINT`
 
 The number of WAL frames after which the WAL is checkpointed automatically; zero disables automatic checkpoints. Applied only when [`database.sqlite.write_ahead_log`](#database.sqlite.write_ahead_log) is true.
 
@@ -1497,13 +1497,13 @@ The number of WAL frames after which the WAL is checkpointed automatically; zero
 === "Environment"
 
     ```shell
-    export HEADSCALE_DATABASE_SQLITE_WAL_AUTOCHECKPOINT=2000
+    export ORGSCALE_DATABASE_SQLITE_WAL_AUTOCHECKPOINT=2000
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.database.sqlite.wal_autocheckpoint = 2000;
+    services.orgscale.settings.database.sqlite.wal_autocheckpoint = 2000;
     ```
 
 ### `database.postgres` { #database.postgres data-toc-label="postgres" }
@@ -1530,7 +1530,7 @@ PostgreSQL, read only when [`database.type`](#database.type) is `postgres`. An e
 
 - **Type:** [string](#type-string)
 - **Default:** `""`
-- **Env:** `HEADSCALE_DATABASE_POSTGRES_HOST`
+- **Env:** `ORGSCALE_DATABASE_POSTGRES_HOST`
 
 The server's host name or IP, or the directory of its Unix socket (a path starting with `/`).
 
@@ -1545,13 +1545,13 @@ The server's host name or IP, or the directory of its Unix socket (a path starti
 === "Environment"
 
     ```shell
-    export HEADSCALE_DATABASE_POSTGRES_HOST=db.example.com
+    export ORGSCALE_DATABASE_POSTGRES_HOST=db.example.com
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.database.postgres.host = "db.example.com";
+    services.orgscale.settings.database.postgres.host = "db.example.com";
     ```
 
 Replaces `db_host` ([removed](#db_host)).
@@ -1560,7 +1560,7 @@ Replaces `db_host` ([removed](#db_host)).
 
 - **Type:** [integer](#type-integer)
 - **Default:** `0`
-- **Env:** `HEADSCALE_DATABASE_POSTGRES_PORT`
+- **Env:** `ORGSCALE_DATABASE_POSTGRES_PORT`
 
 The server's port or, with a Unix socket directory in [`database.postgres.host`](#database.postgres.host), the port in the socket's file name. Zero uses the driver's default.
 
@@ -1575,13 +1575,13 @@ The server's port or, with a Unix socket directory in [`database.postgres.host`]
 === "Environment"
 
     ```shell
-    export HEADSCALE_DATABASE_POSTGRES_PORT=5432
+    export ORGSCALE_DATABASE_POSTGRES_PORT=5432
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.database.postgres.port = 5432;
+    services.orgscale.settings.database.postgres.port = 5432;
     ```
 
 Replaces `db_port` ([removed](#db_port)).
@@ -1590,7 +1590,7 @@ Replaces `db_port` ([removed](#db_port)).
 
 - **Type:** [string](#type-string)
 - **Default:** `""`
-- **Env:** `HEADSCALE_DATABASE_POSTGRES_NAME`
+- **Env:** `ORGSCALE_DATABASE_POSTGRES_NAME`
 
 The database name.
 
@@ -1599,19 +1599,19 @@ The database name.
     ```yaml
     database:
       postgres:
-        name: headscale
+        name: orgscale
     ```
 
 === "Environment"
 
     ```shell
-    export HEADSCALE_DATABASE_POSTGRES_NAME=headscale
+    export ORGSCALE_DATABASE_POSTGRES_NAME=orgscale
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.database.postgres.name = "headscale";
+    services.orgscale.settings.database.postgres.name = "orgscale";
     ```
 
 Replaces `db_name` ([removed](#db_name)).
@@ -1620,7 +1620,7 @@ Replaces `db_name` ([removed](#db_name)).
 
 - **Type:** [string](#type-string)
 - **Default:** `""`
-- **Env:** `HEADSCALE_DATABASE_POSTGRES_USER`
+- **Env:** `ORGSCALE_DATABASE_POSTGRES_USER`
 
 The user to connect as.
 
@@ -1629,19 +1629,19 @@ The user to connect as.
     ```yaml
     database:
       postgres:
-        user: headscale
+        user: orgscale
     ```
 
 === "Environment"
 
     ```shell
-    export HEADSCALE_DATABASE_POSTGRES_USER=headscale
+    export ORGSCALE_DATABASE_POSTGRES_USER=orgscale
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.database.postgres.user = "headscale";
+    services.orgscale.settings.database.postgres.user = "orgscale";
     ```
 
 Replaces `db_user` ([removed](#db_user)).
@@ -1650,9 +1650,9 @@ Replaces `db_user` ([removed](#db_user)).
 
 - **Type:** [secret](#secrets)
 - **Default:** `""`
-- **Env:** `HEADSCALE_DATABASE_POSTGRES_PASS`
+- **Env:** `ORGSCALE_DATABASE_POSTGRES_PASS`
 
-The password, or `file:<path>` to read it from a file, read only when [`database.type`](#database.type) is `postgres`. `headscale generate config --running` and `/debug/config` show a literal password as `<redacted>` and a `file:` reference as written.
+The password, or `file:<path>` to read it from a file, read only when [`database.type`](#database.type) is `postgres`. `orgscale generate config --running` and `/debug/config` show a literal password as `<redacted>` and a `file:` reference as written.
 
 === "YAML"
 
@@ -1665,14 +1665,14 @@ The password, or `file:<path>` to read it from a file, read only when [`database
 === "Environment"
 
     ```shell
-    export HEADSCALE_DATABASE_POSTGRES_PASS=file:/run/secrets/postgres_password
+    export ORGSCALE_DATABASE_POSTGRES_PASS=file:/run/secrets/postgres_password
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.database.postgres.pass = "file:\${CREDENTIALS_DIRECTORY}/database_postgres_pass";
-    systemd.services.headscale.serviceConfig.LoadCredential = [ "database_postgres_pass:/run/secrets/postgres_password" ];
+    services.orgscale.settings.database.postgres.pass = "file:\${CREDENTIALS_DIRECTORY}/database_postgres_pass";
+    systemd.services.orgscale.serviceConfig.LoadCredential = [ "database_postgres_pass:/run/secrets/postgres_password" ];
     ```
 
 Replaces `db_pass` ([removed](#db_pass)).
@@ -1683,7 +1683,7 @@ Replaces `database.postgres.password_file` ([removed](#database.postgres.passwor
 
 - **Type:** [string](#type-string)
 - **Default:** `"false"`
-- **Env:** `HEADSCALE_DATABASE_POSTGRES_SSL`
+- **Env:** `ORGSCALE_DATABASE_POSTGRES_SSL`
 
 The TLS mode: `true` keeps the driver's default `sslmode`, `false` disables TLS, any other value is passed as `sslmode` (`require`, `verify-full`, ...).
 
@@ -1698,13 +1698,13 @@ The TLS mode: `true` keeps the driver's default `sslmode`, `false` disables TLS,
 === "Environment"
 
     ```shell
-    export HEADSCALE_DATABASE_POSTGRES_SSL=verify-full
+    export ORGSCALE_DATABASE_POSTGRES_SSL=verify-full
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.database.postgres.ssl = "verify-full";
+    services.orgscale.settings.database.postgres.ssl = "verify-full";
     ```
 
 Replaces `db_ssl` ([removed](#db_ssl)).
@@ -1713,7 +1713,7 @@ Replaces `db_ssl` ([removed](#db_ssl)).
 
 - **Type:** [integer](#type-integer)
 - **Default:** `10`
-- **Env:** `HEADSCALE_DATABASE_POSTGRES_MAX_OPEN_CONNS`
+- **Env:** `ORGSCALE_DATABASE_POSTGRES_MAX_OPEN_CONNS`
 
 Caps open connections to the database.
 
@@ -1728,20 +1728,20 @@ Caps open connections to the database.
 === "Environment"
 
     ```shell
-    export HEADSCALE_DATABASE_POSTGRES_MAX_OPEN_CONNS=20
+    export ORGSCALE_DATABASE_POSTGRES_MAX_OPEN_CONNS=20
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.database.postgres.max_open_conns = 20;
+    services.orgscale.settings.database.postgres.max_open_conns = 20;
     ```
 
 #### `database.postgres.max_idle_conns` { #database.postgres.max_idle_conns data-toc-label="max_idle_conns" }
 
 - **Type:** [integer](#type-integer)
 - **Default:** `10`
-- **Env:** `HEADSCALE_DATABASE_POSTGRES_MAX_IDLE_CONNS`
+- **Env:** `ORGSCALE_DATABASE_POSTGRES_MAX_IDLE_CONNS`
 
 Caps idle connections kept in the pool.
 
@@ -1756,20 +1756,20 @@ Caps idle connections kept in the pool.
 === "Environment"
 
     ```shell
-    export HEADSCALE_DATABASE_POSTGRES_MAX_IDLE_CONNS=5
+    export ORGSCALE_DATABASE_POSTGRES_MAX_IDLE_CONNS=5
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.database.postgres.max_idle_conns = 5;
+    services.orgscale.settings.database.postgres.max_idle_conns = 5;
     ```
 
 #### `database.postgres.conn_max_idle_time_secs` { #database.postgres.conn_max_idle_time_secs data-toc-label="conn_max_idle_time_secs" }
 
 - **Type:** [integer](#type-integer)
 - **Default:** `3600`
-- **Env:** `HEADSCALE_DATABASE_POSTGRES_CONN_MAX_IDLE_TIME_SECS`
+- **Env:** `ORGSCALE_DATABASE_POSTGRES_CONN_MAX_IDLE_TIME_SECS`
 
 How long, in seconds, a connection may stay idle before it is closed.
 
@@ -1784,13 +1784,13 @@ How long, in seconds, a connection may stay idle before it is closed.
 === "Environment"
 
     ```shell
-    export HEADSCALE_DATABASE_POSTGRES_CONN_MAX_IDLE_TIME_SECS=600
+    export ORGSCALE_DATABASE_POSTGRES_CONN_MAX_IDLE_TIME_SECS=600
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.database.postgres.conn_max_idle_time_secs = 600;
+    services.orgscale.settings.database.postgres.conn_max_idle_time_secs = 600;
     ```
 
 ## `dns` { #dns data-toc-label="dns" }
@@ -1827,7 +1827,7 @@ Replaces `dns_config` ([removed](#dns_config)).
 
 - **Type:** [boolean](#type-boolean)
 - **Default:** `true`
-- **Env:** `HEADSCALE_DNS_MAGIC_DNS`
+- **Env:** `ORGSCALE_DNS_MAGIC_DNS`
 
 Gives each node a name below [`dns.base_domain`](#dns.base_domain), e.g. `laptop.example.com`, resolved by the client. It requires [`dns.base_domain`](#dns.base_domain).
 
@@ -1841,13 +1841,13 @@ Gives each node a name below [`dns.base_domain`](#dns.base_domain), e.g. `laptop
 === "Environment"
 
     ```shell
-    export HEADSCALE_DNS_MAGIC_DNS=false
+    export ORGSCALE_DNS_MAGIC_DNS=false
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.dns.magic_dns = false;
+    services.orgscale.settings.dns.magic_dns = false;
     ```
 
 Replaces `dns_config.magic_dns` ([removed](#dns_config.magic_dns)).
@@ -1856,7 +1856,7 @@ Replaces `dns_config.magic_dns` ([removed](#dns_config.magic_dns)).
 
 - **Type:** [string](#type-string)
 - **Default:** `tailnet.internal`
-- **Env:** `HEADSCALE_DNS_BASE_DOMAIN`
+- **Env:** `ORGSCALE_DNS_BASE_DOMAIN`
 
 The domain MagicDNS names live under, without a trailing dot, e.g. `example.com`. The host of [`server_url`](#server_url) must not be this domain or a name below it: clients take the domain over. The default is a private-use name, so [`dns.certificates`](#dns.certificates) needs a public domain you control.
 
@@ -1870,13 +1870,13 @@ The domain MagicDNS names live under, without a trailing dot, e.g. `example.com`
 === "Environment"
 
     ```shell
-    export HEADSCALE_DNS_BASE_DOMAIN=tailnet.example.com
+    export ORGSCALE_DNS_BASE_DOMAIN=tailnet.example.com
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.dns.base_domain = "tailnet.example.com";
+    services.orgscale.settings.dns.base_domain = "tailnet.example.com";
     ```
 
 Replaces `dns_config.base_domain` ([removed](#dns_config.base_domain)).
@@ -1885,7 +1885,7 @@ Replaces `dns_config.base_domain` ([removed](#dns_config.base_domain)).
 
 - **Type:** [boolean](#type-boolean)
 - **Default:** `true`
-- **Env:** `HEADSCALE_DNS_OVERRIDE_LOCAL_DNS`
+- **Env:** `ORGSCALE_DNS_OVERRIDE_LOCAL_DNS`
 
 Makes clients use [`dns.nameservers.global`](#dns.nameservers.global) instead of their local DNS settings; with no global nameserver there is nothing to override with, and clients keep their own. False sends them only as fallback resolvers.
 
@@ -1899,13 +1899,13 @@ Makes clients use [`dns.nameservers.global`](#dns.nameservers.global) instead of
 === "Environment"
 
     ```shell
-    export HEADSCALE_DNS_OVERRIDE_LOCAL_DNS=false
+    export ORGSCALE_DNS_OVERRIDE_LOCAL_DNS=false
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.dns.override_local_dns = false;
+    services.orgscale.settings.dns.override_local_dns = false;
     ```
 
 Replaces `dns_config.override_local_dns` ([removed](#dns_config.override_local_dns)).
@@ -1927,9 +1927,9 @@ The upstream DNS servers sent to clients. An entry that is neither an IP address
 
 - **Type:** [list of strings](#type-list)
 - **Default:** `[]`
-- **Env:** `HEADSCALE_DNS_NAMESERVERS_GLOBAL` ([space-separated or JSON array](#env))
+- **Env:** `ORGSCALE_DNS_NAMESERVERS_GLOBAL` ([space-separated or JSON array](#env))
 
-The nameservers for names [`dns.nameservers.split`](#dns.nameservers.split) does not cover: IP addresses, or DNS-over-HTTPS URLs such as `https://dns.nextdns.io/<id>`. Empty by default, so clients keep their own DNS: headscale points them at no resolver you did not list.
+The nameservers for names [`dns.nameservers.split`](#dns.nameservers.split) does not cover: IP addresses, or DNS-over-HTTPS URLs such as `https://dns.nextdns.io/<id>`. Empty by default, so clients keep their own DNS: orgscale points them at no resolver you did not list.
 
 === "YAML"
 
@@ -1946,13 +1946,13 @@ The nameservers for names [`dns.nameservers.split`](#dns.nameservers.split) does
 === "Environment"
 
     ```shell
-    export HEADSCALE_DNS_NAMESERVERS_GLOBAL='["9.9.9.9","149.112.112.112","2620:fe::fe","2620:fe::9"]'
+    export ORGSCALE_DNS_NAMESERVERS_GLOBAL='["9.9.9.9","149.112.112.112","2620:fe::fe","2620:fe::9"]'
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.dns.nameservers.global = [
+    services.orgscale.settings.dns.nameservers.global = [
       "9.9.9.9"
       "149.112.112.112"
       "2620:fe::fe"
@@ -1966,7 +1966,7 @@ Replaces `dns_config.nameservers` ([removed](#dns_config.nameservers)).
 
 - **Type:** [map of `<domain>` → list of strings](#type-map)
 - **Default:** `{}`
-- **Env:** `HEADSCALE_DNS_NAMESERVERS_SPLIT` ([JSON object](#env))
+- **Env:** `ORGSCALE_DNS_NAMESERVERS_SPLIT` ([JSON object](#env))
 
 Maps a domain to the nameservers that answer for it (split DNS). Domains are lowercased on load; two that differ only in case are an error.
 
@@ -1986,13 +1986,13 @@ Maps a domain to the nameservers that answer for it (split DNS). Domains are low
 === "Environment"
 
     ```shell
-    export HEADSCALE_DNS_NAMESERVERS_SPLIT='{"corp.example.com":["192.0.2.53"],"lab.example.net":["198.51.100.53","2001:db8::53"]}'
+    export ORGSCALE_DNS_NAMESERVERS_SPLIT='{"corp.example.com":["192.0.2.53"],"lab.example.net":["198.51.100.53","2001:db8::53"]}'
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.dns.nameservers.split = {
+    services.orgscale.settings.dns.nameservers.split = {
       "corp.example.com" = [
         "192.0.2.53"
       ];
@@ -2010,7 +2010,7 @@ Replaces `dns.split` ([removed](#dns.split)).
 
 - **Type:** [list of strings](#type-list)
 - **Default:** `[]`
-- **Env:** `HEADSCALE_DNS_SEARCH_DOMAINS` ([space-separated or JSON array](#env))
+- **Env:** `ORGSCALE_DNS_SEARCH_DOMAINS` ([space-separated or JSON array](#env))
 
 DNS search domains sent to clients. With MagicDNS, [`dns.base_domain`](#dns.base_domain) comes first.
 
@@ -2026,13 +2026,13 @@ DNS search domains sent to clients. With MagicDNS, [`dns.base_domain`](#dns.base
 === "Environment"
 
     ```shell
-    export HEADSCALE_DNS_SEARCH_DOMAINS='["corp.example.com","lab.example.net"]'
+    export ORGSCALE_DNS_SEARCH_DOMAINS='["corp.example.com","lab.example.net"]'
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.dns.search_domains = [
+    services.orgscale.settings.dns.search_domains = [
       "corp.example.com"
       "lab.example.net"
     ];
@@ -2044,7 +2044,7 @@ Replaces `dns_config.domains` ([removed](#dns_config.domains)).
 
 - **Type:** [list of DNS records](#type-list)
 - **Default:** `[]`
-- **Env:** `HEADSCALE_DNS_EXTRA_RECORDS` ([JSON array](#env))
+- **Env:** `ORGSCALE_DNS_EXTRA_RECORDS` ([JSON array](#env))
 
 DNS records served to clients, each with a `name`, `type` and `value`. Clients support `A` and `AAAA`. Mutually exclusive with [`dns.extra_records_path`](#dns.extra_records_path). See [Setting extra DNS records](dns.md#setting-extra-dns-records).
 
@@ -2070,13 +2070,13 @@ DNS records served to clients, each with a `name`, `type` and `value`. Clients s
 === "Environment"
 
     ```shell
-    export HEADSCALE_DNS_EXTRA_RECORDS='[{"name":"grafana.tailnet.example.com","type":"A","value":"100.64.0.3"},{"name":"grafana.tailnet.example.com","type":"AAAA","value":"fd7a:115c:a1e0::3"}]'
+    export ORGSCALE_DNS_EXTRA_RECORDS='[{"name":"grafana.tailnet.example.com","type":"A","value":"100.64.0.3"},{"name":"grafana.tailnet.example.com","type":"AAAA","value":"fd7a:115c:a1e0::3"}]'
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.dns.extra_records = [
+    services.orgscale.settings.dns.extra_records = [
       {
         name = "grafana.tailnet.example.com";
         type = "A";
@@ -2096,7 +2096,7 @@ Replaces `dns_config.extra_records` ([removed](#dns_config.extra_records)).
 
 - **Type:** [string](#type-string)
 - **Default:** `""`
-- **Env:** `HEADSCALE_DNS_EXTRA_RECORDS_PATH`
+- **Env:** `ORGSCALE_DNS_EXTRA_RECORDS_PATH`
 
 A file of extra records, reloaded when it changes. The extension picks the format: `.json`, `.hujson`, `.yaml` or `.yml`. Mutually exclusive with [`dns.extra_records`](#dns.extra_records).
 
@@ -2104,24 +2104,24 @@ A file of extra records, reloaded when it changes. The extension picks the forma
 
     ```yaml
     dns:
-      extra_records_path: /var/lib/headscale/extra-records.json
+      extra_records_path: /var/lib/orgscale/extra-records.json
     ```
 
 === "Environment"
 
     ```shell
-    export HEADSCALE_DNS_EXTRA_RECORDS_PATH=/var/lib/headscale/extra-records.json
+    export ORGSCALE_DNS_EXTRA_RECORDS_PATH=/var/lib/orgscale/extra-records.json
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.dns.extra_records_path = "/var/lib/headscale/extra-records.json";
+    services.orgscale.settings.dns.extra_records_path = "/var/lib/orgscale/extra-records.json";
     ```
 
 ### `dns.certificates` { #dns.certificates data-toc-label="certificates" }
 
-Lets nodes get TLS certificates for their MagicDNS names with `tailscale cert`. The node runs ACME itself; headscale publishes its DNS-01 challenge through [`dns.challenge.provider`](#dns.challenge.provider).
+Lets nodes get TLS certificates for their MagicDNS names with `tailscale cert`. The node runs ACME itself; orgscale publishes its DNS-01 challenge through [`dns.challenge.provider`](#dns.challenge.provider).
 
 ??? example "All `dns.certificates` keys and defaults"
 
@@ -2136,7 +2136,7 @@ Lets nodes get TLS certificates for their MagicDNS names with `tailscale cert`. 
 
 - **Type:** [boolean](#type-boolean)
 - **Default:** `false`
-- **Env:** `HEADSCALE_DNS_CERTIFICATES_ENABLED`
+- **Env:** `ORGSCALE_DNS_CERTIFICATES_ENABLED`
 
 Lets nodes run `tailscale cert`. It requires [`dns.magic_dns`](#dns.magic_dns), a lowercase [`dns.base_domain`](#dns.base_domain) and [`dns.challenge.provider`](#dns.challenge.provider).
 
@@ -2151,20 +2151,20 @@ Lets nodes run `tailscale cert`. It requires [`dns.magic_dns`](#dns.magic_dns), 
 === "Environment"
 
     ```shell
-    export HEADSCALE_DNS_CERTIFICATES_ENABLED=true
+    export ORGSCALE_DNS_CERTIFICATES_ENABLED=true
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.dns.certificates.enabled = true;
+    services.orgscale.settings.dns.certificates.enabled = true;
     ```
 
 #### `dns.certificates.zone` { #dns.certificates.zone data-toc-label="zone" }
 
 - **Type:** [string](#type-string)
 - **Default:** `""`
-- **Env:** `HEADSCALE_DNS_CERTIFICATES_ZONE`
+- **Env:** `ORGSCALE_DNS_CERTIFICATES_ZONE`
 
 The public DNS zone challenge records are written to, when [`dns.base_domain`](#dns.base_domain) sits below the zone apex. It must contain [`dns.base_domain`](#dns.base_domain). Empty uses [`dns.base_domain`](#dns.base_domain).
 
@@ -2179,18 +2179,18 @@ The public DNS zone challenge records are written to, when [`dns.base_domain`](#
 === "Environment"
 
     ```shell
-    export HEADSCALE_DNS_CERTIFICATES_ZONE=example.com
+    export ORGSCALE_DNS_CERTIFICATES_ZONE=example.com
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.dns.certificates.zone = "example.com";
+    services.orgscale.settings.dns.certificates.zone = "example.com";
     ```
 
 ### `dns.challenge` { #dns.challenge data-toc-label="challenge" }
 
-The DNS provider answering ACME DNS-01 challenges, for node certificates and for headscale's own certificate when [`tls.acme.challenge_type`](#tls.acme.challenge_type) is `DNS-01`. See [DNS-01 challenge provider](dns.md#dns-01-challenge-provider).
+The DNS provider answering ACME DNS-01 challenges, for node certificates and for orgscale's own certificate when [`tls.acme.challenge_type`](#tls.acme.challenge_type) is `DNS-01`. See [DNS-01 challenge provider](dns.md#dns-01-challenge-provider).
 
 ??? example "All `dns.challenge` keys and defaults"
 
@@ -2208,7 +2208,7 @@ The DNS provider answering ACME DNS-01 challenges, for node certificates and for
 
 - **Type:** [duration](#type-duration)
 - **Default:** `2m`
-- **Env:** `HEADSCALE_DNS_CHALLENGE_PROPAGATION_TIMEOUT`
+- **Env:** `ORGSCALE_DNS_CHALLENGE_PROPAGATION_TIMEOUT`
 
 How long to wait for a challenge record to show up on every authoritative nameserver. Zero skips the check.
 
@@ -2223,20 +2223,20 @@ How long to wait for a challenge record to show up on every authoritative namese
 === "Environment"
 
     ```shell
-    export HEADSCALE_DNS_CHALLENGE_PROPAGATION_TIMEOUT=5m
+    export ORGSCALE_DNS_CHALLENGE_PROPAGATION_TIMEOUT=5m
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.dns.challenge.propagation_timeout = "5m";
+    services.orgscale.settings.dns.challenge.propagation_timeout = "5m";
     ```
 
 #### `dns.challenge.resolvers` { #dns.challenge.resolvers data-toc-label="resolvers" }
 
 - **Type:** [list of strings](#type-list)
 - **Default:** `['9.9.9.9:53', '149.112.112.112:53']`
-- **Env:** `HEADSCALE_DNS_CHALLENGE_RESOLVERS` ([space-separated or JSON array](#env))
+- **Env:** `ORGSCALE_DNS_CHALLENGE_RESOLVERS` ([space-separated or JSON array](#env))
 
 The servers asked for the zone's nameservers, each an IP or host with an optional port (53 if omitted). Empty uses the default public resolvers. The system resolver is never used: on a host running MagicDNS it answers for [`dns.base_domain`](#dns.base_domain) itself.
 
@@ -2253,13 +2253,13 @@ The servers asked for the zone's nameservers, each an IP or host with an optiona
 === "Environment"
 
     ```shell
-    export HEADSCALE_DNS_CHALLENGE_RESOLVERS='["9.9.9.9:53","[2620:fe::fe]:53"]'
+    export ORGSCALE_DNS_CHALLENGE_RESOLVERS='["9.9.9.9:53","[2620:fe::fe]:53"]'
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.dns.challenge.resolvers = [
+    services.orgscale.settings.dns.challenge.resolvers = [
       "9.9.9.9:53"
       "[2620:fe::fe]:53"
     ];
@@ -2269,9 +2269,9 @@ The servers asked for the zone's nameservers, each an IP or host with an optiona
 
 - **Type:** [map of `<setting>` → value](#type-map)
 - **Default:** `{}`
-- **Env:** `HEADSCALE_DNS_CHALLENGE_PROVIDER` ([JSON object](#env))
+- **Env:** `ORGSCALE_DNS_CHALLENGE_PROVIDER` ([JSON object](#env))
 
-The DNS provider that writes challenge records: `name` selects it, the other keys are its settings. Keys are lowercased on load, at every depth; two that differ only in case are an error. Any setting may be `file:<path>` to read it from a file; a non-string one, such as acme-dns `config`, is the JSON in it. `headscale generate config --running` and `/debug/config` show `name` and `file:` references; every other setting is `<redacted>`, as any may be a credential. See [DNS-01 challenge provider](dns.md#dns-01-challenge-provider) to set a provider up, acme-dns included, and to set it from environment variables.
+The DNS provider that writes challenge records: `name` selects it, the other keys are its settings. Keys are lowercased on load, at every depth; two that differ only in case are an error. Any setting may be `file:<path>` to read it from a file; a non-string one, such as acme-dns `config`, is the JSON in it. `orgscale generate config --running` and `/debug/config` show `name` and `file:` references; every other setting is `<redacted>`, as any may be a credential. See [DNS-01 challenge provider](dns.md#dns-01-challenge-provider) to set a provider up, acme-dns included, and to set it from environment variables.
 
 | Provider     | Settings                                                    |
 | ------------ | ----------------------------------------------------------- |
@@ -2282,7 +2282,7 @@ The DNS provider that writes challenge records: `name` selects it, the other key
 | `powerdns`   | `api_token`, `debug`, `server_id`, `server_url`             |
 | `rfc2136`    | `key`, `key_alg`, `key_name`, `server`                      |
 
-Each text setting can also be set on its own as `HEADSCALE_DNS_CHALLENGE_PROVIDER_<SETTING>`, e.g. `HEADSCALE_DNS_CHALLENGE_PROVIDER_API_TOKEN`, which wins over the same setting in `HEADSCALE_DNS_CHALLENGE_PROVIDER` and in the configuration file. An object setting, such as the `config` of `acmedns`, goes inside the JSON object of `HEADSCALE_DNS_CHALLENGE_PROVIDER`; see [Environment variables](dns.md#environment-variables).
+Each text setting can also be set on its own as `ORGSCALE_DNS_CHALLENGE_PROVIDER_<SETTING>`, e.g. `ORGSCALE_DNS_CHALLENGE_PROVIDER_API_TOKEN`, which wins over the same setting in `ORGSCALE_DNS_CHALLENGE_PROVIDER` and in the configuration file. An object setting, such as the `config` of `acmedns`, goes inside the JSON object of `ORGSCALE_DNS_CHALLENGE_PROVIDER`; see [Environment variables](dns.md#environment-variables).
 
 === "YAML"
 
@@ -2297,22 +2297,22 @@ Each text setting can also be set on its own as `HEADSCALE_DNS_CHALLENGE_PROVIDE
 === "Environment"
 
     ```shell
-    export HEADSCALE_DNS_CHALLENGE_PROVIDER='{"api_token":"file:/run/secrets/cloudflare","name":"cloudflare"}'
+    export ORGSCALE_DNS_CHALLENGE_PROVIDER='{"api_token":"file:/run/secrets/cloudflare","name":"cloudflare"}'
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.dns.challenge.provider = {
+    services.orgscale.settings.dns.challenge.provider = {
       api_token = "file:\${CREDENTIALS_DIRECTORY}/dns_challenge_provider_api_token";
       name = "cloudflare";
     };
-    systemd.services.headscale.serviceConfig.LoadCredential = [ "dns_challenge_provider_api_token:/run/secrets/cloudflare" ];
+    systemd.services.orgscale.serviceConfig.LoadCredential = [ "dns_challenge_provider_api_token:/run/secrets/cloudflare" ];
     ```
 
 ## `tls` { #tls data-toc-label="tls" }
 
-Headscale's own HTTPS certificate on [`listen_addr`](#listen_addr): from the files [`tls.cert_path`](#tls.cert_path) and [`tls.key_path`](#tls.key_path), or from ACME in [`tls.acme`](#tls.acme), not both. Without either, the server speaks plain HTTP. See [TLS](tls.md).
+Orgscale's own HTTPS certificate on [`listen_addr`](#listen_addr): from the files [`tls.cert_path`](#tls.cert_path) and [`tls.key_path`](#tls.key_path), or from ACME in [`tls.acme`](#tls.acme), not both. Without either, the server speaks plain HTTP. See [TLS](tls.md).
 
 ??? example "All `tls` keys and defaults"
 
@@ -2326,14 +2326,14 @@ Headscale's own HTTPS certificate on [`listen_addr`](#listen_addr): from the fil
         http_listen: :http
         url: ""
         email: ""
-        cache_dir: /var/lib/headscale/cache
+        cache_dir: /var/lib/orgscale/cache
     ```
 
 ### `tls.cert_path` { #tls.cert_path data-toc-label="cert_path" }
 
 - **Type:** [string](#type-string)
 - **Default:** `""`
-- **Env:** `HEADSCALE_TLS_CERT_PATH`
+- **Env:** `ORGSCALE_TLS_CERT_PATH`
 
 The PEM certificate file, relative to the configuration file. Setting it turns TLS on.
 
@@ -2341,19 +2341,19 @@ The PEM certificate file, relative to the configuration file. Setting it turns T
 
     ```yaml
     tls:
-      cert_path: /etc/headscale/tls/cert.pem
+      cert_path: /etc/orgscale/tls/cert.pem
     ```
 
 === "Environment"
 
     ```shell
-    export HEADSCALE_TLS_CERT_PATH=/etc/headscale/tls/cert.pem
+    export ORGSCALE_TLS_CERT_PATH=/etc/orgscale/tls/cert.pem
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.tls.cert_path = "/etc/headscale/tls/cert.pem";
+    services.orgscale.settings.tls.cert_path = "/etc/orgscale/tls/cert.pem";
     ```
 
 Replaces `tls_cert_path` ([removed](#tls_cert_path)).
@@ -2362,7 +2362,7 @@ Replaces `tls_cert_path` ([removed](#tls_cert_path)).
 
 - **Type:** [string](#type-string)
 - **Default:** `""`
-- **Env:** `HEADSCALE_TLS_KEY_PATH`
+- **Env:** `ORGSCALE_TLS_KEY_PATH`
 
 The PEM private key file of [`tls.cert_path`](#tls.cert_path), relative to the configuration file.
 
@@ -2370,19 +2370,19 @@ The PEM private key file of [`tls.cert_path`](#tls.cert_path), relative to the c
 
     ```yaml
     tls:
-      key_path: /etc/headscale/tls/key.pem
+      key_path: /etc/orgscale/tls/key.pem
     ```
 
 === "Environment"
 
     ```shell
-    export HEADSCALE_TLS_KEY_PATH=/etc/headscale/tls/key.pem
+    export ORGSCALE_TLS_KEY_PATH=/etc/orgscale/tls/key.pem
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.tls.key_path = "/etc/headscale/tls/key.pem";
+    services.orgscale.settings.tls.key_path = "/etc/orgscale/tls/key.pem";
     ```
 
 Replaces `tls_key_path` ([removed](#tls_key_path)).
@@ -2401,14 +2401,14 @@ Gets the certificate from an ACME CA such as Let's Encrypt, and renews it. Setti
         http_listen: :http
         url: ""
         email: ""
-        cache_dir: /var/lib/headscale/cache
+        cache_dir: /var/lib/orgscale/cache
     ```
 
 #### `tls.acme.hostname` { #tls.acme.hostname data-toc-label="hostname" }
 
 - **Type:** [string](#type-string)
 - **Default:** `""`
-- **Env:** `HEADSCALE_TLS_ACME_HOSTNAME`
+- **Env:** `ORGSCALE_TLS_ACME_HOSTNAME`
 
 The domain to request a certificate for. Setting it turns ACME on.
 
@@ -2417,19 +2417,19 @@ The domain to request a certificate for. Setting it turns ACME on.
     ```yaml
     tls:
       acme:
-        hostname: headscale.example.com
+        hostname: orgscale.example.com
     ```
 
 === "Environment"
 
     ```shell
-    export HEADSCALE_TLS_ACME_HOSTNAME=headscale.example.com
+    export ORGSCALE_TLS_ACME_HOSTNAME=orgscale.example.com
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.tls.acme.hostname = "headscale.example.com";
+    services.orgscale.settings.tls.acme.hostname = "orgscale.example.com";
     ```
 
 Replaces `tls_letsencrypt_hostname` ([removed](#tls_letsencrypt_hostname)).
@@ -2438,15 +2438,15 @@ Replaces `tls_letsencrypt_hostname` ([removed](#tls_letsencrypt_hostname)).
 
 - **Type:** [enum](#type-enum): `HTTP-01`, `TLS-ALPN-01`, `DNS-01`
 - **Default:** `HTTP-01`
-- **Env:** `HEADSCALE_TLS_ACME_CHALLENGE_TYPE`
+- **Env:** `ORGSCALE_TLS_ACME_CHALLENGE_TYPE`
 
-How the CA verifies that headscale controls [`tls.acme.hostname`](#tls.acme.hostname).
+How the CA verifies that orgscale controls [`tls.acme.hostname`](#tls.acme.hostname).
 
 | Value         | Meaning                                                                                                                                                                     |
 | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `HTTP-01`     | Has the CA fetch a token over HTTP on port 80, answered on [`tls.acme.http_listen`](#tls.acme.http_listen). TLS-ALPN-01 on [`listen_addr`](#listen_addr) stays enabled too. |
 | `TLS-ALPN-01` | Has the CA check a special certificate on port 443, answered on [`listen_addr`](#listen_addr), which must be reachable there.                                               |
-| `DNS-01`      | Has the CA look up a TXT record, which headscale writes through [`dns.challenge.provider`](#dns.challenge.provider). It needs no open port.                                 |
+| `DNS-01`      | Has the CA look up a TXT record, which orgscale writes through [`dns.challenge.provider`](#dns.challenge.provider). It needs no open port.                                  |
 
 === "YAML"
 
@@ -2459,13 +2459,13 @@ How the CA verifies that headscale controls [`tls.acme.hostname`](#tls.acme.host
 === "Environment"
 
     ```shell
-    export HEADSCALE_TLS_ACME_CHALLENGE_TYPE=TLS-ALPN-01
+    export ORGSCALE_TLS_ACME_CHALLENGE_TYPE=TLS-ALPN-01
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.tls.acme.challenge_type = "TLS-ALPN-01";
+    services.orgscale.settings.tls.acme.challenge_type = "TLS-ALPN-01";
     ```
 
 Replaces `tls_letsencrypt_challenge_type` ([removed](#tls_letsencrypt_challenge_type)).
@@ -2474,7 +2474,7 @@ Replaces `tls_letsencrypt_challenge_type` ([removed](#tls_letsencrypt_challenge_
 
 - **Type:** [listen address](#type-listen-address)
 - **Default:** `:http`
-- **Env:** `HEADSCALE_TLS_ACME_HTTP_LISTEN`
+- **Env:** `ORGSCALE_TLS_ACME_HTTP_LISTEN`
 
 The host:port serving HTTP-01 challenges; the port may be a name, as in `:http` for port 80. Other requests to it are redirected to [`server_url`](#server_url).
 
@@ -2489,13 +2489,13 @@ The host:port serving HTTP-01 challenges; the port may be a name, as in `:http` 
 === "Environment"
 
     ```shell
-    export HEADSCALE_TLS_ACME_HTTP_LISTEN=0.0.0.0:80
+    export ORGSCALE_TLS_ACME_HTTP_LISTEN=0.0.0.0:80
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.tls.acme.http_listen = "0.0.0.0:80";
+    services.orgscale.settings.tls.acme.http_listen = "0.0.0.0:80";
     ```
 
 Replaces `tls_letsencrypt_listen` ([removed](#tls_letsencrypt_listen)).
@@ -2504,7 +2504,7 @@ Replaces `tls_letsencrypt_listen` ([removed](#tls_letsencrypt_listen)).
 
 - **Type:** [URL](#type-URL)
 - **Default:** `""`
-- **Env:** `HEADSCALE_TLS_ACME_URL`
+- **Env:** `ORGSCALE_TLS_ACME_URL`
 
 The CA's ACME directory. Empty uses Let's Encrypt.
 
@@ -2519,13 +2519,13 @@ The CA's ACME directory. Empty uses Let's Encrypt.
 === "Environment"
 
     ```shell
-    export HEADSCALE_TLS_ACME_URL=https://acme-staging-v02.api.letsencrypt.org/directory
+    export ORGSCALE_TLS_ACME_URL=https://acme-staging-v02.api.letsencrypt.org/directory
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.tls.acme.url = "https://acme-staging-v02.api.letsencrypt.org/directory";
+    services.orgscale.settings.tls.acme.url = "https://acme-staging-v02.api.letsencrypt.org/directory";
     ```
 
 Replaces `acme_url` ([removed](#acme_url)).
@@ -2534,7 +2534,7 @@ Replaces `acme_url` ([removed](#acme_url)).
 
 - **Type:** [string](#type-string)
 - **Default:** `""`
-- **Env:** `HEADSCALE_TLS_ACME_EMAIL`
+- **Env:** `ORGSCALE_TLS_ACME_EMAIL`
 
 The contact address registered with the CA.
 
@@ -2549,13 +2549,13 @@ The contact address registered with the CA.
 === "Environment"
 
     ```shell
-    export HEADSCALE_TLS_ACME_EMAIL=admin@example.com
+    export ORGSCALE_TLS_ACME_EMAIL=admin@example.com
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.tls.acme.email = "admin@example.com";
+    services.orgscale.settings.tls.acme.email = "admin@example.com";
     ```
 
 Replaces `acme_email` ([removed](#acme_email)).
@@ -2563,8 +2563,8 @@ Replaces `acme_email` ([removed](#acme_email)).
 #### `tls.acme.cache_dir` { #tls.acme.cache_dir data-toc-label="cache_dir" }
 
 - **Type:** [string](#type-string)
-- **Default:** `/var/lib/headscale/cache`
-- **Env:** `HEADSCALE_TLS_ACME_CACHE_DIR`
+- **Default:** `/var/lib/orgscale/cache`
+- **Env:** `ORGSCALE_TLS_ACME_CACHE_DIR`
 
 Where certificates and ACME account data are stored, relative to the configuration file.
 
@@ -2573,19 +2573,19 @@ Where certificates and ACME account data are stored, relative to the configurati
     ```yaml
     tls:
       acme:
-        cache_dir: /var/cache/headscale/acme
+        cache_dir: /var/cache/orgscale/acme
     ```
 
 === "Environment"
 
     ```shell
-    export HEADSCALE_TLS_ACME_CACHE_DIR=/var/cache/headscale/acme
+    export ORGSCALE_TLS_ACME_CACHE_DIR=/var/cache/orgscale/acme
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.tls.acme.cache_dir = "/var/cache/headscale/acme";
+    services.orgscale.settings.tls.acme.cache_dir = "/var/cache/orgscale/acme";
     ```
 
 Replaces `tls_letsencrypt_cache_dir` ([removed](#tls_letsencrypt_cache_dir)).
@@ -2621,7 +2621,7 @@ Login through an OpenID Connect provider. Setting [`oidc.issuer`](#oidc.issuer) 
 
 - **Type:** [boolean](#type-boolean)
 - **Default:** `true`
-- **Env:** `HEADSCALE_OIDC_ONLY_START_IF_OIDC_IS_AVAILABLE`
+- **Env:** `ORGSCALE_OIDC_ONLY_START_IF_OIDC_IS_AVAILABLE`
 
 Stops startup when the provider cannot be reached. False starts without OIDC, with CLI-based registration.
 
@@ -2635,20 +2635,20 @@ Stops startup when the provider cannot be reached. False starts without OIDC, wi
 === "Environment"
 
     ```shell
-    export HEADSCALE_OIDC_ONLY_START_IF_OIDC_IS_AVAILABLE=false
+    export ORGSCALE_OIDC_ONLY_START_IF_OIDC_IS_AVAILABLE=false
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.oidc.only_start_if_oidc_is_available = false;
+    services.orgscale.settings.oidc.only_start_if_oidc_is_available = false;
     ```
 
 ### `oidc.issuer` { #oidc.issuer data-toc-label="issuer" }
 
 - **Type:** [URL](#type-URL)
 - **Default:** `""`
-- **Env:** `HEADSCALE_OIDC_ISSUER`
+- **Env:** `ORGSCALE_OIDC_ISSUER`
 
 The provider's issuer URL. Setting it turns OIDC on.
 
@@ -2656,26 +2656,26 @@ The provider's issuer URL. Setting it turns OIDC on.
 
     ```yaml
     oidc:
-      issuer: https://idp.example.com/realms/headscale
+      issuer: https://idp.example.com/realms/orgscale
     ```
 
 === "Environment"
 
     ```shell
-    export HEADSCALE_OIDC_ISSUER=https://idp.example.com/realms/headscale
+    export ORGSCALE_OIDC_ISSUER=https://idp.example.com/realms/orgscale
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.oidc.issuer = "https://idp.example.com/realms/headscale";
+    services.orgscale.settings.oidc.issuer = "https://idp.example.com/realms/orgscale";
     ```
 
 ### `oidc.client_id` { #oidc.client_id data-toc-label="client_id" }
 
 - **Type:** [string](#type-string)
 - **Default:** `""`
-- **Env:** `HEADSCALE_OIDC_CLIENT_ID`
+- **Env:** `ORGSCALE_OIDC_CLIENT_ID`
 
 The client ID from the provider; required when [`oidc.issuer`](#oidc.issuer) is set.
 
@@ -2683,28 +2683,28 @@ The client ID from the provider; required when [`oidc.issuer`](#oidc.issuer) is 
 
     ```yaml
     oidc:
-      client_id: headscale
+      client_id: orgscale
     ```
 
 === "Environment"
 
     ```shell
-    export HEADSCALE_OIDC_CLIENT_ID=headscale
+    export ORGSCALE_OIDC_CLIENT_ID=orgscale
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.oidc.client_id = "headscale";
+    services.orgscale.settings.oidc.client_id = "orgscale";
     ```
 
 ### `oidc.client_secret` { #oidc.client_secret data-toc-label="client_secret" }
 
 - **Type:** [secret](#secrets)
 - **Default:** `""`
-- **Env:** `HEADSCALE_OIDC_CLIENT_SECRET`
+- **Env:** `ORGSCALE_OIDC_CLIENT_SECRET`
 
-The client secret from the provider, or `file:<path>` to read it from a file; required when [`oidc.issuer`](#oidc.issuer) is set. `headscale generate config --running` and `/debug/config` show a literal secret as `<redacted>` and a `file:` reference as written.
+The client secret from the provider, or `file:<path>` to read it from a file; required when [`oidc.issuer`](#oidc.issuer) is set. `orgscale generate config --running` and `/debug/config` show a literal secret as `<redacted>` and a `file:` reference as written.
 
 === "YAML"
 
@@ -2716,14 +2716,14 @@ The client secret from the provider, or `file:<path>` to read it from a file; re
 === "Environment"
 
     ```shell
-    export HEADSCALE_OIDC_CLIENT_SECRET=file:/run/secrets/oidc_client_secret
+    export ORGSCALE_OIDC_CLIENT_SECRET=file:/run/secrets/oidc_client_secret
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.oidc.client_secret = "file:\${CREDENTIALS_DIRECTORY}/oidc_client_secret";
-    systemd.services.headscale.serviceConfig.LoadCredential = [ "oidc_client_secret:/run/secrets/oidc_client_secret" ];
+    services.orgscale.settings.oidc.client_secret = "file:\${CREDENTIALS_DIRECTORY}/oidc_client_secret";
+    systemd.services.orgscale.serviceConfig.LoadCredential = [ "oidc_client_secret:/run/secrets/oidc_client_secret" ];
     ```
 
 Replaces `oidc.client_secret_path` ([removed](#oidc.client_secret_path)).
@@ -2732,7 +2732,7 @@ Replaces `oidc.client_secret_path` ([removed](#oidc.client_secret_path)).
 
 - **Type:** [list of strings](#type-list)
 - **Default:** `[openid, profile, email]`
-- **Env:** `HEADSCALE_OIDC_SCOPE` ([space-separated or JSON array](#env))
+- **Env:** `ORGSCALE_OIDC_SCOPE` ([space-separated or JSON array](#env))
 
 The scopes requested; include `openid`.
 
@@ -2750,13 +2750,13 @@ The scopes requested; include `openid`.
 === "Environment"
 
     ```shell
-    export HEADSCALE_OIDC_SCOPE='["openid","profile","email","groups"]'
+    export ORGSCALE_OIDC_SCOPE='["openid","profile","email","groups"]'
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.oidc.scope = [
+    services.orgscale.settings.oidc.scope = [
       "openid"
       "profile"
       "email"
@@ -2768,7 +2768,7 @@ The scopes requested; include `openid`.
 
 - **Type:** [map of `<param>` → string](#type-map)
 - **Default:** `{}`
-- **Env:** `HEADSCALE_OIDC_EXTRA_PARAMS` ([JSON object](#env))
+- **Env:** `ORGSCALE_OIDC_EXTRA_PARAMS` ([JSON object](#env))
 
 Sent as is to the provider's authorization endpoint, e.g. `domain_hint`; names keep their case.
 
@@ -2784,13 +2784,13 @@ Sent as is to the provider's authorization endpoint, e.g. `domain_hint`; names k
 === "Environment"
 
     ```shell
-    export HEADSCALE_OIDC_EXTRA_PARAMS='{"domain_hint":"example.com","prompt":"select_account"}'
+    export ORGSCALE_OIDC_EXTRA_PARAMS='{"domain_hint":"example.com","prompt":"select_account"}'
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.oidc.extra_params = {
+    services.orgscale.settings.oidc.extra_params = {
       domain_hint = "example.com";
       prompt = "select_account";
     };
@@ -2800,7 +2800,7 @@ Sent as is to the provider's authorization endpoint, e.g. `domain_hint`; names k
 
 - **Type:** [list of strings](#type-list)
 - **Default:** `[]`
-- **Env:** `HEADSCALE_OIDC_ALLOWED_DOMAINS` ([space-separated or JSON array](#env))
+- **Env:** `ORGSCALE_OIDC_ALLOWED_DOMAINS` ([space-separated or JSON array](#env))
 
 Admits only users whose email domain is listed. Empty admits any domain.
 
@@ -2815,13 +2815,13 @@ Admits only users whose email domain is listed. Empty admits any domain.
 === "Environment"
 
     ```shell
-    export HEADSCALE_OIDC_ALLOWED_DOMAINS='["example.com"]'
+    export ORGSCALE_OIDC_ALLOWED_DOMAINS='["example.com"]'
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.oidc.allowed_domains = [
+    services.orgscale.settings.oidc.allowed_domains = [
       "example.com"
     ];
     ```
@@ -2830,7 +2830,7 @@ Admits only users whose email domain is listed. Empty admits any domain.
 
 - **Type:** [list of strings](#type-list)
 - **Default:** `[]`
-- **Env:** `HEADSCALE_OIDC_ALLOWED_USERS` ([space-separated or JSON array](#env))
+- **Env:** `ORGSCALE_OIDC_ALLOWED_USERS` ([space-separated or JSON array](#env))
 
 Admits only users whose email address is listed. Empty admits any user.
 
@@ -2845,13 +2845,13 @@ Admits only users whose email address is listed. Empty admits any user.
 === "Environment"
 
     ```shell
-    export HEADSCALE_OIDC_ALLOWED_USERS='["alice@example.com"]'
+    export ORGSCALE_OIDC_ALLOWED_USERS='["alice@example.com"]'
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.oidc.allowed_users = [
+    services.orgscale.settings.oidc.allowed_users = [
       "alice@example.com"
     ];
     ```
@@ -2860,7 +2860,7 @@ Admits only users whose email address is listed. Empty admits any user.
 
 - **Type:** [list of strings](#type-list)
 - **Default:** `[]`
-- **Env:** `HEADSCALE_OIDC_ALLOWED_GROUPS` ([space-separated or JSON array](#env))
+- **Env:** `ORGSCALE_OIDC_ALLOWED_GROUPS` ([space-separated or JSON array](#env))
 
 Admits only members of at least one listed group, from the provider's `groups` claim: UserInfo first, the ID token as fallback. Empty admits any group.
 
@@ -2869,20 +2869,20 @@ Admits only members of at least one listed group, from the provider's `groups` c
     ```yaml
     oidc:
       allowed_groups:
-        - headscale-users
+        - orgscale-users
     ```
 
 === "Environment"
 
     ```shell
-    export HEADSCALE_OIDC_ALLOWED_GROUPS='["headscale-users"]'
+    export ORGSCALE_OIDC_ALLOWED_GROUPS='["orgscale-users"]'
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.oidc.allowed_groups = [
-      "headscale-users"
+    services.orgscale.settings.oidc.allowed_groups = [
+      "orgscale-users"
     ];
     ```
 
@@ -2890,7 +2890,7 @@ Admits only members of at least one listed group, from the provider's `groups` c
 
 - **Type:** [boolean](#type-boolean)
 - **Default:** `true`
-- **Env:** `HEADSCALE_OIDC_EMAIL_VERIFIED_REQUIRED`
+- **Env:** `ORGSCALE_OIDC_EMAIL_VERIFIED_REQUIRED`
 
 Trusts an email only when the provider marks it verified: an unverified one fails [`oidc.allowed_domains`](#oidc.allowed_domains) and [`oidc.allowed_users`](#oidc.allowed_users) and is not copied to the user. Turn it off for a provider that does not send `email_verified`.
 
@@ -2904,20 +2904,20 @@ Trusts an email only when the provider marks it verified: an unverified one fail
 === "Environment"
 
     ```shell
-    export HEADSCALE_OIDC_EMAIL_VERIFIED_REQUIRED=false
+    export ORGSCALE_OIDC_EMAIL_VERIFIED_REQUIRED=false
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.oidc.email_verified_required = false;
+    services.orgscale.settings.oidc.email_verified_required = false;
     ```
 
 ### `oidc.use_expiry_from_token` { #oidc.use_expiry_from_token data-toc-label="use_expiry_from_token" }
 
 - **Type:** [boolean](#type-boolean)
 - **Default:** `false`
-- **Env:** `HEADSCALE_OIDC_USE_EXPIRY_FROM_TOKEN`
+- **Env:** `ORGSCALE_OIDC_USE_EXPIRY_FROM_TOKEN`
 
 Expires an OIDC-registered node with its token, instead of [`node.expiry`](#node.expiry). Tokens are often short-lived, forcing frequent logins.
 
@@ -2931,13 +2931,13 @@ Expires an OIDC-registered node with its token, instead of [`node.expiry`](#node
 === "Environment"
 
     ```shell
-    export HEADSCALE_OIDC_USE_EXPIRY_FROM_TOKEN=true
+    export ORGSCALE_OIDC_USE_EXPIRY_FROM_TOKEN=true
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.oidc.use_expiry_from_token = true;
+    services.orgscale.settings.oidc.use_expiry_from_token = true;
     ```
 
 ### `oidc.pkce` { #oidc.pkce data-toc-label="pkce" }
@@ -2957,7 +2957,7 @@ Proof Key for Code Exchange (RFC 7636), which protects the authorization code fr
 
 - **Type:** [boolean](#type-boolean)
 - **Default:** `false`
-- **Env:** `HEADSCALE_OIDC_PKCE_ENABLED`
+- **Env:** `ORGSCALE_OIDC_PKCE_ENABLED`
 
 Sends a PKCE challenge with each login.
 
@@ -2972,20 +2972,20 @@ Sends a PKCE challenge with each login.
 === "Environment"
 
     ```shell
-    export HEADSCALE_OIDC_PKCE_ENABLED=true
+    export ORGSCALE_OIDC_PKCE_ENABLED=true
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.oidc.pkce.enabled = true;
+    services.orgscale.settings.oidc.pkce.enabled = true;
     ```
 
 #### `oidc.pkce.method` { #oidc.pkce.method data-toc-label="method" }
 
 - **Type:** [enum](#type-enum): `plain`, `S256`
 - **Default:** `S256`
-- **Env:** `HEADSCALE_OIDC_PKCE_METHOD`
+- **Env:** `ORGSCALE_OIDC_PKCE_METHOD`
 
 How the code challenge is derived from the verifier. The verifier is sent as is in the token exchange.
 
@@ -3005,13 +3005,13 @@ How the code challenge is derived from the verifier. The verifier is sent as is 
 === "Environment"
 
     ```shell
-    export HEADSCALE_OIDC_PKCE_METHOD=plain
+    export ORGSCALE_OIDC_PKCE_METHOD=plain
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.oidc.pkce.method = "plain";
+    services.orgscale.settings.oidc.pkce.method = "plain";
     ```
 
 ## `logtail` { #logtail data-toc-label="logtail" }
@@ -3029,9 +3029,9 @@ Whether nodes send their logs to Tailscale.
 
 - **Type:** [boolean](#type-boolean)
 - **Default:** `false`
-- **Env:** `HEADSCALE_LOGTAIL_ENABLED`
+- **Env:** `ORGSCALE_LOGTAIL_ENABLED`
 
-Lets nodes send their logs to Tailscale Inc.; headscale cannot point them at another log server. False tells nodes not to.
+Lets nodes send their logs to Tailscale Inc.; orgscale cannot point them at another log server. False tells nodes not to.
 
 === "YAML"
 
@@ -3043,13 +3043,13 @@ Lets nodes send their logs to Tailscale Inc.; headscale cannot point them at ano
 === "Environment"
 
     ```shell
-    export HEADSCALE_LOGTAIL_ENABLED=true
+    export ORGSCALE_LOGTAIL_ENABLED=true
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.logtail.enabled = true;
+    services.orgscale.settings.logtail.enabled = true;
     ```
 
 ## `taildrop` { #taildrop data-toc-label="taildrop" }
@@ -3067,7 +3067,7 @@ Taildrop, Tailscale's file sharing between nodes.
 
 - **Type:** [boolean](#type-boolean)
 - **Default:** `true`
-- **Env:** `HEADSCALE_TAILDROP_ENABLED`
+- **Env:** `ORGSCALE_TAILDROP_ENABLED`
 
 Gives every node the file-sharing capability. False omits it from the baseline; a policy `nodeAttrs` grant can still give it.
 
@@ -3081,13 +3081,13 @@ Gives every node the file-sharing capability. False omits it from the baseline; 
 === "Environment"
 
     ```shell
-    export HEADSCALE_TAILDROP_ENABLED=false
+    export ORGSCALE_TAILDROP_ENABLED=false
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.taildrop.enabled = false;
+    services.orgscale.settings.taildrop.enabled = false;
     ```
 
 ## `auto_update` { #auto_update data-toc-label="auto_update" }
@@ -3105,7 +3105,7 @@ The tailnet-wide default for client auto-updates.
 
 - **Type:** [boolean](#type-boolean)
 - **Default:** `false`
-- **Env:** `HEADSCALE_AUTO_UPDATE_ENABLED`
+- **Env:** `ORGSCALE_AUTO_UPDATE_ENABLED`
 
 Makes auto-update the default for clients that have not chosen locally. Clients store the default they first see, so a later change reaches only new clients.
 
@@ -3119,18 +3119,18 @@ Makes auto-update the default for clients that have not chosen locally. Clients 
 === "Environment"
 
     ```shell
-    export HEADSCALE_AUTO_UPDATE_ENABLED=true
+    export ORGSCALE_AUTO_UPDATE_ENABLED=true
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.auto_update.enabled = true;
+    services.orgscale.settings.auto_update.enabled = true;
     ```
 
 ## `cli` { #cli data-toc-label="cli" }
 
-How the headscale CLI reaches the server: the local [`unix_socket`](#unix_socket) without authentication, or a remote [`cli.address`](#cli.address) with [`cli.api_key`](#cli.api_key). The CLI reads these keys from its own configuration, such as `~/.config/headscale/config.yaml`, or from `HEADSCALE_CLI_*` variables; the server does not read them, so on NixOS they do not belong in `services.headscale.settings`. See [Remote control](api.md#remote-control).
+How the orgscale CLI reaches the server: the local [`unix_socket`](#unix_socket) without authentication, or a remote [`cli.address`](#cli.address) with [`cli.api_key`](#cli.api_key). The CLI reads these keys from its own configuration, such as `~/.config/orgscale/config.yaml`, or from `ORGSCALE_CLI_*` variables; the server does not read them, so on NixOS they do not belong in `services.orgscale.settings`. See [Remote control](api.md#remote-control).
 
 ??? example "All `cli` keys and defaults"
 
@@ -3146,7 +3146,7 @@ How the headscale CLI reaches the server: the local [`unix_socket`](#unix_socket
 
 - **Type:** [string](#type-string)
 - **Default:** `""`
-- **Env:** `HEADSCALE_CLI_ADDRESS`
+- **Env:** `ORGSCALE_CLI_ADDRESS`
 
 The remote server's host:port or URL; `https://` is assumed without a scheme. Empty uses [`unix_socket`](#unix_socket).
 
@@ -3154,20 +3154,20 @@ The remote server's host:port or URL; `https://` is assumed without a scheme. Em
 
     ```yaml
     cli:
-      address: headscale.example.com:443
+      address: orgscale.example.com:443
     ```
 
 === "Environment"
 
     ```shell
-    export HEADSCALE_CLI_ADDRESS=headscale.example.com:443
+    export ORGSCALE_CLI_ADDRESS=orgscale.example.com:443
     ```
 
 ### `cli.api_key` { #cli.api_key data-toc-label="api_key" }
 
 - **Type:** [secret](#secrets)
 - **Default:** `""`
-- **Env:** `HEADSCALE_CLI_API_KEY`
+- **Env:** `ORGSCALE_CLI_API_KEY`
 
 The API key the CLI sends to [`cli.address`](#cli.address), or `file:<path>` to read it from a file. Read only by the CLI.
 
@@ -3175,20 +3175,20 @@ The API key the CLI sends to [`cli.address`](#cli.address), or `file:<path>` to 
 
     ```yaml
     cli:
-      api_key: file:/run/secrets/headscale_api_key
+      api_key: file:/run/secrets/orgscale_api_key
     ```
 
 === "Environment"
 
     ```shell
-    export HEADSCALE_CLI_API_KEY=file:/run/secrets/headscale_api_key
+    export ORGSCALE_CLI_API_KEY=file:/run/secrets/orgscale_api_key
     ```
 
 ### `cli.timeout` { #cli.timeout data-toc-label="timeout" }
 
 - **Type:** [duration](#type-duration)
 - **Default:** `5s`
-- **Env:** `HEADSCALE_CLI_TIMEOUT`
+- **Env:** `ORGSCALE_CLI_TIMEOUT`
 
 Bounds each CLI command's requests to the server.
 
@@ -3202,14 +3202,14 @@ Bounds each CLI command's requests to the server.
 === "Environment"
 
     ```shell
-    export HEADSCALE_CLI_TIMEOUT=30s
+    export ORGSCALE_CLI_TIMEOUT=30s
     ```
 
 ### `cli.insecure` { #cli.insecure data-toc-label="insecure" }
 
 - **Type:** [boolean](#type-boolean)
 - **Default:** `false`
-- **Env:** `HEADSCALE_CLI_INSECURE`
+- **Env:** `ORGSCALE_CLI_INSECURE`
 
 Skips TLS certificate verification of [`cli.address`](#cli.address).
 
@@ -3223,7 +3223,7 @@ Skips TLS certificate verification of [`cli.address`](#cli.address).
 === "Environment"
 
     ```shell
-    export HEADSCALE_CLI_INSECURE=true
+    export ORGSCALE_CLI_INSECURE=true
     ```
 
 ## `tuning` { #tuning data-toc-label="tuning" }
@@ -3247,7 +3247,7 @@ Holds performance settings that rarely need changing.
 
 - **Type:** [duration](#type-duration)
 - **Default:** `800ms`
-- **Env:** `HEADSCALE_TUNING_BATCH_CHANGE_DELAY`
+- **Env:** `ORGSCALE_TUNING_BATCH_CHANGE_DELAY`
 
 How often queued changes are sent to clients as one update; must be positive.
 
@@ -3261,20 +3261,20 @@ How often queued changes are sent to clients as one update; must be positive.
 === "Environment"
 
     ```shell
-    export HEADSCALE_TUNING_BATCH_CHANGE_DELAY=500ms
+    export ORGSCALE_TUNING_BATCH_CHANGE_DELAY=500ms
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.tuning.batch_change_delay = "500ms";
+    services.orgscale.settings.tuning.batch_change_delay = "500ms";
     ```
 
 ### `tuning.node_mapsession_buffered_chan_size` { #tuning.node_mapsession_buffered_chan_size data-toc-label="node_mapsession_buffered_chan_size" }
 
 - **Type:** [integer](#type-integer)
 - **Default:** `30`
-- **Env:** `HEADSCALE_TUNING_NODE_MAPSESSION_BUFFERED_CHAN_SIZE`
+- **Env:** `ORGSCALE_TUNING_NODE_MAPSESSION_BUFFERED_CHAN_SIZE`
 
 How many map updates are queued per connected client.
 
@@ -3288,20 +3288,20 @@ How many map updates are queued per connected client.
 === "Environment"
 
     ```shell
-    export HEADSCALE_TUNING_NODE_MAPSESSION_BUFFERED_CHAN_SIZE=60
+    export ORGSCALE_TUNING_NODE_MAPSESSION_BUFFERED_CHAN_SIZE=60
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.tuning.node_mapsession_buffered_chan_size = 60;
+    services.orgscale.settings.tuning.node_mapsession_buffered_chan_size = 60;
     ```
 
 ### `tuning.batcher_workers` { #tuning.batcher_workers data-toc-label="batcher_workers" }
 
 - **Type:** [integer](#type-integer)
 - **Default:** `0` (three quarters of the CPU cores, at least one)
-- **Env:** `HEADSCALE_TUNING_BATCHER_WORKERS`
+- **Env:** `ORGSCALE_TUNING_BATCHER_WORKERS`
 
 The number of workers building map updates for connected clients. Zero picks the number from the CPU count.
 
@@ -3315,20 +3315,20 @@ The number of workers building map updates for connected clients. Zero picks the
 === "Environment"
 
     ```shell
-    export HEADSCALE_TUNING_BATCHER_WORKERS=8
+    export ORGSCALE_TUNING_BATCHER_WORKERS=8
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.tuning.batcher_workers = 8;
+    services.orgscale.settings.tuning.batcher_workers = 8;
     ```
 
 ### `tuning.register_cache_expiration` { #tuning.register_cache_expiration data-toc-label="register_cache_expiration" }
 
 - **Type:** [duration](#type-duration)
 - **Default:** `15m`
-- **Env:** `HEADSCALE_TUNING_REGISTER_CACHE_EXPIRATION`
+- **Env:** `ORGSCALE_TUNING_REGISTER_CACHE_EXPIRATION`
 
 How long a pending registration waits to be completed. Zero uses the default.
 
@@ -3342,20 +3342,20 @@ How long a pending registration waits to be completed. Zero uses the default.
 === "Environment"
 
     ```shell
-    export HEADSCALE_TUNING_REGISTER_CACHE_EXPIRATION=30m
+    export ORGSCALE_TUNING_REGISTER_CACHE_EXPIRATION=30m
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.tuning.register_cache_expiration = "30m";
+    services.orgscale.settings.tuning.register_cache_expiration = "30m";
     ```
 
 ### `tuning.register_cache_max_entries` { #tuning.register_cache_max_entries data-toc-label="register_cache_max_entries" }
 
 - **Type:** [integer](#type-integer)
 - **Default:** `1024`
-- **Env:** `HEADSCALE_TUNING_REGISTER_CACHE_MAX_ENTRIES`
+- **Env:** `ORGSCALE_TUNING_REGISTER_CACHE_MAX_ENTRIES`
 
 Bounds pending registrations. At capacity, new registrations are refused without evicting pending ones; SSH checks have a small reserve beyond it. Zero uses the default. See [Pending authentication limits](registration.md#pending-authentication-limits).
 
@@ -3369,20 +3369,20 @@ Bounds pending registrations. At capacity, new registrations are refused without
 === "Environment"
 
     ```shell
-    export HEADSCALE_TUNING_REGISTER_CACHE_MAX_ENTRIES=4096
+    export ORGSCALE_TUNING_REGISTER_CACHE_MAX_ENTRIES=4096
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.tuning.register_cache_max_entries = 4096;
+    services.orgscale.settings.tuning.register_cache_max_entries = 4096;
     ```
 
 ### `tuning.node_store_batch_size` { #tuning.node_store_batch_size data-toc-label="node_store_batch_size" }
 
 - **Type:** [integer](#type-integer)
 - **Default:** `100`
-- **Env:** `HEADSCALE_TUNING_NODE_STORE_BATCH_SIZE`
+- **Env:** `ORGSCALE_TUNING_NODE_STORE_BATCH_SIZE`
 
 How many node changes are batched before the in-memory node state, peer relationships included, is rebuilt; must be positive. Higher values save CPU on bulk changes but delay each change until its batch is full or [`tuning.node_store_batch_timeout`](#tuning.node_store_batch_timeout) passes.
 
@@ -3396,20 +3396,20 @@ How many node changes are batched before the in-memory node state, peer relation
 === "Environment"
 
     ```shell
-    export HEADSCALE_TUNING_NODE_STORE_BATCH_SIZE=200
+    export ORGSCALE_TUNING_NODE_STORE_BATCH_SIZE=200
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.tuning.node_store_batch_size = 200;
+    services.orgscale.settings.tuning.node_store_batch_size = 200;
     ```
 
 ### `tuning.node_store_batch_timeout` { #tuning.node_store_batch_timeout data-toc-label="node_store_batch_timeout" }
 
 - **Type:** [duration](#type-duration)
 - **Default:** `500ms`
-- **Env:** `HEADSCALE_TUNING_NODE_STORE_BATCH_TIMEOUT`
+- **Env:** `ORGSCALE_TUNING_NODE_STORE_BATCH_TIMEOUT`
 
 The longest a partial batch of node changes waits before the rebuild; must be positive. Lower values answer single changes faster at the cost of more rebuilds.
 
@@ -3423,18 +3423,18 @@ The longest a partial batch of node changes waits before the rebuild; must be po
 === "Environment"
 
     ```shell
-    export HEADSCALE_TUNING_NODE_STORE_BATCH_TIMEOUT=1s
+    export ORGSCALE_TUNING_NODE_STORE_BATCH_TIMEOUT=1s
     ```
 
 === "NixOS"
 
     ```nix
-    services.headscale.settings.tuning.node_store_batch_timeout = "1s";
+    services.orgscale.settings.tuning.node_store_batch_timeout = "1s";
     ```
 
 ## Removed keys { #removed-keys }
 
-Keys headscale no longer reads. One in the configuration file stops headscale with an error and a variable for
+Keys orgscale no longer reads. One in the configuration file stops orgscale with an error and a variable for
 one logs a warning, each saying what to do instead, as the table does.
 
 | Key                                                                                           | Removed in | What to do                                                                                                                                                                                                                                     |
@@ -3454,7 +3454,7 @@ one logs a warning, each saying what to do instead, as the table does.
 | <span id="db_ssl"></span>`db_ssl`                                                             | 0.30       | use [`database.postgres.ssl`](#database.postgres.ssl)                                                                                                                                                                                          |
 | <span id="db_type"></span>`db_type`                                                           | 0.30       | use [`database.type`](#database.type)                                                                                                                                                                                                          |
 | <span id="db_user"></span>`db_user`                                                           | 0.30       | use [`database.postgres.user`](#database.postgres.user)                                                                                                                                                                                        |
-| <span id="derp.server.stun.enabled"></span>`derp.server.stun.enabled`                         | 0.30       | remove it: headscale never read it; the embedded DERP server always serves STUN on [`derp.server.stun_listen_addr`](#derp.server.stun_listen_addr)                                                                                             |
+| <span id="derp.server.stun.enabled"></span>`derp.server.stun.enabled`                         | 0.30       | remove it: orgscale never read it; the embedded DERP server always serves STUN on [`derp.server.stun_listen_addr`](#derp.server.stun_listen_addr)                                                                                              |
 | <span id="derp_map_path"></span>`derp_map_path`                                               | 0.30       | use [`derp.paths`](#derp.paths)                                                                                                                                                                                                                |
 | <span id="dns.challenge.provider.setting_path"></span>`dns.challenge.provider.<setting>_path` | 0.30       | use [`dns.challenge.provider.<setting>`](#dns.challenge.provider): `file:<path>`                                                                                                                                                               |
 | <span id="dns.split"></span>`dns.split`                                                       | 0.30       | use [`dns.nameservers.split`](#dns.nameservers.split)                                                                                                                                                                                          |

@@ -1,4 +1,4 @@
-// Package apiv1 is the code-first Huma implementation of the Headscale v1 API.
+// Package apiv1 is the code-first Huma implementation of the Orgscale v1 API.
 // Handlers are a thin adapter over hscontrol/state; Huma emits the OpenAPI 3.1
 // spec from the Go definitions (see Spec), and that spec drives the client.
 //
@@ -36,8 +36,8 @@ type Backend struct {
 // declared bearer security (see authMiddleware); locally-trusted requests
 // bypass it via WithLocalTrust.
 func NewAPI(router chi.Router, backend Backend) huma.API {
-	config := huma.DefaultConfig("Headscale API", "v1")
-	config.Info.Description = "Headscale control server API."
+	config := huma.DefaultConfig("Orgscale API", "v1")
+	config.Info.Description = "Orgscale control server API."
 
 	// Version the OpenAPI/docs routes under /api/v1 so a future v2 owns its own.
 	// These register as plain mux routes, not operations, so they never appear

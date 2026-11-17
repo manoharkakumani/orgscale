@@ -16,7 +16,7 @@ import (
 
 // Simulate Docker's streamed output without requiring Docker or a shell.
 func TestLoginReturnsURLBeforeCLIExit(t *testing.T) {
-	const wantURL = "https://headscale.test/register/complete-token"
+	const wantURL = "https://orgscale.test/register/complete-token"
 
 	for _, stream := range []string{"stdout", "stderr"} {
 		t.Run(stream, func(t *testing.T) {
@@ -32,7 +32,7 @@ func TestLoginReturnsURLBeforeCLIExit(t *testing.T) {
 					output = opts.StdOut
 				}
 
-				_, _ = io.WriteString(output, "To authenticate, visit:\n\thttps://headscale.test/reg")
+				_, _ = io.WriteString(output, "To authenticate, visit:\n\thttps://orgscale.test/reg")
 
 				close(partialWritten)
 				<-completeURL
@@ -41,7 +41,7 @@ func TestLoginReturnsURLBeforeCLIExit(t *testing.T) {
 
 				<-authenticate
 				// A later URL must not block output draining or replace the first.
-				_, _ = io.WriteString(output, "https://headscale.test/register/another-token\nSuccess.\n")
+				_, _ = io.WriteString(output, "https://orgscale.test/register/another-token\nSuccess.\n")
 
 				return 0, nil
 			})
@@ -93,7 +93,7 @@ func TestLoginCommandFailure(t *testing.T) {
 		{name: "exec error", err: execErr, wantErr: execErr},
 		{name: "CLI failure", output: "invalid login option", exitCode: 7, wantErr: dockertestutil.ErrDockertestCommandFailed},
 		{name: "no URL", output: "Success.\n", wantErr: util.ErrNoURLFound},
-		{name: "incomplete URL", output: "https://headscale.test/register/incomplete", wantErr: util.ErrNoURLFound},
+		{name: "incomplete URL", output: "https://orgscale.test/register/incomplete", wantErr: util.ErrNoURLFound},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			login := startLogin(nil, func(_ []string, opts dockertest.ExecOptions) (int, error) {
@@ -113,7 +113,7 @@ func TestLoginFailureAfterURL(t *testing.T) {
 	t.Cleanup(func() { close(finish) })
 
 	login := startLogin(nil, func(_ []string, opts dockertest.ExecOptions) (int, error) {
-		_, _ = io.WriteString(opts.StdErr, "https://headscale.test/register/token\n")
+		_, _ = io.WriteString(opts.StdErr, "https://orgscale.test/register/token\n")
 
 		<-finish
 
@@ -152,7 +152,7 @@ func TestLoginURLDeadlineDoesNotStopCLI(t *testing.T) {
 	login := startLogin(nil, func(_ []string, opts dockertest.ExecOptions) (int, error) {
 		<-finish
 
-		_, _ = fmt.Fprintln(opts.StdErr, "https://headscale.test/register/token")
+		_, _ = fmt.Fprintln(opts.StdErr, "https://orgscale.test/register/token")
 
 		return 0, nil
 	})

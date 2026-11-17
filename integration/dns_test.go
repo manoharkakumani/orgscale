@@ -28,8 +28,8 @@ func TestResolveMagicDNS(t *testing.T) {
 	require.NoError(t, err)
 	defer scenario.ShutdownAssertNoPanics(t)
 
-	err = scenario.CreateHeadscaleEnv([]tsic.Option{}, hsic.WithTestName("magicdns"))
-	requireNoErrHeadscaleEnv(t, err)
+	err = scenario.CreateOrgscaleEnv([]tsic.Option{}, hsic.WithTestName("magicdns"))
+	requireNoErrOrgscaleEnv(t, err)
 
 	allClients, err := scenario.ListTailscaleClients()
 	requireNoErrListClients(t, err)
@@ -95,18 +95,18 @@ func TestResolveMagicDNSExtraRecordsPath(t *testing.T) {
 	})
 	b, _ := json.Marshal(extraRecords) //nolint:errchkjson
 
-	err = scenario.CreateHeadscaleEnv([]tsic.Option{
+	err = scenario.CreateOrgscaleEnv([]tsic.Option{
 		tsic.WithPackages("python3", "curl", "bind-tools"),
 	},
 		hsic.WithTestName("extrarecords"),
 		hsic.WithConfigEnv(map[string]string{
 			// Disable global nameservers to make the test run offline.
-			"HEADSCALE_DNS_NAMESERVERS_GLOBAL": "[]",
-			"HEADSCALE_DNS_EXTRA_RECORDS_PATH": erPath,
+			"ORGSCALE_DNS_NAMESERVERS_GLOBAL": "[]",
+			"ORGSCALE_DNS_EXTRA_RECORDS_PATH": erPath,
 		}),
 		hsic.WithFileInContainer(erPath, b),
 	)
-	requireNoErrHeadscaleEnv(t, err)
+	requireNoErrOrgscaleEnv(t, err)
 
 	allClients, err := scenario.ListTailscaleClients()
 	requireNoErrListClients(t, err)
@@ -127,7 +127,7 @@ func TestResolveMagicDNSExtraRecordsPath(t *testing.T) {
 		assertCommandOutputContains(t, client, []string{"dig", "test.myvpn.example.com"}, "6.6.6.6")
 	}
 
-	hs, err := scenario.Headscale()
+	hs, err := scenario.Orgscale()
 	require.NoError(t, err)
 
 	// Write the file directly into place from the docker API.

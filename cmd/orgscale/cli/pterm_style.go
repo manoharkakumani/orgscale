@@ -7,7 +7,7 @@ import (
 )
 
 func ColourTime(date time.Time) string {
-	dateStr := date.Format(HeadscaleDateTimeFormat)
+	dateStr := date.Format(OrgscaleDateTimeFormat)
 
 	if date.After(time.Now()) {
 		dateStr = pterm.LightGreen(dateStr)

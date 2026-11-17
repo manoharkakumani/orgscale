@@ -39,7 +39,7 @@ func TestSecurityHeaders(t *testing.T) {
 
 func TestDebugHostGuard(t *testing.T) {
 	app := createTestApp(t)
-	app.cfg.ServerURL = "https://Control.Example.COM:443/headscale"
+	app.cfg.ServerURL = "https://Control.Example.COM:443/orgscale"
 	app.cfg.MetricsAddr = "Debug.Internal:9090"
 	app.cfg.DNSConfig.BaseDomain = "tailnet.invalid"
 	handler := app.debugHTTPServer().Handler
@@ -117,10 +117,10 @@ func TestDebugConfigRedacts(t *testing.T) {
 	assert.Contains(t, app.cfg.ServerURL, "marker-pass")
 }
 
-// TestNewHeadscaleDNSProvider pins that startup builds the provider
+// TestNewOrgscaleDNSProvider pins that startup builds the provider
 // dns.challenge.provider names, reading its secrets, unless Go set one, and
 // refuses one that cannot keep node certificates apart.
-func TestNewHeadscaleDNSProvider(t *testing.T) {
+func TestNewOrgscaleDNSProvider(t *testing.T) {
 	token := filepath.Join(t.TempDir(), "token")
 	require.NoError(t, os.WriteFile(token, []byte("from-file\n"), 0o600))
 
@@ -181,7 +181,7 @@ func TestNewHeadscaleDNSProvider(t *testing.T) {
 			cfg.DNSConfig.Certificates.Enabled = tt.certificates
 			cfg.DNSConfig.Challenge = tt.challenge
 
-			app, err := NewHeadscale(&cfg)
+			app, err := NewOrgscale(&cfg)
 			if tt.wantErr != "" {
 				require.ErrorContains(t, err, tt.wantErr)
 
@@ -198,10 +198,10 @@ func TestNewHeadscaleDNSProvider(t *testing.T) {
 	}
 }
 
-// TestNewHeadscaleSecrets pins that startup reads a file: secret only where
+// TestNewOrgscaleSecrets pins that startup reads a file: secret only where
 // it is used, and that one it cannot read stops startup, even when OIDC may
 // be unavailable.
-func TestNewHeadscaleSecrets(t *testing.T) {
+func TestNewOrgscaleSecrets(t *testing.T) {
 	missing := types.Secret("file:" + filepath.Join(t.TempDir(), "missing"))
 
 	tests := []struct {
@@ -216,7 +216,7 @@ func TestNewHeadscaleSecrets(t *testing.T) {
 				// Unreachable, so discovery would fail and fall back, were the
 				// secret read only there.
 				c.OIDC.Issuer = "http://127.0.0.1:1"
-				c.OIDC.ClientID = "headscale"
+				c.OIDC.ClientID = "orgscale"
 				c.OIDC.ClientSecret = missing
 				c.OIDC.OnlyStartIfOIDCIsAvailable = false
 			},
@@ -227,7 +227,7 @@ func TestNewHeadscaleSecrets(t *testing.T) {
 			name: "oidc client secret file missing, oidc required",
 			set: func(c *types.Config) {
 				c.OIDC.Issuer = "http://127.0.0.1:1"
-				c.OIDC.ClientID = "headscale"
+				c.OIDC.ClientID = "orgscale"
 				c.OIDC.ClientSecret = missing
 				c.OIDC.OnlyStartIfOIDCIsAvailable = true
 			},
@@ -238,7 +238,7 @@ func TestNewHeadscaleSecrets(t *testing.T) {
 			name: "postgres pass file missing",
 			set: func(c *types.Config) {
 				c.Database.Type = types.DatabasePostgres
-				c.Database.Postgres = types.PostgresConfig{Host: "127.0.0.1", Port: 1, Name: "headscale", Pass: missing}
+				c.Database.Postgres = types.PostgresConfig{Host: "127.0.0.1", Port: 1, Name: "orgscale", Pass: missing}
 			},
 			wantErr: "database.postgres.pass: ",
 		},
@@ -257,10 +257,10 @@ func TestNewHeadscaleSecrets(t *testing.T) {
 			tmpDir := filepath.Dir(cfg.Noise.PrivateKeyPath)
 			tt.set(&cfg)
 
-			app, err := NewHeadscale(&cfg)
+			app, err := NewOrgscale(&cfg)
 			if tt.wantErr != "" {
 				require.ErrorContains(t, err, tt.wantErr)
-				require.ErrorContains(t, err, "readable by the user running headscale")
+				require.ErrorContains(t, err, "readable by the user running orgscale")
 				// Read before connecting: a connection error would not name the key.
 				assert.NotContains(t, err.Error(), "connect")
 
@@ -293,7 +293,7 @@ func validConfig(t *testing.T) types.Config {
 	cfg.ServerURL = "http://localhost:8080"
 	cfg.Noise.PrivateKeyPath = filepath.Join(dir, "noise_private.key")
 	cfg.Database.Type = types.DatabaseSqlite
-	cfg.Database.Sqlite.Path = filepath.Join(dir, "headscale_test.db")
+	cfg.Database.Sqlite.Path = filepath.Join(dir, "orgscale_test.db")
 	cfg.Prefixes.V4 = &v4
 	cfg.Prefixes.V6 = &v6
 	cfg.Policy.Mode = types.PolicyModeDB
@@ -306,9 +306,9 @@ func validConfig(t *testing.T) types.Config {
 	return cfg
 }
 
-// TestNewHeadscaleRejectsInvalidConfig: a configuration Validate rejects
+// TestNewOrgscaleRejectsInvalidConfig: a configuration Validate rejects
 // stops startup before anything is written.
-func TestNewHeadscaleRejectsInvalidConfig(t *testing.T) {
+func TestNewOrgscaleRejectsInvalidConfig(t *testing.T) {
 	for _, tt := range []struct {
 		name string
 		set  func(*types.Config)
@@ -322,7 +322,7 @@ func TestNewHeadscaleRejectsInvalidConfig(t *testing.T) {
 			cfg := validConfig(t)
 			tt.set(&cfg)
 
-			_, err := NewHeadscale(&cfg)
+			_, err := NewOrgscale(&cfg)
 			require.ErrorContains(t, err, tt.key)
 			require.ErrorIs(t, err, types.ErrConfig)
 
@@ -333,9 +333,9 @@ func TestNewHeadscaleRejectsInvalidConfig(t *testing.T) {
 	}
 }
 
-// TestNewHeadscaleRejectsSharedKey: noise and DERP keys that resolve to
+// TestNewOrgscaleRejectsSharedKey: noise and DERP keys that resolve to
 // one file stop startup before anything is written, set from Go or loaded.
-func TestNewHeadscaleRejectsSharedKey(t *testing.T) {
+func TestNewOrgscaleRejectsSharedKey(t *testing.T) {
 	shared := func(t *testing.T) (types.Config, string) {
 		t.Helper()
 
@@ -354,7 +354,7 @@ func TestNewHeadscaleRejectsSharedKey(t *testing.T) {
 	t.Run("go", func(t *testing.T) {
 		cfg, dir := shared(t)
 
-		_, err := NewHeadscale(&cfg)
+		_, err := NewOrgscale(&cfg)
 		require.ErrorContains(t, err, "derp.server.private_key_path must differ from noise.private_key_path")
 
 		entries, err := os.ReadDir(dir)
@@ -368,7 +368,7 @@ func TestNewHeadscaleRejectsSharedKey(t *testing.T) {
 
 		t.Chdir(dir)
 
-		_, err := NewHeadscale(&cfg)
+		_, err := NewOrgscale(&cfg)
 		require.ErrorContains(t, err, "derp.server.private_key_path must differ from noise.private_key_path")
 
 		entries, err := os.ReadDir(dir)
@@ -386,7 +386,7 @@ func TestNewHeadscaleRejectsSharedKey(t *testing.T) {
 		l, err := config.Load(filepath.Join(dir, "config.yaml"), true, nil)
 		require.NoError(t, err)
 
-		_, err = NewHeadscale(l.Config)
+		_, err = NewOrgscale(l.Config)
 		require.ErrorContains(t, err, "derp.server.private_key_path must differ from noise.private_key_path")
 
 		entries, err := os.ReadDir(dir)
@@ -396,9 +396,9 @@ func TestNewHeadscaleRejectsSharedKey(t *testing.T) {
 	})
 }
 
-// TestNewHeadscaleWarnsBeforeRejecting: the advisories are logged even when
+// TestNewOrgscaleWarnsBeforeRejecting: the advisories are logged even when
 // the configuration is rejected; one may explain the error.
-func TestNewHeadscaleWarnsBeforeRejecting(t *testing.T) {
+func TestNewOrgscaleWarnsBeforeRejecting(t *testing.T) {
 	buf := captureLog(t, zerolog.WarnLevel)
 
 	cfg := validConfig(t)
@@ -409,14 +409,14 @@ func TestNewHeadscaleWarnsBeforeRejecting(t *testing.T) {
 	warnings := config.Warnings(&cfg)
 	require.NotEmpty(t, warnings)
 
-	_, err := NewHeadscale(&cfg)
+	_, err := NewOrgscale(&cfg)
 	require.ErrorContains(t, err, "tuning.batch_change_delay must be positive")
 	assert.Len(t, buf.entries(t, warnings[0]), 1)
 }
 
-// TestNewHeadscaleGoOnlyProvider: an embedder's provider serves node
+// TestNewOrgscaleGoOnlyProvider: an embedder's provider serves node
 // certificates without a provider name.
-func TestNewHeadscaleGoOnlyProvider(t *testing.T) {
+func TestNewOrgscaleGoOnlyProvider(t *testing.T) {
 	provider := &cloudflare.Provider{APIToken: "go-only"}
 
 	cfg := validConfig(t)
@@ -425,7 +425,7 @@ func TestNewHeadscaleGoOnlyProvider(t *testing.T) {
 	cfg.DNSConfig.Certificates.Enabled = true
 	cfg.DNSConfig.Challenge.Provider = provider
 
-	app, err := NewHeadscale(&cfg)
+	app, err := NewOrgscale(&cfg)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = app.state.Close() })
 
@@ -517,7 +517,7 @@ func TestServeReturnsSTUNBindError(t *testing.T) {
 
 	defer taken.Close()
 
-	app, err := NewHeadscale(serveTestConfig(t, taken.LocalAddr().String()))
+	app, err := NewOrgscale(serveTestConfig(t, taken.LocalAddr().String()))
 	require.NoError(t, err)
 
 	err = app.Serve(t.Context())
@@ -532,7 +532,7 @@ func TestServeReturnsSTUNBindError(t *testing.T) {
 func TestServeStopsOnContextCancel(t *testing.T) {
 	cfg := serveTestConfig(t, "127.0.0.1:0")
 
-	app, err := NewHeadscale(cfg)
+	app, err := NewOrgscale(cfg)
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(t.Context())

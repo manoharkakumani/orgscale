@@ -1,6 +1,6 @@
 {
   "config": {
-    "ServerURL": "https://headscale.example.com",
+    "ServerURL": "https://orgscale.example.com",
     "Addr": "0.0.0.0:8443",
     "MetricsAddr": "127.0.0.1:9091",
     "TrustedProxies": [
@@ -42,15 +42,15 @@
         "ParameterizedQueries": true
       },
       "Sqlite": {
-        "Path": "/var/lib/headscale/db.sqlite",
+        "Path": "/var/lib/orgscale/db.sqlite",
         "WriteAheadLog": true,
         "WALAutoCheckPoint": 1000
       },
       "Postgres": {
         "Host": "db.example.com",
         "Port": 5433,
-        "Name": "headscale",
-        "User": "headscale",
+        "Name": "orgscale",
+        "User": "orgscale",
         "Ssl": "true",
         "MaxOpenConnections": 20,
         "MaxIdleConnections": 5,
@@ -62,7 +62,7 @@
       "AutomaticallyAddEmbeddedDerpRegion": false,
       "ServerRegionID": 900,
       "ServerRegionCode": "hs",
-      "ServerRegionName": "Headscale Embedded DERP",
+      "ServerRegionName": "Orgscale Embedded DERP",
       "ServerPrivateKeyPath": "$DIR/derp_server_private.key",
       "ServerVerifyClients": false,
       "STUNAddr": "0.0.0.0:3479",
@@ -95,7 +95,7 @@
         }
       ],
       "Paths": [
-        "/etc/headscale/derp.yaml"
+        "/etc/orgscale/derp.yaml"
       ],
       "DERPMap": null,
       "AutoUpdate": false,
@@ -107,7 +107,7 @@
       "CertPath": "",
       "KeyPath": "",
       "ACME": {
-        "Hostname": "headscale.example.com",
+        "Hostname": "orgscale.example.com",
         "ChallengeType": "TLS-ALPN-01",
         "HTTPListen": ":8081",
         "URL": "https://acme-staging-v02.api.letsencrypt.org/directory",
@@ -182,12 +182,12 @@
       ],
       "ProviderName": ""
     },
-    "UnixSocket": "/run/headscale/headscale.sock",
+    "UnixSocket": "/run/orgscale/orgscale.sock",
     "UnixSocketPermission": 448,
     "OIDC": {
       "OnlyStartIfOIDCIsAvailable": false,
       "Issuer": "https://idp.example.com",
-      "ClientID": "headscale",
+      "ClientID": "orgscale",
       "Scope": [
         "openid",
         "profile",
@@ -204,7 +204,7 @@
         "alice@example.com"
       ],
       "AllowedGroups": [
-        "/headscale"
+        "/orgscale"
       ],
       "EmailVerifiedRequired": false,
       "UseExpiryFromToken": true,
@@ -223,7 +223,7 @@
       "Enabled": true
     },
     "CLI": {
-      "Address": "headscale.example.com:443",
+      "Address": "orgscale.example.com:443",
       "Timeout": 15000000000,
       "Insecure": true
     },
@@ -246,6 +246,6 @@
     "oidc.client_secret": "marker-oidc-secret-from-file"
   },
   "warnings": [
-    "Warning: when using tls.acme.hostname with TLS-ALPN-01 as challenge type, headscale must be reachable on port 443, i.e. listen_addr should probably end in :443"
+    "Warning: when using tls.acme.hostname with TLS-ALPN-01 as challenge type, orgscale must be reachable on port 443, i.e. listen_addr should probably end in :443"
   ]
 }

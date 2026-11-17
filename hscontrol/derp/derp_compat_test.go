@@ -79,7 +79,7 @@ func TestApplyPolicySaaSCompat(t *testing.T) {
 
 				// A rejected policy leaves the default map in place.
 				if diff := cmp.Diff(ApplyPolicy(base, pol).Regions, got.Regions); diff != "" {
-					t.Errorf("%s: regions mismatch (-headscale +SaaS):\n%s", name, diff)
+					t.Errorf("%s: regions mismatch (-orgscale +SaaS):\n%s", name, diff)
 				}
 			}
 		})

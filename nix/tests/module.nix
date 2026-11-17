@@ -1,11 +1,11 @@
-# What the module writes, grants and exports, without a VM. headscale's own
+# What the module writes, grants and exports, without a VM. orgscale's own
 # check decides what the written config means.
 self: pkgs:
 let
   inherit (pkgs) lib;
 
   required = {
-    server_url = "https://headscale.example.com";
+    server_url = "https://orgscale.example.com";
   };
   system =
     m:
@@ -14,13 +14,13 @@ let
         self.nixosModules.default
         m
       ];
-      services.headscale = {
+      services.orgscale = {
         enable = true;
         settings = required;
       };
     };
-  settings = s: system { services.headscale.settings = s; };
-  # Only server_url: headscale's defaults cover the rest.
+  settings = s: system { services.orgscale.settings = s; };
+  # Only server_url: orgscale's defaults cover the rest.
   minimal = system { };
   # Between the module's 1200 and the options' defaults: a probe shows only
   # where the module stops setting a distro fact, even one equal to Go's.
@@ -43,7 +43,7 @@ let
       path = policy;
     };
     derp.paths = [ derpMap ];
-    unix_socket = "/run/headscale/moved.sock";
+    unix_socket = "/run/orgscale/moved.sock";
     dns = {
       # Certificates need a domain you control.
       base_domain = "tailnet.example.com";
@@ -51,7 +51,7 @@ let
       challenge.provider = {
         name = "rfc2136";
         server = "127.0.0.1:53";
-        key_name = "headscale.";
+        key_name = "orgscale.";
         key_alg = "hmac-sha256.";
         key = "file:\${CREDENTIALS_DIRECTORY}/tsig";
       };
@@ -59,12 +59,12 @@ let
   };
   ok = settings okSettings;
   http = system {
-    services.headscale = {
+    services.orgscale = {
       settings.listen_addr = ":http";
       check.config = false;
     };
   };
-  # A cross build cannot run the host's headscale.
+  # A cross build cannot run the host's orgscale.
   crossWith =
     checkConfig:
     self.inputs.nixpkgs.lib.nixosSystem {
@@ -73,7 +73,7 @@ let
         {
           nixpkgs.buildPlatform = "x86_64-linux";
           nixpkgs.hostPlatform = "aarch64-linux";
-          services.headscale = {
+          services.orgscale = {
             enable = true;
             settings = lib.recursiveUpdate required okSettings;
             check.config = checkConfig;
@@ -84,72 +84,72 @@ let
   cross = crossWith true;
   # With check.config off, only the store policy adds a switch check.
   crossPolicy = crossWith false;
-  # With check.config off, check.policy alone must find the policy headscale
-  # loads: a non-empty HEADSCALE_POLICY_* of the unit over the settings.
+  # With check.config off, check.policy alone must find the policy orgscale
+  # loads: a non-empty ORGSCALE_POLICY_* of the unit over the settings.
   policyEnv =
     settings: env:
     system {
-      services.headscale = {
+      services.orgscale = {
         inherit settings;
         check.config = false;
       };
-      systemd.services.headscale.environment = env;
+      systemd.services.orgscale.environment = env;
     };
   storePolicy.policy = {
     mode = "file";
     path = policy;
   };
-  mutablePolicy = "/var/lib/headscale/policy.json";
-  envOnly = policyEnv { } { HEADSCALE_POLICY_PATH = policy; };
-  envMutable = policyEnv storePolicy { HEADSCALE_POLICY_PATH = mutablePolicy; };
-  envDatabase = policyEnv storePolicy { HEADSCALE_POLICY_MODE = "database"; };
+  mutablePolicy = "/var/lib/orgscale/policy.json";
+  envOnly = policyEnv { } { ORGSCALE_POLICY_PATH = policy; };
+  envMutable = policyEnv storePolicy { ORGSCALE_POLICY_PATH = mutablePolicy; };
+  envDatabase = policyEnv storePolicy { ORGSCALE_POLICY_MODE = "database"; };
   envFile = policyEnv {
     policy = storePolicy.policy // {
       mode = "database";
     };
-  } { HEADSCALE_POLICY_MODE = "file"; };
+  } { ORGSCALE_POLICY_MODE = "file"; };
   # Empty means unset.
   envEmpty = policyEnv storePolicy {
-    HEADSCALE_POLICY_MODE = null;
-    HEADSCALE_POLICY_PATH = "";
+    ORGSCALE_POLICY_MODE = null;
+    ORGSCALE_POLICY_PATH = "";
   };
   # Activation then drops every group NixOS does not declare. systemd also
   # takes a GID and a space-separated string.
   immutableUsers = system {
     users.mutableUsers = false;
-    systemd.services.headscale.serviceConfig.SupplementaryGroups = [
+    systemd.services.orgscale.serviceConfig.SupplementaryGroups = [
       1234
       "a b"
     ];
   };
   # The build check sees the unit's environment, as the switch check does.
   badEnv = system {
-    systemd.services.headscale.environment = {
-      HEADSCALE_SERVER_URL = "ftp://headscale";
+    systemd.services.orgscale.environment = {
+      ORGSCALE_SERVER_URL = "ftp://orgscale";
       # Any path literal and derivation: the check must see the unit's values.
-      HEADSCALE_DNS_EXTRA_RECORDS_PATH = ./module.nix;
-      HEADSCALE_POLICY_PATH = policy;
+      ORGSCALE_DNS_EXTRA_RECORDS_PATH = ./module.nix;
+      ORGSCALE_POLICY_PATH = policy;
     };
   };
-  # badEnv's HEADSCALE_* Environment= values, as nixpkgs renders the unit.
+  # badEnv's ORGSCALE_* Environment= values, as nixpkgs renders the unit.
   badEnvUnit = map (l: builtins.fromJSON (lib.removePrefix "Environment=" l)) (
-    lib.filter (lib.hasPrefix "Environment=\"HEADSCALE_") (
+    lib.filter (lib.hasPrefix "Environment=\"ORGSCALE_") (
       lib.splitString "\n" (
-        builtins.unsafeDiscardStringContext badEnv.config.systemd.units."headscale.service".text
+        builtins.unsafeDiscardStringContext badEnv.config.systemd.units."orgscale.service".text
       )
     )
   );
   # A user's mkDefault and a plain assignment both replace the module's values.
   overrides = settings {
-    noise.private_key_path = lib.mkDefault "/opt/headscale/noise.key";
-    unix_socket = "/run/headscale/other.sock";
+    noise.private_key_path = lib.mkDefault "/opt/orgscale/noise.key";
+    unix_socket = "/run/orgscale/other.sock";
   };
   # Both spellings Go reads as cli.*.
   clis = settings {
     cli.api_key = "not-for-the-store";
     "cli.api_key" = "not-for-the-store";
   };
-  # Key errors only: headscale stops at them before it reads any value.
+  # Key errors only: orgscale stops at them before it reads any value.
   bad = settings {
     listen_addr = "[::]:443";
     dns.magic_dsn = true;
@@ -157,7 +157,7 @@ let
     db_password_file = "/run/x";
     tls_cert_path = "/x";
   };
-  badUrl = settings { server_url = lib.mkForce "ftp://headscale"; };
+  badUrl = settings { server_url = lib.mkForce "ftp://orgscale"; };
   # A record's unknown field is a decoding error, reported without the others.
   badRecord = settings {
     dns.extra_records = [
@@ -182,11 +182,11 @@ let
         })
         config
         ;
-      unit = config.systemd.services.headscale.serviceConfig;
+      unit = config.systemd.services.orgscale.serviceConfig;
     in
     # What building the system reads: the settings and the unit's account.
     builtins.deepSeq [
-      config.services.headscale.settings
+      config.services.orgscale.settings
       unit.User
       unit.Group
     ] true
@@ -196,7 +196,7 @@ let
     pkgs.writeText "${name}.json" (
       builtins.toJSON (
         lib.recursiveUpdate {
-          services.headscale = {
+          services.orgscale = {
             enable = true;
             settings = required;
           };
@@ -204,76 +204,76 @@ let
       )
     );
 
-  configFile = s: s.config.services.headscale.configFile;
+  configFile = s: s.config.services.orgscale.configFile;
   checkNames = s: map (d: d.name) s.config.system.checks;
   checkOf = name: s: lib.findFirst (d: d.name == name) (throw "no ${name}") s.config.system.checks;
-  configCheckOf = checkOf "headscale-config-check";
+  configCheckOf = checkOf "orgscale-config-check";
   # The build checks the store policy `policy`.
   buildsPolicy =
     s:
-    lib.elem "headscale-policy-check" (checkNames s)
-    && lib.hasInfix (builtins.unsafeDiscardStringContext "${policy}") (checkOf "headscale-policy-check" s)
+    lib.elem "orgscale-policy-check" (checkNames s)
+    && lib.hasInfix (builtins.unsafeDiscardStringContext "${policy}") (checkOf "orgscale-policy-check" s)
     .buildCommand;
-  switches = s: s.config.system.preSwitchChecks ? headscale;
-  switchScript = s: lib.head (lib.splitString " " s.config.system.preSwitchChecks.headscale);
+  switches = s: s.config.system.preSwitchChecks ? orgscale;
+  switchScript = s: lib.head (lib.splitString " " s.config.system.preSwitchChecks.orgscale);
   binds =
     s:
-    lib.elem "CAP_NET_BIND_SERVICE" s.config.systemd.services.headscale.serviceConfig.CapabilityBoundingSet;
+    lib.elem "CAP_NET_BIND_SERVICE" s.config.systemd.services.orgscale.serviceConfig.CapabilityBoundingSet;
   inherit (ok.config.environment) sessionVariables;
-  overridden = overrides.config.services.headscale.settings;
+  overridden = overrides.config.services.orgscale.settings;
 in
 assert lib.assertMsg (
-  sessionVariables.HEADSCALE_UNIX_SOCKET or null == "/run/headscale/moved.sock"
-) "ok: HEADSCALE_UNIX_SOCKET is not settings.unix_socket";
+  sessionVariables.ORGSCALE_UNIX_SOCKET or null == "/run/orgscale/moved.sock"
+) "ok: ORGSCALE_UNIX_SOCKET is not settings.unix_socket";
 assert lib.assertMsg (
-  sessionVariables.HEADSCALE_DISABLE_CHECK_UPDATES or null == "true"
-) "ok: HEADSCALE_DISABLE_CHECK_UPDATES is not true";
+  sessionVariables.ORGSCALE_DISABLE_CHECK_UPDATES or null == "true"
+) "ok: ORGSCALE_DISABLE_CHECK_UPDATES is not true";
 assert lib.assertMsg (
-  overridden.noise.private_key_path == "/opt/headscale/noise.key"
+  overridden.noise.private_key_path == "/opt/orgscale/noise.key"
 ) "overrides: a user's mkDefault does not replace noise.private_key_path";
 assert lib.assertMsg (
-  overridden.unix_socket == "/run/headscale/other.sock"
+  overridden.unix_socket == "/run/orgscale/other.sock"
 ) "overrides: a plain assignment does not replace unix_socket";
 assert lib.assertMsg (lib.any (
-  a: !a.assertion && lib.hasPrefix "services.headscale.settings: remove cli, cli.api_key:" a.message
+  a: !a.assertion && lib.hasPrefix "services.orgscale.settings: remove cli, cli.api_key:" a.message
 ) clis.config.assertions) "clis: no failed assertion names every spelling of settings.cli";
 assert lib.assertMsg (
-  !(ok.config.environment.etc ? "headscale/config.yaml")
-) "ok: /etc/headscale/config.yaml is written";
+  !(ok.config.environment.etc ? "orgscale/config.yaml")
+) "ok: /etc/orgscale/config.yaml is written";
 assert lib.assertMsg (!binds ok) "ok: 0.0.0.0:8080 grants CAP_NET_BIND_SERVICE";
 assert lib.assertMsg (binds http) "http: :http does not grant CAP_NET_BIND_SERVICE";
 assert lib.assertMsg (binds bad) "bad: [::]:443 does not grant CAP_NET_BIND_SERVICE";
 assert lib.assertMsg (
-  ok.config.systemd.services.headscale.serviceConfig.CapabilityBoundingSet == [ "" ]
+  ok.config.systemd.services.orgscale.serviceConfig.CapabilityBoundingSet == [ "" ]
 ) "ok: the unit keeps a capability";
 assert lib.assertMsg (
-  !lib.elem "headscale-config-check" (checkNames http)
+  !lib.elem "orgscale-config-check" (checkNames http)
 ) "http: check.config = false still checks while building";
 assert lib.assertMsg (lib.all (n: !lib.elem n (checkNames cross)) [
-  "headscale-config-check"
-  "headscale-policy-check"
-]) "cross: a cross build runs a headscale check";
+  "orgscale-config-check"
+  "orgscale-policy-check"
+]) "cross: a cross build runs a orgscale check";
 assert lib.assertMsg (
-  crossPolicy.config.system.preSwitchChecks ? headscale
+  crossPolicy.config.system.preSwitchChecks ? orgscale
 ) "crossPolicy: the store policy is not checked before a switch";
 assert lib.assertMsg (
   buildsPolicy envOnly && !switches envOnly
-) "envOnly: the unit's HEADSCALE_POLICY_PATH is not checked while building";
+) "envOnly: the unit's ORGSCALE_POLICY_PATH is not checked while building";
 assert lib.assertMsg (
-  !lib.elem "headscale-policy-check" (checkNames envMutable) && switches envMutable
+  !lib.elem "orgscale-policy-check" (checkNames envMutable) && switches envMutable
 ) "envMutable: the settings' policy is checked instead of the unit's";
 assert lib.assertMsg (
-  !lib.elem "headscale-policy-check" (checkNames envDatabase) && !switches envDatabase
-) "envDatabase: HEADSCALE_POLICY_MODE=database still checks a policy";
-assert lib.assertMsg (buildsPolicy envFile) "envFile: HEADSCALE_POLICY_MODE=file checks no policy";
+  !lib.elem "orgscale-policy-check" (checkNames envDatabase) && !switches envDatabase
+) "envDatabase: ORGSCALE_POLICY_MODE=database still checks a policy";
+assert lib.assertMsg (buildsPolicy envFile) "envFile: ORGSCALE_POLICY_MODE=file checks no policy";
 assert lib.assertMsg (buildsPolicy envEmpty) "envEmpty: empty variables replace the settings";
 assert lib.assertMsg (
   lib.length badEnvUnit == 3
-) "badEnv: unit does not render 3 HEADSCALE_* values";
+) "badEnv: unit does not render 3 ORGSCALE_* values";
 assert lib.assertMsg (lib.all (
   e: lib.hasInfix (lib.escapeShellArg e) (configCheckOf badEnv).buildCommand
 ) badEnvUnit) "badEnv: the build check's environment differs from the unit's";
-pkgs.runCommand "headscale-nixos-module"
+pkgs.runCommand "orgscale-nixos-module"
   {
     # Built as an input: a config with a file: secret passes.
     okBuild = configCheckOf ok;
@@ -281,7 +281,7 @@ pkgs.runCommand "headscale-nixos-module"
     badBuild = pkgs.testers.testBuildFailure (configCheckOf bad);
     badEnvBuild = pkgs.testers.testBuildFailure (configCheckOf badEnv);
     nativeBuildInputs = [
-      ok.config.services.headscale.package
+      ok.config.services.orgscale.package
       pkgs.yq-go
       pkgs.jq
       pkgs.nix
@@ -294,7 +294,7 @@ pkgs.runCommand "headscale-nixos-module"
     rejects() {
       local file=$1 out
       shift
-      if out=$(headscale check config -f "$file" 2>&1); then
+      if out=$(orgscale check config -f "$file" 2>&1); then
         echo "$file: check config passed"
         exit 1
       fi
@@ -310,11 +310,11 @@ pkgs.runCommand "headscale-nixos-module"
     want $ok '.database.type == "sqlite"'
     want $ok '.derp.urls[0] == "https://controlplane.tailscale.com/derpmap/default"'
     want $ok '.dns.challenge.provider.key == "file:''${CREDENTIALS_DIRECTORY}/tsig"'
-    want ${configFile facts} '.noise.private_key_path == "/var/lib/headscale/noise_private.key"
-      and .derp.server.private_key_path == "/var/lib/headscale/derp_server_private.key"
-      and .database.sqlite.path == "/var/lib/headscale/db.sqlite"
-      and .unix_socket == "/run/headscale/headscale.sock" and .disable_check_updates == true'
-    headscale check config -f $ok
+    want ${configFile facts} '.noise.private_key_path == "/var/lib/orgscale/noise_private.key"
+      and .derp.server.private_key_path == "/var/lib/orgscale/derp_server_private.key"
+      and .database.sqlite.path == "/var/lib/orgscale/db.sqlite"
+      and .unix_socket == "/run/orgscale/orgscale.sock" and .disable_check_updates == true'
+    orgscale check config -f $ok
 
     bad=${configFile bad}
     want $bad '(.dns | has("magic_dsn")) and (.oidc | has("client_secret_path"))'
@@ -335,7 +335,7 @@ pkgs.runCommand "headscale-nixos-module"
     }
     built $badBuild 'unknown configuration key dns.magic_dsn'
     built $badBuild 'oidc.client_secret_path was removed'
-    built $badBuild 'services.headscale.check.config = false skips it'
+    built $badBuild 'services.orgscale.check.config = false skips it'
     built $badEnvBuild 'missing a scheme'
 
     switch=${switchScript envMutable}
@@ -346,7 +346,7 @@ pkgs.runCommand "headscale-nixos-module"
     if grep -qF 'id -Gn' $immutable; then
       echo "immutableUsers: switch check keeps current groups"; exit 1
     fi
-    grep -qF 'want=(headscale 1234 a b)' $immutable ||
+    grep -qF 'want=(orgscale 1234 a b)' $immutable ||
       { echo "immutableUsers: SupplementaryGroups not split:"; cat $immutable; exit 1; }
 
     export HOME=$TMPDIR NIX_STATE_DIR=$TMPDIR/state NIX_CONF_DIR=$TMPDIR/etc NIX_LOG_DIR=$TMPDIR/log
@@ -367,19 +367,19 @@ pkgs.runCommand "headscale-nixos-module"
     # The distro defaults pass their types.
     evaluate ${evalCase "defaults" { }} || exit 1
     evalFails ${
-      evalCase "store-key" { services.headscale.settings.noise.private_key_path = "${./module.nix}"; }
-    } "services.headscale.settings.noise.private_key_path' is not of type"
+      evalCase "store-key" { services.orgscale.settings.noise.private_key_path = "${./module.nix}"; }
+    } "services.orgscale.settings.noise.private_key_path' is not of type"
     evalFails ${
-      evalCase "literal-secret" { services.headscale.settings.oidc.client_secret = "hunter2"; }
-    } "services.headscale.settings.oidc.client_secret' is not of type"
+      evalCase "literal-secret" { services.orgscale.settings.oidc.client_secret = "hunter2"; }
+    } "services.orgscale.settings.oidc.client_secret' is not of type"
     evalFails ${
-      evalCase "no-port" { services.headscale.settings.listen_addr = "0.0.0.0"; }
-    } "services.headscale.settings.listen_addr' is not of type"
+      evalCase "no-port" { services.orgscale.settings.listen_addr = "0.0.0.0"; }
+    } "services.orgscale.settings.listen_addr' is not of type"
     evalFails ${
-      evalCase "user" { services.headscale.user = "hs2"; }
-    } "services.headscale.user' is read-only"
+      evalCase "user" { services.orgscale.user = "hs2"; }
+    } "services.orgscale.user' is read-only"
     evalFails ${
-      evalCase "group" { services.headscale.group = "hs2"; }
-    } "services.headscale.group' is read-only"
+      evalCase "group" { services.orgscale.group = "hs2"; }
+    } "services.orgscale.group' is read-only"
     touch $out
   ''

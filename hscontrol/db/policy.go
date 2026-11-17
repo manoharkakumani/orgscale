@@ -70,7 +70,7 @@ func PolicyBytes(tx *gorm.DB, cfg *types.Config) ([]byte, error) {
 	case types.PolicyModeFile:
 		path := cfg.Policy.Path
 
-		// It is fine to start headscale without a policy file.
+		// It is fine to start orgscale without a policy file.
 		if len(path) == 0 {
 			return nil, nil
 		}

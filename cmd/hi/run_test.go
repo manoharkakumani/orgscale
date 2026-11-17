@@ -30,31 +30,31 @@ func TestRunArguments(t *testing.T) {
 	}{
 		{
 			name:     "postgres before selector",
-			args:     []string{"--postgres=1", "--timeout=15m", "^TestHeadscale$"},
+			args:     []string{"--postgres=1", "--timeout=15m", "^TestOrgscale$"},
 			postgres: true,
 		},
 		{
 			name:     "postgres after selector",
-			args:     []string{"^TestHeadscale$", "--postgres", "--timeout=15m"},
+			args:     []string{"^TestOrgscale$", "--postgres", "--timeout=15m"},
 			postgres: true,
 		},
 		{
 			name: "sqlite",
-			args: []string{"--postgres=0", "--timeout=15m", "--test=^TestHeadscale$"},
+			args: []string{"--postgres=0", "--timeout=15m", "--test=^TestOrgscale$"},
 		},
 		{
 			name:    "folded shell continuations",
-			args:    []string{"^TestHeadscale$", " --timeout=15m", " --postgres=1"},
+			args:    []string{"^TestOrgscale$", " --timeout=15m", " --postgres=1"},
 			wantErr: ErrUnexpectedTestArguments,
 		},
 		{
 			name:    "extra selector",
-			args:    []string{"^TestHeadscale$", "TestNodeCommand"},
+			args:    []string{"^TestOrgscale$", "TestNodeCommand"},
 			wantErr: ErrUnexpectedTestArguments,
 		},
 		{
 			name:    "positional selector with test flag",
-			args:    []string{"--test=^TestHeadscale$", "TestNodeCommand"},
+			args:    []string{"--test=^TestOrgscale$", "TestNodeCommand"},
 			wantErr: ErrUnexpectedTestArguments,
 		},
 		{
@@ -81,19 +81,19 @@ func TestRunArguments(t *testing.T) {
 
 			require.NoError(t, err)
 			assert.Equal(t, tt.postgres, config.UsePostgres)
-			assert.Equal(t, "^TestHeadscale$", config.TestPattern)
+			assert.Equal(t, "^TestOrgscale$", config.TestPattern)
 			assert.Equal(t, 15*time.Minute, config.Timeout)
 		})
 	}
 }
 
 func TestCompiledTestContainer(t *testing.T) {
-	t.Setenv("HEADSCALE_INTEGRATION_HEADSCALE_IMAGE", "headscale:ci-test")
+	t.Setenv("ORGSCALE_INTEGRATION_ORGSCALE_IMAGE", "orgscale:ci-test")
 	// Neither inherited backend settings nor Go cache mounts should override
 	// the requested backend or leak into a compiled test execution.
-	t.Setenv("HEADSCALE_INTEGRATION_POSTGRES", "0")
-	t.Setenv("HEADSCALE_INTEGRATION_GO_CACHE", "/unused/go")
-	t.Setenv("HEADSCALE_INTEGRATION_GO_BUILD_CACHE", "/unused/build")
+	t.Setenv("ORGSCALE_INTEGRATION_POSTGRES", "0")
+	t.Setenv("ORGSCALE_INTEGRATION_GO_CACHE", "/unused/go")
+	t.Setenv("ORGSCALE_INTEGRATION_GO_BUILD_CACHE", "/unused/build")
 
 	binary := filepath.Join(t.TempDir(), "integration.test")
 	require.NoError(t, os.WriteFile(binary, []byte("test executable"), 0o700)) //nolint:gosec // The fixture must be executable to validate --test-binary.
@@ -137,20 +137,20 @@ func TestCompiledTestContainer(t *testing.T) {
 
 	logs := t.TempDir()
 	_, err = createTestContainer(t.Context(), cli, &config,
-		"headscale-test-suite-"+runID, logs, buildTestCommand(&config))
+		"orgscale-test-suite-"+runID, logs, buildTestCommand(&config))
 	require.NoError(t, err)
 
 	request := <-requests
-	assert.Equal(t, "headscale:ci-test", request.Image)
-	// A custom server image may already have a headscale entrypoint.
+	assert.Equal(t, "orgscale:ci-test", request.Image)
+	// A custom server image may already have a orgscale entrypoint.
 	assert.Equal(t, []string{"/integration.test"}, []string(request.Entrypoint))
 	assert.Equal(t, []string{
 		"-test.run", config.TestPattern,
 		"-test.failfast", "-test.timeout", "15m0s", "-test.v",
 	}, []string(request.Cmd))
-	assert.Contains(t, request.Env, "HEADSCALE_INTEGRATION_POSTGRES=1")
-	assert.NotContains(t, request.Env, "HEADSCALE_INTEGRATION_POSTGRES=0")
-	assert.Contains(t, request.Env, "HEADSCALE_INTEGRATION_RUN_ID="+runID)
+	assert.Contains(t, request.Env, "ORGSCALE_INTEGRATION_POSTGRES=1")
+	assert.NotContains(t, request.Env, "ORGSCALE_INTEGRATION_POSTGRES=0")
+	assert.Contains(t, request.Env, "ORGSCALE_INTEGRATION_RUN_ID="+runID)
 	assert.NotContains(t, request.Env, "GOCACHE=/cache/go-build")
 	assert.Equal(t, runID, request.Labels["hi.run-id"])
 	assert.Equal(t, "integration", filepath.Base(request.WorkingDir))
@@ -162,17 +162,17 @@ func TestCompiledTestContainer(t *testing.T) {
 }
 
 func TestSourceTestCommand(t *testing.T) {
-	t.Setenv("HEADSCALE_INTEGRATION_HEADSCALE_IMAGE", "headscale:ci-test")
+	t.Setenv("ORGSCALE_INTEGRATION_ORGSCALE_IMAGE", "orgscale:ci-test")
 
 	config := RunConfig{
-		TestPattern: "^TestHeadscale$", GoVersion: "1.27.0", Timeout: time.Minute,
+		TestPattern: "^TestOrgscale$", GoVersion: "1.27.0", Timeout: time.Minute,
 	}
-	assert.Equal(t, []string{"go", "test", "./...", "-run", "^TestHeadscale$", "-timeout", "1m0s", "-v"}, buildTestCommand(&config))
+	assert.Equal(t, []string{"go", "test", "./...", "-run", "^TestOrgscale$", "-timeout", "1m0s", "-v"}, buildTestCommand(&config))
 	assert.Equal(t, "golang:1.27.0", testRunnerImage(&config))
 
 	config.TestBinary = "/integration.test"
 
-	t.Setenv("HEADSCALE_INTEGRATION_HEADSCALE_IMAGE", "")
+	t.Setenv("ORGSCALE_INTEGRATION_ORGSCALE_IMAGE", "")
 	assert.Equal(t, "golang:1.27.0", testRunnerImage(&config))
 }
 

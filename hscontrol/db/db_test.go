@@ -37,12 +37,12 @@ dns:
 database:
   type: sqlite3
   sqlite:
-    path: headscale.db
+    path: orgscale.db
 `), 0o600))
 	l, err := config.Load(configPath, true, os.Environ())
 	require.NoError(t, err)
 	require.NoError(t, config.Validate(l.Config))
-	hsdb, err := NewHeadscaleDatabase(l.Config)
+	hsdb, err := NewOrgscaleDatabase(l.Config)
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, hsdb.Close()) })
 
@@ -97,7 +97,7 @@ func TestSQLiteMigrationAndDataValidation(t *testing.T) {
 		// Real v0.29.3 database: the supported upgrade path into the unified
 		// credentials table. Key strings are listed in the fixture header.
 		{
-			dbPath: "testdata/sqlite/headscale_0.29.3_dump.sql",
+			dbPath: "testdata/sqlite/orgscale_0.29.3_dump.sql",
 			wantFunc: func(t *testing.T, hsdb *HSDatabase) {
 				t.Helper()
 
@@ -163,12 +163,12 @@ func TestSQLiteMigrationAndDataValidation(t *testing.T) {
 
 				// bcrypt keys authenticate and are upgraded to SHA-256.
 				apiKey, err := hsdb.AuthenticateAPIKey(
-					"hskey-api-ZRVzG0vKkUb4-dqem7jxt7Aun0JqfZpbsvrBDYdQV-RK8S9qbiAAniiuTxIj73LeDUDukVYJBqmDh")
+					"oskey-api-ZRVzG0vKkUb4-dqem7jxt7Aun0JqfZpbsvrBDYdQV-RK8S9qbiAAniiuTxIj73LeDUDukVYJBqmDh")
 				require.NoError(t, err)
 				assert.Greater(t, apiKey.ID, uint64(5), "API keys are renumbered after pre-auth keys")
 
 				pak, err := hsdb.GetPreAuthKey(
-					"hskey-auth-H3XVw1W-6s4J-KTmfCUFG_4gJ8CuI5j3W67DX8eMnQJi6W8ToVK0esXMrPK5YTm_p8THq6VnH22-K")
+					"oskey-auth-H3XVw1W-6s4J-KTmfCUFG_4gJ8CuI5j3W67DX8eMnQJi6W8ToVK0esXMrPK5YTm_p8THq6VnH22-K")
 				require.NoError(t, err)
 				assert.Equal(t, uint64(1), pak.ID)
 
@@ -457,7 +457,7 @@ func TestPostgresMigrationAndDataValidation(t *testing.T) {
 		// sequence reset and the in-place foreign key swap.
 		{
 			name:   "0.29.3",
-			dbPath: "testdata/postgres/headscale_0.29.3.pssql",
+			dbPath: "testdata/postgres/orgscale_0.29.3.pssql",
 			// Keys 6-9 were created and deleted before the upgrade.
 			preSQL: []string{`SELECT setval('pre_auth_keys_id_seq', 9)`},
 			wantFunc: func(t *testing.T, hsdb *HSDatabase) {
@@ -484,12 +484,12 @@ func TestPostgresMigrationAndDataValidation(t *testing.T) {
 				assert.Len(t, ephemeral, 2)
 
 				apiKey, err := hsdb.AuthenticateAPIKey(
-					"hskey-api-SdBE2-ozHMyK-HjrXcK0p7TYzcbylruVbFWlyt6HjcHwo7x_GLPLhAalGRfqet4IrZU-q91oeYeEN")
+					"oskey-api-SdBE2-ozHMyK-HjrXcK0p7TYzcbylruVbFWlyt6HjcHwo7x_GLPLhAalGRfqet4IrZU-q91oeYeEN")
 				require.NoError(t, err)
 				assert.Greater(t, apiKey.ID, uint64(5))
 
 				_, err = hsdb.GetPreAuthKey(
-					"hskey-auth-RsYnjtPRQ36o-diMamZSeVhqfNiuKCp8sogtHIbfYfAkZ9iQm7e4naK-Wm2uUK-kHd56_IKGQQNTo")
+					"oskey-auth-RsYnjtPRQ36o-diMamZSeVhqfNiuKCp8sogtHIbfYfAkZ9iQm7e4naK-Wm2uUK-kHd56_IKGQQNTo")
 				require.NoError(t, err)
 
 				// The sequence was advanced past the explicit pre-auth ids.
@@ -541,7 +541,7 @@ func TestPostgresMigrationAndDataValidation(t *testing.T) {
 				require.NoError(t, raw.Close())
 			}
 
-			db := newHeadscaleDBFromPostgresURL(t, u)
+			db := newOrgscaleDBFromPostgresURL(t, u)
 
 			if tt.wantFunc != nil {
 				tt.wantFunc(t, db)
@@ -558,7 +558,7 @@ func dbForTest(t *testing.T) *HSDatabase {
 func dbForTestWithPath(t *testing.T, sqlFilePath string) *HSDatabase {
 	t.Helper()
 
-	dbPath := t.TempDir() + "/headscale_test.db"
+	dbPath := t.TempDir() + "/orgscale_test.db"
 
 	// If SQL file path provided, validate and create database from it
 	if sqlFilePath != "" {
@@ -573,7 +573,7 @@ func dbForTestWithPath(t *testing.T, sqlFilePath string) *HSDatabase {
 		}
 	}
 
-	db, err := NewHeadscaleDatabase(
+	db, err := NewOrgscaleDatabase(
 		&types.Config{
 			Database: types.DatabaseConfig{
 				Type: "sqlite3",
@@ -605,9 +605,9 @@ func dbForTestWithPath(t *testing.T, sqlFilePath string) *HSDatabase {
 //
 // TODO(kradalby): remove in 0.31 with the credentials migration.
 func TestSQLiteMigrationDanglingCredentialOwner(t *testing.T) {
-	dbPath := t.TempDir() + "/headscale_test.db"
+	dbPath := t.TempDir() + "/orgscale_test.db"
 
-	require.NoError(t, createSQLiteFromSQLFile("testdata/sqlite/headscale_0.29.3_dump.sql", dbPath))
+	require.NoError(t, createSQLiteFromSQLFile("testdata/sqlite/orgscale_0.29.3_dump.sql", dbPath))
 
 	// Bring the dump to the pre-credentials development schema by hand, with
 	// rows owned by a user id that does not exist.
@@ -632,7 +632,7 @@ func TestSQLiteMigrationDanglingCredentialOwner(t *testing.T) {
 
 	require.NoError(t, raw.Close())
 
-	hsdb, err := NewHeadscaleDatabase(&types.Config{
+	hsdb, err := NewOrgscaleDatabase(&types.Config{
 		Database: types.DatabaseConfig{
 			Type:   "sqlite3",
 			Sqlite: types.SqliteConfig{Path: dbPath},
@@ -656,9 +656,9 @@ func TestSQLiteMigrationDanglingCredentialOwner(t *testing.T) {
 //
 // TODO(kradalby): remove in 0.31 with the credentials migration.
 func TestSQLiteMigrationToCredentialsIsAtomic(t *testing.T) {
-	dbPath := t.TempDir() + "/headscale_test.db"
+	dbPath := t.TempDir() + "/orgscale_test.db"
 
-	require.NoError(t, createSQLiteFromSQLFile("testdata/sqlite/headscale_0.29.3_dump.sql", dbPath))
+	require.NoError(t, createSQLiteFromSQLFile("testdata/sqlite/orgscale_0.29.3_dump.sql", dbPath))
 
 	raw, err := sql.Open("sqlite", dbPath)
 	require.NoError(t, err)
@@ -678,7 +678,7 @@ func TestSQLiteMigrationToCredentialsIsAtomic(t *testing.T) {
 		Policy: types.PolicyConfig{Mode: types.PolicyModeDB},
 	}
 
-	_, err = NewHeadscaleDatabase(cfg)
+	_, err = NewOrgscaleDatabase(cfg)
 	require.Error(t, err)
 
 	var paks, nodes int
@@ -691,7 +691,7 @@ func TestSQLiteMigrationToCredentialsIsAtomic(t *testing.T) {
 	_, err = raw.ExecContext(context.Background(), `DROP INDEX idx_nodes_auth_key_id`)
 	require.NoError(t, err)
 
-	hsdb, err := NewHeadscaleDatabase(cfg)
+	hsdb, err := NewOrgscaleDatabase(cfg)
 	require.NoError(t, err)
 
 	pak, err := hsdb.GetPreAuthKeyByID(1)
@@ -703,7 +703,7 @@ func TestSQLiteMigrationToCredentialsIsAtomic(t *testing.T) {
 // table predates the created_by_token column: existing keys read as not made
 // by a token, and the schema matches schema.sql again.
 func TestSQLiteMigrationAddsCreatedByToken(t *testing.T) {
-	dbPath := t.TempDir() + "/headscale_test.db"
+	dbPath := t.TempDir() + "/orgscale_test.db"
 	cfg := &types.Config{
 		Database: types.DatabaseConfig{
 			Type:   "sqlite3",
@@ -712,7 +712,7 @@ func TestSQLiteMigrationAddsCreatedByToken(t *testing.T) {
 		Policy: types.PolicyConfig{Mode: types.PolicyModeDB},
 	}
 
-	hsdb, err := NewHeadscaleDatabase(cfg)
+	hsdb, err := NewOrgscaleDatabase(cfg)
 	require.NoError(t, err)
 
 	pak, err := hsdb.CreatePreAuthKey(nil, true, false, nil, []string{"tag:ci"})
@@ -732,7 +732,7 @@ func TestSQLiteMigrationAddsCreatedByToken(t *testing.T) {
 		require.NoError(t, err, stmt)
 	}
 
-	hsdb, err = NewHeadscaleDatabase(cfg)
+	hsdb, err = NewOrgscaleDatabase(cfg)
 	require.NoError(t, err)
 
 	got, err := hsdb.GetPreAuthKeyByID(pak.ID)
@@ -755,7 +755,7 @@ func TestSQLiteRejectsPre029Database(t *testing.T) {
 
 	for _, dump := range dumps {
 		t.Run(dump.Name(), func(t *testing.T) {
-			dbPath := t.TempDir() + "/headscale_test.db"
+			dbPath := t.TempDir() + "/orgscale_test.db"
 
 			err := createSQLiteFromSQLFile(filepath.Join("testdata/sqlite_too_old", dump.Name()), dbPath)
 			require.NoError(t, err)
@@ -775,7 +775,7 @@ func TestSQLiteRejectsPre029Database(t *testing.T) {
 			}
 			before := schema()
 
-			_, err = NewHeadscaleDatabase(&types.Config{
+			_, err = NewOrgscaleDatabase(&types.Config{
 				Database: types.DatabaseConfig{
 					Type:   "sqlite3",
 					Sqlite: types.SqliteConfig{Path: dbPath},
@@ -792,8 +792,8 @@ func TestSQLiteRejectsPre029Database(t *testing.T) {
 // in the testdata directory. It verifies they can be successfully migrated to the current
 // schema version. This test only validates migration success, not data integrity.
 //
-// All test database files are SQL dumps (created with `sqlite3 headscale.db .dump`) generated
-// with old Headscale binaries on empty databases (no user/node data). These dumps include the
+// All test database files are SQL dumps (created with `sqlite3 orgscale.db .dump`) generated
+// with old Orgscale binaries on empty databases (no user/node data). These dumps include the
 // migration history in the `migrations` table, which allows the migration system to correctly
 // skip already-applied migrations and only run new ones.
 func TestSQLiteAllTestdataMigrations(t *testing.T) {
@@ -814,14 +814,14 @@ func TestSQLiteAllTestdataMigrations(t *testing.T) {
 		t.Run(schema.Name(), func(t *testing.T) {
 			t.Parallel()
 
-			dbPath := t.TempDir() + "/headscale_test.db"
+			dbPath := t.TempDir() + "/orgscale_test.db"
 
 			// Setup a database with the old schema
 			schemaPath := filepath.Join("testdata/sqlite", schema.Name())
 			err := createSQLiteFromSQLFile(schemaPath, dbPath)
 			require.NoError(t, err)
 
-			_, err = NewHeadscaleDatabase(
+			_, err = NewOrgscaleDatabase(
 				&types.Config{
 					Database: types.DatabaseConfig{
 						Type: "sqlite3",
@@ -910,7 +910,7 @@ func TestCredentialConstraints(t *testing.T) {
 
 	// TODO(kradalby): remove in 0.31 with the credentials migration.
 	t.Run("migrated sqlite", func(t *testing.T) {
-		hsdb := dbForTestWithPath(t, "testdata/sqlite/headscale_0.29.3_dump.sql")
+		hsdb := dbForTestWithPath(t, "testdata/sqlite/orgscale_0.29.3_dump.sql")
 		requireCredentialConstraints(t, hsdb.DB)
 	})
 
@@ -956,9 +956,9 @@ func sqliteTestConfig(path string) *types.Config {
 //
 // TODO(kradalby): remove in 0.31 with the credentials migration.
 func TestSQLiteMigrationKeepsPreAuthKeySequence(t *testing.T) {
-	dbPath := t.TempDir() + "/headscale_test.db"
+	dbPath := t.TempDir() + "/orgscale_test.db"
 
-	require.NoError(t, createSQLiteFromSQLFile("testdata/sqlite/headscale_0.29.3_dump.sql", dbPath))
+	require.NoError(t, createSQLiteFromSQLFile("testdata/sqlite/orgscale_0.29.3_dump.sql", dbPath))
 
 	raw, err := sql.Open("sqlite", dbPath)
 	require.NoError(t, err)
@@ -967,7 +967,7 @@ func TestSQLiteMigrationKeepsPreAuthKeySequence(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, raw.Close())
 
-	hsdb, err := NewHeadscaleDatabase(sqliteTestConfig(dbPath))
+	hsdb, err := NewOrgscaleDatabase(sqliteTestConfig(dbPath))
 	require.NoError(t, err)
 
 	pak, err := hsdb.CreatePreAuthKey(nil, false, false, nil, []string{"tag:x"})
@@ -983,11 +983,11 @@ func TestSQLiteMigrationKeepsPreAuthKeySequence(t *testing.T) {
 // TODO(kradalby): seed without the 0.29.3 fixture in 0.31, when the
 // credentials migration is dropped.
 func TestRevokedKeysBackingNodesSurviveCollection(t *testing.T) {
-	dbPath := t.TempDir() + "/headscale_test.db"
+	dbPath := t.TempDir() + "/orgscale_test.db"
 
-	require.NoError(t, createSQLiteFromSQLFile("testdata/sqlite/headscale_0.29.3_dump.sql", dbPath))
+	require.NoError(t, createSQLiteFromSQLFile("testdata/sqlite/orgscale_0.29.3_dump.sql", dbPath))
 
-	hsdb, err := NewHeadscaleDatabase(sqliteTestConfig(dbPath))
+	hsdb, err := NewOrgscaleDatabase(sqliteTestConfig(dbPath))
 	require.NoError(t, err)
 
 	unused, err := hsdb.CreatePreAuthKey(nil, false, false, nil, []string{"tag:x"})
@@ -1003,7 +1003,7 @@ func TestRevokedKeysBackingNodesSurviveCollection(t *testing.T) {
 
 	require.NoError(t, hsdb.Close())
 
-	hsdb, err = NewHeadscaleDatabase(sqliteTestConfig(dbPath))
+	hsdb, err = NewOrgscaleDatabase(sqliteTestConfig(dbPath))
 	require.NoError(t, err)
 
 	ephemeral, err := hsdb.ListEphemeralNodes()
@@ -1022,17 +1022,17 @@ func TestRevokedKeysBackingNodesSurviveCollection(t *testing.T) {
 // which node 3 was made permanent: the next start must neither fail on the
 // existing column nor backfill node 3 again.
 func TestNodeEphemeralMigrationRerunKeepsFlags(t *testing.T) {
-	dbPath := t.TempDir() + "/headscale_test.db"
+	dbPath := t.TempDir() + "/orgscale_test.db"
 
-	require.NoError(t, createSQLiteFromSQLFile("testdata/sqlite/headscale_0.29.3_dump.sql", dbPath))
+	require.NoError(t, createSQLiteFromSQLFile("testdata/sqlite/orgscale_0.29.3_dump.sql", dbPath))
 
-	hsdb, err := NewHeadscaleDatabase(sqliteTestConfig(dbPath))
+	hsdb, err := NewOrgscaleDatabase(sqliteTestConfig(dbPath))
 	require.NoError(t, err)
 	require.NoError(t, hsdb.DB.Exec(`UPDATE nodes SET ephemeral = false WHERE id = 3`).Error)
 	require.NoError(t, hsdb.DB.Exec(`DELETE FROM migrations WHERE id = '202610211300-node-ephemeral'`).Error)
 	require.NoError(t, hsdb.Close())
 
-	hsdb, err = NewHeadscaleDatabase(sqliteTestConfig(dbPath))
+	hsdb, err = NewOrgscaleDatabase(sqliteTestConfig(dbPath))
 	require.NoError(t, err)
 
 	ephemeral, err := hsdb.ListEphemeralNodes()
@@ -1046,14 +1046,14 @@ func TestNodeEphemeralMigrationRerunKeepsFlags(t *testing.T) {
 // next start completes instead of failing on the existing credentials table.
 func TestInterruptedInitSchemaRecovers(t *testing.T) {
 	t.Run("sqlite", func(t *testing.T) {
-		dbPath := t.TempDir() + "/headscale_test.db"
+		dbPath := t.TempDir() + "/orgscale_test.db"
 
-		hsdb, err := NewHeadscaleDatabase(sqliteTestConfig(dbPath))
+		hsdb, err := NewOrgscaleDatabase(sqliteTestConfig(dbPath))
 		require.NoError(t, err)
 		require.NoError(t, hsdb.DB.Exec(`DELETE FROM migrations`).Error)
 		require.NoError(t, hsdb.Close())
 
-		hsdb, err = NewHeadscaleDatabase(sqliteTestConfig(dbPath))
+		hsdb, err = NewOrgscaleDatabase(sqliteTestConfig(dbPath))
 		require.NoError(t, err)
 
 		_, _, err = hsdb.CreateAPIKey(nil)
@@ -1063,11 +1063,11 @@ func TestInterruptedInitSchemaRecovers(t *testing.T) {
 	t.Run("postgres", func(t *testing.T) {
 		u := newPostgresDBForTest(t)
 
-		hsdb := newHeadscaleDBFromPostgresURL(t, u)
+		hsdb := newOrgscaleDBFromPostgresURL(t, u)
 		require.NoError(t, hsdb.DB.Exec(`DELETE FROM migrations`).Error)
 		require.NoError(t, hsdb.Close())
 
-		hsdb = newHeadscaleDBFromPostgresURL(t, u)
+		hsdb = newOrgscaleDBFromPostgresURL(t, u)
 
 		_, _, err := hsdb.CreateAPIKey(nil)
 		require.NoError(t, err)
@@ -1100,8 +1100,8 @@ func TestOpenDBReturnsOpenError(t *testing.T) {
 					Postgres: types.PostgresConfig{
 						Host: "127.0.0.1",
 						Port: 1,
-						Name: "headscale",
-						User: "headscale",
+						Name: "orgscale",
+						User: "orgscale",
 						Ssl:  "false",
 					},
 				}
@@ -1129,7 +1129,7 @@ func TestOpenDBReturnsOpenError(t *testing.T) {
 // TestSQLiteWriteAheadLog switches one database between modes, because SQLite
 // stores the journal mode in the file and turning WAL off has to undo it.
 func TestSQLiteWriteAheadLog(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "headscale.db")
+	path := filepath.Join(t.TempDir(), "orgscale.db")
 
 	open := func(wal bool) (string, int) {
 		t.Helper()
@@ -1137,7 +1137,7 @@ func TestSQLiteWriteAheadLog(t *testing.T) {
 		cfg := sqliteTestConfig(path)
 		cfg.Database.Sqlite.WriteAheadLog = wal
 
-		hsdb, err := NewHeadscaleDatabase(cfg)
+		hsdb, err := NewOrgscaleDatabase(cfg)
 		require.NoError(t, err)
 
 		var (
@@ -1167,7 +1167,7 @@ func TestSQLiteWriteAheadLog(t *testing.T) {
 }
 
 func TestLastControlAddressMigration(t *testing.T) {
-	dbPath := t.TempDir() + "/headscale.db"
+	dbPath := t.TempDir() + "/orgscale.db"
 	cfg := &types.Config{
 		Database: types.DatabaseConfig{
 			Type: types.DatabaseSqlite,
@@ -1178,7 +1178,7 @@ func TestLastControlAddressMigration(t *testing.T) {
 		Policy: types.PolicyConfig{Mode: types.PolicyModeDB},
 	}
 
-	database, err := NewHeadscaleDatabase(cfg)
+	database, err := NewOrgscaleDatabase(cfg)
 	require.NoError(t, err, "a fresh database must match schema.sql")
 	require.True(t, database.DB.Migrator().HasColumn(&types.Node{}, "last_control_address"))
 
@@ -1197,7 +1197,7 @@ func TestLastControlAddressMigration(t *testing.T) {
 	require.False(t, database.DB.Migrator().HasColumn(&types.Node{}, "last_control_address"))
 	require.NoError(t, database.Close())
 
-	upgraded, err := NewHeadscaleDatabase(cfg)
+	upgraded, err := NewOrgscaleDatabase(cfg)
 	require.NoError(t, err, "a database without last_control_address must upgrade")
 	t.Cleanup(func() { _ = upgraded.Close() })
 

@@ -308,7 +308,7 @@ var routeOverlapCompatTests = []string{
 	"routes-t5-oauth-routes-scope",
 }
 
-// routeOverlapSkipReasons lists checks where headscale differs from SaaS,
+// routeOverlapSkipReasons lists checks where orgscale differs from SaaS,
 // keyed <test_id>/<node>/<check>. A listed check that matches fails, so a fix
 // must delete its entry.
 var routeOverlapSkipReasons = map[string]string{}
@@ -363,7 +363,7 @@ var routeOverlapNotCompared = []string{
 
 // TestRoutesTailnetOverlapCompat replays routers whose routes overlap the
 // tailnet's addresses and compares approvals, served routes, peers and
-// filters with SaaS. Headscale must hand out SaaS's addresses, so a route
+// filters with SaaS. Orgscale must hand out SaaS's addresses, so a route
 // naming a node's address names the same node here and AllowedIPs compare
 // literally.
 //

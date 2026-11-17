@@ -187,7 +187,7 @@ func (pak *PreAuthKey) CanReauthenticate(node NodeView) bool {
 // SECURITY: Never log the full key or hash, only the masked prefix.
 func (pak *PreAuthKey) maskedPrefix() string {
 	if pak.Prefix != "" {
-		return "hskey-auth-" + pak.Prefix + "-***"
+		return "oskey-auth-" + pak.Prefix + "-***"
 	}
 
 	return ""

@@ -280,7 +280,7 @@ func IsCI() bool {
 // it's purely for observability and correlating log entries during the registration process.
 func GenerateRegistrationKey() (string, error) {
 	const (
-		registerKeyPrefix = "hskey-reg-" //nolint:gosec // This is a vanity key for logging, not a credential
+		registerKeyPrefix = "oskey-reg-" //nolint:gosec // This is a vanity key for logging, not a credential
 		registerKeyLength = 64
 	)
 

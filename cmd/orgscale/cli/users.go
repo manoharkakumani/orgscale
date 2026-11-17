@@ -163,7 +163,7 @@ func init() {
 
 var userCmd = &cobra.Command{
 	Use:     "users",
-	Short:   "Manage the users of Headscale",
+	Short:   "Manage the users of Orgscale",
 	Aliases: []string{"user"},
 }
 
@@ -287,7 +287,7 @@ var listUsersCmd = &cobra.Command{
 						user.DisplayName,
 						user.Name,
 						user.Email,
-						user.CreatedAt.Format(HeadscaleDateTimeFormat),
+						user.CreatedAt.Format(OrgscaleDateTimeFormat),
 					},
 				)
 			}

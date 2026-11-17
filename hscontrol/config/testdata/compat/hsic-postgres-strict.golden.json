@@ -39,15 +39,15 @@
         "ParameterizedQueries": false
       },
       "Sqlite": {
-        "Path": "/var/lib/headscale/db.sqlite",
+        "Path": "/var/lib/orgscale/db.sqlite",
         "WriteAheadLog": true,
         "WALAutoCheckPoint": 1000
       },
       "Postgres": {
         "Host": "postgres-compat",
         "Port": 0,
-        "Name": "headscale",
-        "User": "headscale",
+        "Name": "orgscale",
+        "User": "orgscale",
         "Ssl": "false",
         "MaxOpenConnections": 10,
         "MaxIdleConnections": 10,
@@ -58,8 +58,8 @@
       "ServerEnabled": true,
       "AutomaticallyAddEmbeddedDerpRegion": true,
       "ServerRegionID": 999,
-      "ServerRegionCode": "headscale",
-      "ServerRegionName": "Headscale Embedded DERP",
+      "ServerRegionCode": "orgscale",
+      "ServerRegionName": "Orgscale Embedded DERP",
       "ServerPrivateKeyPath": "/tmp/derp.key",
       "ServerVerifyClients": true,
       "STUNAddr": "0.0.0.0:3478",
@@ -94,7 +94,7 @@
         "HTTPListen": ":http",
         "URL": "",
         "Email": "",
-        "CacheDir": "/var/lib/headscale/cache"
+        "CacheDir": "/var/lib/orgscale/cache"
       }
     },
     "DNSConfig": {
@@ -138,7 +138,7 @@
       ],
       "ProviderName": ""
     },
-    "UnixSocket": "/var/run/headscale/headscale.sock",
+    "UnixSocket": "/var/run/orgscale/orgscale.sock",
     "UnixSocketPermission": 504,
     "OIDC": {
       "OnlyStartIfOIDCIsAvailable": true,
@@ -189,6 +189,6 @@
     }
   },
   "secrets": {
-    "database.postgres.pass": "headscale"
+    "database.postgres.pass": "orgscale"
   }
 }

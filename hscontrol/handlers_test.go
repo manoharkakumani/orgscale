@@ -29,7 +29,7 @@ var errTestUnexpected = errors.New("unexpected failure")
 
 // TestHandleVerifyRequest_OversizedBodyRejected verifies that the
 // /verify handler refuses POST bodies larger than [verifyBodyLimit].
-// The [http.MaxBytesReader] is applied in [Headscale.VerifyHandler], so we simulate
+// The [http.MaxBytesReader] is applied in [Orgscale.VerifyHandler], so we simulate
 // the same wrapping here.
 func TestHandleVerifyRequest_OversizedBodyRejected(t *testing.T) {
 	t.Parallel()
@@ -44,7 +44,7 @@ func TestHandleVerifyRequest_OversizedBodyRejected(t *testing.T) {
 	)
 	req.Body = http.MaxBytesReader(rec, req.Body, verifyBodyLimit)
 
-	h := &Headscale{}
+	h := &Orgscale{}
 
 	err := h.handleVerifyRequest(req, &bytes.Buffer{})
 	if err == nil {
@@ -68,7 +68,7 @@ func TestHandleVerifyRequest_OversizedBodyRejected(t *testing.T) {
 func TestVerifyHandler_SuccessSetsJSONContentType(t *testing.T) {
 	cfg := validConfig(t)
 
-	h, err := NewHeadscale(&cfg)
+	h, err := NewOrgscale(&cfg)
 	require.NoError(t, err)
 
 	reqBody, err := json.Marshal(tailcfg.DERPAdmitClientRequest{
@@ -208,7 +208,7 @@ func TestKeyHandler_UnsupportedCapVerDoesNotLeakKey(t *testing.T) {
 	t.Parallel()
 
 	noise := key.NewMachine()
-	h := &Headscale{noisePrivateKey: &noise}
+	h := &Orgscale{noisePrivateKey: &noise}
 
 	unsupported := capver.MinSupportedCapabilityVersion - 1
 
@@ -417,7 +417,7 @@ func TestClientTextIsClippedInLogs(t *testing.T) {
 		)
 		rec := httptest.NewRecorder()
 
-		(&Headscale{}).KeyHandler(rec, req)
+		(&Orgscale{}).KeyHandler(rec, req)
 		require.Equal(t, http.StatusBadRequest, rec.Code)
 
 		_, err := parseCapabilityVersion(req)
@@ -444,7 +444,7 @@ func TestClientTextIsClippedInLogs(t *testing.T) {
 		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 		rec := httptest.NewRecorder()
 
-		// A nil headscale proves the request is refused before any lookup.
+		// A nil orgscale proves the request is refused before any lookup.
 		(&noiseServer{}).SSHActionHandler(rec, req)
 		require.Equal(t, http.StatusBadRequest, rec.Code)
 
@@ -466,7 +466,7 @@ func TestClientTextIsClippedInLogs(t *testing.T) {
 		req.URL.RawQuery = url.Values{"local_user": {localUser}}.Encode()
 		rec := httptest.NewRecorder()
 
-		(&noiseServer{headscale: app, machineKey: dst.MachineKey}).
+		(&noiseServer{orgscale: app, machineKey: dst.MachineKey}).
 			SSHActionHandler(rec, req)
 		require.Equal(t, http.StatusOK, rec.Code, "body=%q", rec.Body.String())
 

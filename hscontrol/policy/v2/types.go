@@ -69,7 +69,7 @@ var (
 
 // SSH check period constants per Tailscale docs:
 // https://tailscale.com/docs/features/tailscale-ssh#checkperiod
-// SaaS imposes no minimum (0s is accepted) so headscale matches.
+// SaaS imposes no minimum (0s is accepted) so orgscale matches.
 const (
 	SSHCheckPeriodDefault = 12 * time.Hour
 	SSHCheckPeriodMax     = 7 * 24 * time.Hour
@@ -111,7 +111,7 @@ var (
 	ErrNodeAttrsIPPoolReserved      = errors.New("nodeAttrs ipPool must not overlap reserved Tailscale ranges")
 	ErrNodeAttrsIPPoolOutOfRange    = errors.New("nodeAttrs ipPool must be within 100.64.0.0/10")
 	ErrNodeAttrsAutogroupNotAllowed = errors.New("nodeAttrs target does not support this autogroup")
-	ErrNodeAttrUnsupported          = errors.New("nodeAttrs uses a feature headscale does not yet support")
+	ErrNodeAttrUnsupported          = errors.New("nodeAttrs uses a feature orgscale does not yet support")
 	ErrNodeAttrIPPoolUnsupported    = errors.New("nodeAttrs ipPool requires the IP allocator (https://github.com/juanfont/headscale/issues/2912)")
 	ErrNodeAttrTargetUnsupported    = errors.New("nodeAttrs target alias type is not supported")
 )
@@ -150,9 +150,9 @@ func (p *Policy) malformedNextDNSAttrs() []string {
 	return bad
 }
 
-// nodeAttrUnsupportedCaps lists caps that headscale parses but cannot act on
+// nodeAttrUnsupportedCaps lists caps that orgscale parses but cannot act on
 // today. Each entry maps to the tracking issue an operator can follow. The
-// caps are accepted by Tailscale SaaS, but delivering them via headscale
+// caps are accepted by Tailscale SaaS, but delivering them via orgscale
 // without the matching server-side machinery would be misleading — nodes
 // would advertise a feature that does not work. Reject at policy load and
 // point operators at the issue.
@@ -188,7 +188,7 @@ var (
 	ErrInvalidProtocolNumber       = errors.New("invalid protocol number")
 	ErrProtocolLeadingZero         = errors.New("leading 0 not permitted in protocol number")
 	ErrProtocolOutOfRange          = errors.New("protocol number out of range (0-255)")
-	ErrAutogroupNotSupported       = errors.New("autogroup not supported in headscale")
+	ErrAutogroupNotSupported       = errors.New("autogroup not supported in orgscale")
 	ErrAutogroupInternetSrc        = errors.New("autogroup:internet can only be used in ACL destinations")
 	ErrAutogroupSelfSrc            = errors.New("\"autogroup:self\" not valid on the src side of a rule")
 	ErrAutogroupNotSupportedACLSrc = errors.New("autogroup not supported for ACL sources")
@@ -834,7 +834,7 @@ func (p *Prefix) UnmarshalJSON(b []byte) error {
 }
 
 // Resolve resolves the [Prefix] to an [netipx.IPSet]. The [netipx.IPSet] will
-// contain all the IP addresses that the [Prefix] represents within Headscale.
+// contain all the IP addresses that the [Prefix] represents within Orgscale.
 // It is the product of the [Prefix] and the [Policy], [types.Users], and [types.Nodes].
 //
 // See [Policy], [types.Users], and [types.Nodes] for more details.
@@ -968,7 +968,7 @@ func (ag *AutoGroup) resolve(p *Policy, users types.Users, nodes views.Slice[typ
 
 	case AutoGroupNonRoot:
 		// autogroup:nonroot represents non-root users on multi-user devices.
-		// This is not supported in headscale and requires OS-level user detection.
+		// This is not supported in orgscale and requires OS-level user detection.
 		return nil, fmt.Errorf("%w: %q", ErrUnknownAutogroup, *ag)
 
 	default:
@@ -995,7 +995,7 @@ type Alias interface {
 	String() string
 
 	// Resolve resolves the [Alias] to a [netipx.IPSet]. The [netipx.IPSet] will
-	// contain all the IP addresses that the [Alias] represents within Headscale.
+	// contain all the IP addresses that the [Alias] represents within Orgscale.
 	// It is the product of the [Alias] and the [Policy], [types.Users] and
 	// [types.Nodes]. This is an interface definition and the implementation is
 	// independent of the [Alias] type.
@@ -2935,7 +2935,7 @@ func (p *Policy) validate() error {
 
 	for _, na := range p.NodeAttrs {
 		// SaaS accepts entries with neither attr nor ipPool (they
-		// compile to a no-op); headscale follows suit so policies
+		// compile to a no-op); orgscale follows suit so policies
 		// captured against SaaS round-trip cleanly.
 		for _, target := range na.Targets {
 			switch t := target.(type) {
@@ -3376,11 +3376,11 @@ func (u *SSHUser) UnmarshalJSON(b []byte) error {
 }
 
 // stripMetadataMembers removes every object member whose name starts with '#'
-// from the policy AST. Policy editors such as headscale-admin store their own
+// from the policy AST. Policy editors such as orgscale-admin store their own
 // metadata in such members, and the policy decoder rejects unknown fields, so
 // they are dropped before decoding instead of rejected. Deleting a member can
 // leave a trailing comma behind; [hujson.Value.Standardize] removes it.
-// https://github.com/GoodiesHQ/headscale-admin/blob/214a44a9c15c92d2b42383f131b51df10c84017c/src/lib/common/acl.svelte.ts#L38
+// https://github.com/GoodiesHQ/orgscale-admin/blob/214a44a9c15c92d2b42383f131b51df10c84017c/src/lib/common/acl.svelte.ts#L38
 //
 // Grant "app" values are opaque capability payloads handed to peers verbatim,
 // not policy schema, so they are left untouched.

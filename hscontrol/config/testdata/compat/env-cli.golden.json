@@ -105,7 +105,7 @@
       "Resolvers": null,
       "ProviderName": ""
     },
-    "UnixSocket": "/var/run/headscale/headscale.sock",
+    "UnixSocket": "/var/run/orgscale/orgscale.sock",
     "UnixSocketPermission": 0,
     "OIDC": {
       "OnlyStartIfOIDCIsAvailable": false,
@@ -133,7 +133,7 @@
       "Enabled": false
     },
     "CLI": {
-      "Address": "headscale.example.com:443",
+      "Address": "orgscale.example.com:443",
       "Timeout": 10000000000,
       "Insecure": true
     },

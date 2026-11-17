@@ -4,7 +4,7 @@
 //
 // SaaS logins are unique and fixed, so SaaS cannot show two users answering
 // one token, or a user without an e-mail. Each capture is therefore also
-// replayed under overlays: headscale-only users, each with one node, added
+// replayed under overlays: orgscale-only users, each with one node, added
 // on top of it. SaaS's own nodes must be unchanged by the overlay, and
 // overlay nodes must get nothing. Every overlay loads at boot (one
 // constructor call) and at runtime (users and nodes added to a running
@@ -35,7 +35,7 @@ import (
 	"tailscale.com/tailcfg"
 )
 
-// userTokenOverlay is a set of headscale-only users replayed on top of a
+// userTokenOverlay is a set of orgscale-only users replayed on top of a
 // capture. Each user in add gets one node; replace swaps a capture user's
 // row for the one another identity provider would store.
 type userTokenOverlay struct {
@@ -54,7 +54,7 @@ func oidcUser(id uint, issuer, name, email string) types.User {
 	}
 }
 
-// userTokenOverlays come from the shapes headscale's user table allows and
+// userTokenOverlays come from the shapes orgscale's user table allows and
 // SaaS cannot have. The ambiguous ones match nobody by the #3160 rule
 // (never pick one of two equal matches), not by SaaS evidence.
 var userTokenOverlays = []userTokenOverlay{
@@ -90,8 +90,8 @@ var userTokenOverlays = []userTokenOverlay{
 	{name: "no-email-two", add: types.Users{{ID: 101, Name: "svc-a"}, {ID: 102, Name: "svc-b"}}},
 }
 
-// userTokenSkipReasons lists checks where headscale differs from SaaS,
-// keyed <test_id>[/<overlay>][/<node>]/<check>. HEADSCALE_SHORT_USERNAME
+// userTokenSkipReasons lists checks where orgscale differs from SaaS,
+// keyed <test_id>[/<overlay>][/<node>]/<check>. ORGSCALE_SHORT_USERNAME
 // and AMBIGUOUS_USER_WRITE are deliberate; USERNAME_ANSWERS_EMAIL_TOKEN is
 // an open decision.
 var userTokenSkipReasons = map[string]string{
@@ -146,10 +146,10 @@ var userTokenSkipReasons = map[string]string{
 }
 
 const (
-	shortUsername        = "HEADSCALE_SHORT_USERNAME: headscale lets odin@ name the user called odin; SaaS matches it to no one"
-	shortUsernameRow     = "HEADSCALE_SHORT_USERNAME: a row storing the address as its name leaves odin@ nothing to match"
-	ambiguousWrite       = "AMBIGUOUS_USER_WRITE: headscale refuses to store a policy whose user token matches two users (#3160)"
-	ambiguityListsUsers  = "AMBIGUITY_LISTS_USERS: headscale's refusal of a token matching two users lists both users by ID and name"
+	shortUsername        = "ORGSCALE_SHORT_USERNAME: orgscale lets odin@ name the user called odin; SaaS matches it to no one"
+	shortUsernameRow     = "ORGSCALE_SHORT_USERNAME: a row storing the address as its name leaves odin@ nothing to match"
+	ambiguousWrite       = "AMBIGUOUS_USER_WRITE: orgscale refuses to store a policy whose user token matches two users (#3160)"
+	ambiguityListsUsers  = "AMBIGUITY_LISTS_USERS: orgscale's refusal of a token matching two users lists both users by ID and name"
 	usernameAnswersEmail = "USERNAME_ANSWERS_EMAIL_TOKEN: a username shaped like an unclaimed address takes that address's rights"
 )
 

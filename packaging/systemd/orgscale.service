@@ -1,21 +1,21 @@
 [Unit]
 After=network.target
-Description=headscale coordination server for Tailscale
+Description=orgscale coordination server for Tailscale
 
 [Service]
 Type=simple
-User=headscale
-Group=headscale
-ExecStart=/usr/bin/headscale serve
+User=orgscale
+Group=orgscale
+ExecStart=/usr/bin/orgscale serve
 ExecReload=/usr/bin/kill -HUP $MAINPID
 Restart=always
 RestartSec=5
-# headscale serve exits 78 (EX_CONFIG) on a configuration it rejects, which
+# orgscale serve exits 78 (EX_CONFIG) on a configuration it rejects, which
 # a restart cannot fix.
 RestartPreventExitStatus=78
 
-WorkingDirectory=/var/lib/headscale
-ReadWritePaths=/var/lib/headscale
+WorkingDirectory=/var/lib/orgscale
+ReadWritePaths=/var/lib/orgscale
 
 AmbientCapabilities=CAP_NET_BIND_SERVICE
 CapabilityBoundingSet=CAP_NET_BIND_SERVICE
@@ -41,9 +41,9 @@ RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
 RestrictNamespaces=true
 RestrictRealtime=true
 RestrictSUIDSGID=true
-RuntimeDirectory=headscale
+RuntimeDirectory=orgscale
 RuntimeDirectoryMode=0750
-StateDirectory=headscale
+StateDirectory=orgscale
 StateDirectoryMode=0750
 SystemCallArchitectures=native
 SystemCallFilter=@system-service

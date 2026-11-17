@@ -1,7 +1,7 @@
 # DERP
 
 A [DERP (Designated Encrypted Relay for Packets) server](https://tailscale.com/docs/reference/derp-servers) is mainly
-used to relay traffic between two nodes in case a direct connection can't be established. Headscale provides an embedded
+used to relay traffic between two nodes in case a direct connection can't be established. Orgscale provides an embedded
 DERP server to ensure seamless connectivity between nodes.
 
 ## Configuration
@@ -12,9 +12,9 @@ all available configuration options.
 
 ### Enable embedded DERP
 
-Headscale ships with an embedded DERP server which allows to run your own self-hosted DERP server easily. The embedded
+Orgscale ships with an embedded DERP server which allows to run your own self-hosted DERP server easily. The embedded
 DERP server is disabled by default and needs to be enabled. In addition, you should configure the public IPv4 and public
-IPv6 address of your Headscale server for improved connection stability:
+IPv6 address of your Orgscale server for improved connection stability:
 
 ```yaml title="config.yaml" hl_lines="3-5"
 derp:
@@ -30,8 +30,8 @@ traversal. [Check DERP server connectivity](#check-derp-server-connectivity) to 
 
 ### Remove Tailscale's DERP servers
 
-Once enabled, Headscale's embedded DERP is added to the list of free-to-use [DERP
-servers](https://tailscale.com/docs/reference/derp-servers) offered by Tailscale Inc. To only use Headscale's embedded
+Once enabled, Orgscale's embedded DERP is added to the list of free-to-use [DERP
+servers](https://tailscale.com/docs/reference/derp-servers) offered by Tailscale Inc. To only use Orgscale's embedded
 DERP server, disable the loading of the default DERP map:
 
 ```yaml title="config.yaml" hl_lines="6"
@@ -63,7 +63,7 @@ from its key, a node whose `regionid` differs from its region, or a region witho
 `regionid`.
 
 A `derp.urls` or `derp.paths` source that fails to load, for example a URL that is down or a file with an error, is
-logged as a warning and skipped. Headscale starts with the DERP regions from the other sources, the embedded DERP server
+logged as a warning and skipped. Orgscale starts with the DERP regions from the other sources, the embedded DERP server
 and the policy's `derpMap`, and refuses to start only when no region remains. A refresh with a failing source keeps the
 previous DERP map. A skipped file also skips what it removes: a region it sets to `null` comes back.
 
@@ -87,7 +87,7 @@ previous DERP map. A skipped file also skips what it removes: a region it sets t
       urls:
         - https://controlplane.tailscale.com/derpmap/default
       paths:
-        - /etc/headscale/derp.yaml
+        - /etc/orgscale/derp.yaml
     ```
 
 === "Provide custom DERP servers"
@@ -133,7 +133,7 @@ previous DERP map. A skipped file also skips what it removes: a region it sets t
         enabled: false
       urls: []
       paths:
-        - /etc/headscale/derp.yaml
+        - /etc/orgscale/derp.yaml
     ```
 
 === "Prefer or avoid DERP regions"
@@ -165,14 +165,14 @@ to the custom DERP map](#enable-embedded-derp).
 ### Customize the DERP map in the policy
 
 The [policy](policy.md#network-wide-policy-options) may hold a `derpMap`, as on Tailscale. It changes the DERP map from
-the configuration above, and connected nodes get the change as soon as the policy is updated. Headscale checks it like
+the configuration above, and connected nodes get the change as soon as the policy is updated. Orgscale checks it like
 Tailscale does:
 
 - A region added in the policy needs a region ID from 900 to 999 and at least one node. Its `RegionID`, and the `RegionID`
   of each node, must match the ID it is listed under. A policy region replaces a configured region with the same ID,
   such as the embedded DERP server's.
 - A node's `HostName` and `CertName` must not be `tailscale.com` or one of its subdomains. Tailscale also rejects the IP
-  addresses of its own DERP servers; Headscale does not, as that needs Tailscale's current list of servers.
+  addresses of its own DERP servers; Orgscale does not, as that needs Tailscale's current list of servers.
 - A region set to `null` is removed. This works for any region ID.
 - `OmitDefaultRegions: true` removes every region from the configuration, the embedded DERP server's included, and
   needs at least one region added in the policy.
@@ -214,18 +214,18 @@ clients.
     Tailscale's `derper` provides two parameters to configure client verification:
 
     - Use the `-verify-client-url` parameter of the `derper` and point it towards the `/verify` endpoint of your
-      Headscale server (e.g `https://headscale.example.com/verify`). The DERP server will query your Headscale instance
+      Orgscale server (e.g `https://orgscale.example.com/verify`). The DERP server will query your Orgscale instance
       as soon as a client connects with it to ask whether access should be allowed or denied. Access is allowed if
-      Headscale knows about the connecting client and denied otherwise.
+      Orgscale knows about the connecting client and denied otherwise.
     - The parameter `-verify-client-url-fail-open` controls what should happen when the DERP server can't reach the
-      Headscale instance. By default, it will allow access if Headscale is unreachable.
+      Orgscale instance. By default, it will allow access if Orgscale is unreachable.
 
 ## Check DERP server connectivity
 
 Any Tailscale client may be used to introspect the DERP map and to check for connectivity issues with DERP servers.
 
 - Display DERP map: `tailscale debug derp-map`
-- Check connectivity with the embedded DERP[^1]:`tailscale debug derp headscale`
+- Check connectivity with the embedded DERP[^1]:`tailscale debug derp orgscale`
 
 Additional DERP related metrics and information is available via the [metrics and debug
 endpoint](debug.md#metrics-and-debug-endpoint).

@@ -36,7 +36,7 @@ var (
 )
 
 const (
-	authIDPrefix       = "hskey-authreq-"
+	authIDPrefix       = "oskey-authreq-"
 	authIDRandomLength = 24
 	// AuthIDLength is the total length of an AuthID: 14 (prefix) + 24 (random).
 	AuthIDLength = 38

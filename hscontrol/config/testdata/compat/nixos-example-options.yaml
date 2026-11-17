@@ -19,7 +19,7 @@ database:
     ssl: 'false'
     user: ''
   sqlite:
-    path: /var/lib/headscale/db.sqlite
+    path: /var/lib/orgscale/db.sqlite
     wal_autocheckpoint: 1000
     write_ahead_log: true
   type: sqlite
@@ -31,7 +31,7 @@ derp:
     enabled: false
     ipv4: ''
     ipv6: ''
-    private_key_path: /var/lib/headscale/derp_server_private.key
+    private_key_path: /var/lib/orgscale/derp_server_private.key
     region_code: ''
     region_id: 0
     region_name: ''
@@ -78,7 +78,7 @@ node:
       probe_interval: 10s
       probe_timeout: 5s
 noise:
-  private_key_path: /var/lib/headscale/noise_private.key
+  private_key_path: /var/lib/orgscale/noise_private.key
 oidc:
   allowed_domains: []
   allowed_groups: []
@@ -99,19 +99,19 @@ oidc:
   use_expiry_from_token: false
 policy:
   mode: file
-  path: /var/lib/headscale/policy.hujson
+  path: /var/lib/orgscale/policy.hujson
 preauth_keys:
   revoked_retention: 168h
 prefixes:
   allocation: sequential
   v4: 100.64.0.0/10
   v6: fd7a:115c:a1e0::/48
-server_url: https://headscale.example.com
+server_url: https://orgscale.example.com
 taildrop:
   enabled: true
 tls:
   acme:
-    cache_dir: /var/lib/headscale/cache
+    cache_dir: /var/lib/orgscale/cache
     challenge_type: HTTP-01
     email: ''
     hostname: ''
@@ -128,5 +128,5 @@ tuning:
   node_store_batch_timeout: 500ms
   register_cache_expiration: 15m
   register_cache_max_entries: 1024
-unix_socket: /run/headscale/headscale.sock
+unix_socket: /run/orgscale/orgscale.sock
 unix_socket_permission: '0770'

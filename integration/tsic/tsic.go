@@ -67,8 +67,8 @@ var (
 	errTailscaleNotLoggedIn        = errors.New("tailscale not logged in")
 	errTailscaleWrongPeerCount     = errors.New("wrong peer count")
 	errInvalidClientConfig         = errors.New("verifiably invalid client config requested")
-	errInvalidTailscaleImageFormat = errors.New("invalid HEADSCALE_INTEGRATION_TAILSCALE_IMAGE format, expected repository:tag")
-	errTailscaleImageRequiredInCI  = errors.New("HEADSCALE_INTEGRATION_TAILSCALE_IMAGE must be set in CI for HEAD version")
+	errInvalidTailscaleImageFormat = errors.New("invalid ORGSCALE_INTEGRATION_TAILSCALE_IMAGE format, expected repository:tag")
+	errTailscaleImageRequiredInCI  = errors.New("ORGSCALE_INTEGRATION_TAILSCALE_IMAGE must be set in CI for HEAD version")
 	errContainerNotInitialized     = errors.New("container not initialized")
 	errFQDNNotYetAvailable         = errors.New("FQDN not yet available")
 	errCurlEmptyResponseBody       = errors.New("curl returned empty response body")
@@ -102,7 +102,7 @@ type TailscaleInContainer struct {
 
 	// optional config
 	caCerts           [][]byte
-	headscaleHostname string
+	orgscaleHostname string
 	withWebsocketDERP bool
 	withDERPOverHTTP  bool
 	withSSH           bool
@@ -144,11 +144,11 @@ func WithNetwork(network *dockertest.Network) Option {
 	}
 }
 
-// WithHeadscaleName set the name of the headscale instance,
+// WithOrgscaleName set the name of the orgscale instance,
 // mostly useful in combination with TLS and WithCACert.
-func WithHeadscaleName(hsName string) Option {
+func WithOrgscaleName(hsName string) Option {
 	return func(tsic *TailscaleInContainer) {
-		tsic.headscaleHostname = hsName
+		tsic.orgscaleHostname = hsName
 	}
 }
 
@@ -169,7 +169,7 @@ func WithWebsocketDERP(enabled bool) Option {
 
 // WithDERPOverHTTP makes the client reach the DERP server over plain-HTTP
 // websockets (TS_DEBUG_DERP_WS_CLIENT + TS_DEBUG_USE_DERP_HTTP). It is the
-// counterpart to [hsic.WithoutTLS]: a Headscale serving its embedded DERP without
+// counterpart to [hsic.WithoutTLS]: a Orgscale serving its embedded DERP without
 // TLS is otherwise unreachable, because the client defaults to dialing DERP over
 // HTTPS.
 func WithDERPOverHTTP() Option {
@@ -433,7 +433,7 @@ func New(
 	switch version {
 	case VersionHead:
 		// Check if a pre-built image is available via environment variable
-		prebuiltImage := os.Getenv("HEADSCALE_INTEGRATION_TAILSCALE_IMAGE")
+		prebuiltImage := os.Getenv("ORGSCALE_INTEGRATION_TAILSCALE_IMAGE")
 
 		// If custom build tags are required (e.g., for websocket DERP), we cannot use
 		// the pre-built image as it won't have the necessary code compiled in.

@@ -1,14 +1,14 @@
-# API v2: Headscale's v2 API
+# API v2: Orgscale's v2 API
 
-This is Headscale's v2 HTTP API, served at `/api/v2`. Some of its endpoints are
+This is Orgscale's v2 HTTP API, served at `/api/v2`. Some of its endpoints are
 **ported from Tailscale's API**, reusing Tailscale's wire shapes, so the
-Tailscale ecosystem that cannot talk to Headscale today works: the
+Tailscale ecosystem that cannot talk to Orgscale today works: the
 [Terraform/OpenTofu provider], [tscli], and the official [Go client]
 (`tailscale.com/client/tailscale/v2`).
 
 It is **not** a port of the whole Tailscale API. Ported endpoints are added one
-at a time, only as we need them; a headscale-native v2 endpoint may use
-headscale's own conventions. The headscale-native admin API stays at `/api/v1`
+at a time, only as we need them; a orgscale-native v2 endpoint may use
+orgscale's own conventions. The orgscale-native admin API stays at `/api/v1`
 (`hscontrol/api/v1`). This guide is for the endpoints **ported from Tailscale**.
 
 [Terraform/OpenTofu provider]: https://registry.terraform.io/providers/tailscale/tailscale/latest
@@ -22,14 +22,14 @@ headscale's own conventions. The headscale-native admin API stays at `/api/v1`
   comes from SaaS captures (`servertest/testdata/steps/update-client*.hujson`):
   no body, `200 {}` once the node started the update, `404 "not found"` for
   every device it will not update. It reaches the node as c2n `POST /update`.
-- The `{tailnet}` path segment must be `-` (the single Headscale tailnet);
+- The `{tailnet}` path segment must be `-` (the single Orgscale tailnet);
   anything else is `404`. See `requireDefaultTailnet`.
 - Errors use **Tailscale's** body (`{"message","data","status"}`), installed as
   a per-API transform (`tailscaleErrorTransformer` in `errors.go`). A future
-  headscale-native v2 operation would keep Huma's RFC 9457 problem+json.
+  orgscale-native v2 operation would keep Huma's RFC 9457 problem+json.
 - Auth accepts a credential as **HTTP Basic** (key as username, what the SDK
-  sends) or **Bearer**: an admin API key (`hskey-api-…`), or an OAuth access
-  token (`hskey-oauthtok-…`). See `authMiddleware`.
+  sends) or **Bearer**: an admin API key (`oskey-api-…`), or an OAuth access
+  token (`oskey-oauthtok-…`). See `authMiddleware`.
 - Each operation declares the Tailscale scope it requires (`auth_keys`,
   `oauth_keys`, `devices:core`, `devices:routes`,
   `devices:posture_attributes`, `policy_file`, `feature_settings`, each with a
@@ -55,14 +55,14 @@ headscale's own conventions. The headscale-native admin API stays at `/api/v1`
 
 Most of the Tailscale ecosystem (the Terraform provider, `tscli`, the Go client)
 accepts **either** an API key **or OAuth 2.0 client-credentials**; the Kubernetes
-operator is OAuth-only. Supporting OAuth lets all of them drive Headscale.
+operator is OAuth-only. Supporting OAuth lets all of them drive Orgscale.
 
 - **OAuth clients** are not a separate resource; they are `keyType:"client"` on
   the keys endpoint, exactly as Tailscale does it. Create
   (`POST /api/v2/tailnet/-/keys` with `{"keyType":"client","scopes":[…],"tags":[…]}`)
   returns a `Key` whose `id` is the client id and whose `key` is the secret,
   **shown once**; get/list never re-expose it. The secret is
-  `hskey-client-<clientID>-<secret>`, embedding the client id so the token
+  `oskey-client-<clientID>-<secret>`, embedding the client id so the token
   endpoint derives it from the secret (Tailscale's `get-authkey` trick). See
   `keys.go` (`createOAuthClient`) and `db/oauth.go`.
 - **Token endpoint** `POST /api/v2/oauth/token` (`oauth.go`) is a plain handler,
@@ -70,7 +70,7 @@ operator is OAuth-only. Supporting OAuth lets all of them drive Headscale.
   RFC 6749 OAuth2 error bodies (`{"error","error_description"}`). Credentials
   arrive in the body or HTTP Basic; optional space-delimited `scope`/`tags`
   narrow the token to a subset of the client's grant. It returns a 1-hour
-  `Bearer` access token (`hskey-oauthtok-…`).
+  `Bearer` access token (`oskey-oauthtok-…`).
 - **Scope enforcement** is the one seam in `authMiddleware`. **Tag enforcement**:
   an auth key minted by a token may only carry tags the token holds, or tags
   owned-by them via the policy `tagOwners` (`State.TagOwnedByTags` →
@@ -95,12 +95,12 @@ the GitHub Action. User-facing setup is in `docs/ref/api.md`.
 
 ## Adding an endpoint
 
-Worked example: the keys resource (`keys.go`) = Tailscale auth keys = Headscale
+Worked example: the keys resource (`keys.go`) = Tailscale auth keys = Orgscale
 pre-auth keys.
 
 1. **Read the Tailscale spec.** Find the operation in the [Tailscale API
    reference](https://tailscale.com/api) (OpenAPI 3.1). Note method, path,
-   request/response schema, and which variant(s) Headscale supports (auth keys
+   request/response schema, and which variant(s) Orgscale supports (auth keys
    only, for keys).
 
 2. **Capture golden samples.** Pull the request + response JSON examples from the
@@ -108,9 +108,9 @@ pre-auth keys.
    test. _Acceptance: the captured request and response are recorded in the
    test._
 
-3. **Map to Headscale.** Write the field ↔ field ↔ `state` call mapping. Record
+3. **Map to Orgscale.** Write the field ↔ field ↔ `state` call mapping. Record
    gaps and the decision for each (e.g. Tailscale `preauthorized` has no
-   Headscale equivalent: accepted, ignored, echoed back). _Acceptance: every
+   Orgscale equivalent: accepted, ignored, echoed back). _Acceptance: every
    request field is consumed or deliberately ignored; every response field has a
    source._
 
@@ -138,6 +138,6 @@ go test ./hscontrol/servertest/ -run TestAPIv2` is green._
    `DELETE` to a soft revoke: the key stays retrievable with `invalid: true`
    until the collector reaps it (`preauth_keys.revoked_retention`; keys still
    backing a node are kept), the
-   equivalent of v1 `preauthkeys expire`. `headscale preauthkeys` still stays on
+   equivalent of v1 `preauthkeys expire`. `orgscale preauthkeys` still stays on
    v1 for now (it is the cross-user admin surface), but the verb gap that
    previously blocked migration is closed.

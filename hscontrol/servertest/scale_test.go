@@ -38,11 +38,11 @@ type scaleCase struct {
 func TestScale(t *testing.T) {
 	nodes := 12
 
-	if value, ok := os.LookupEnv("HEADSCALE_STRESS_NODES"); ok {
+	if value, ok := os.LookupEnv("ORGSCALE_STRESS_NODES"); ok {
 		var err error
 
 		nodes, err = strconv.Atoi(value)
-		require.NoError(t, err, "HEADSCALE_STRESS_NODES must be an integer")
+		require.NoError(t, err, "ORGSCALE_STRESS_NODES must be an integer")
 		require.GreaterOrEqual(t, nodes, 2, "need at least two connected nodes")
 	}
 
@@ -121,7 +121,7 @@ func runScale(t *testing.T, nodes int, tc scaleCase) {
 	workers := min(4, runtime.GOMAXPROCS(0))
 
 	opts := []ServerOption{WithBatcherWorkers(workers)}
-	if _, largeRun := os.LookupEnv("HEADSCALE_STRESS_NODES"); !largeRun {
+	if _, largeRun := os.LookupEnv("ORGSCALE_STRESS_NODES"); !largeRun {
 		opts = append(opts, WithNodeStoreBatchTimeout(10*time.Millisecond))
 	}
 

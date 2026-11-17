@@ -17,10 +17,10 @@ import (
 // node's NodeKey onto a victim's NodeKey: doing so poisons the NodeStore
 // NodeKey index and denies the victim service.
 func TestPreAuthKeyReauthRejectsVictimNodeKey(t *testing.T) {
-	dbPath := t.TempDir() + "/headscale.db"
+	dbPath := t.TempDir() + "/orgscale.db"
 	cfg := persistTestConfig(dbPath)
 
-	database, err := db.NewHeadscaleDatabase(cfg)
+	database, err := db.NewOrgscaleDatabase(cfg)
 	require.NoError(t, err)
 
 	// Attacker owns N_a under U_a with machine key M_a.

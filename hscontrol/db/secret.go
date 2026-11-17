@@ -21,8 +21,8 @@ import (
 )
 
 // Every credential is a "<prefix><identifier(12)>-<secret(64)>" string, where
-// the prefix is one of hskey-api-, hskey-auth-, hskey-client- or
-// hskey-oauthtok-. The identifier is the public, indexed lookup key and only
+// the prefix is one of oskey-api-, oskey-auth-, oskey-client- or
+// oskey-oauthtok-. The identifier is the public, indexed lookup key and only
 // the secret is hashed.
 const (
 	keyIdentifierLength = 12

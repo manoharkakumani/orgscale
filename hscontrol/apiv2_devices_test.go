@@ -27,7 +27,7 @@ import (
 // app's state, with no auth middleware (the contract tests exercise wire shapes;
 // auth is covered by TestAPIv2). The full Backend (Change + Cfg) is wired so the
 // device/acl write handlers work.
-func registerAPIV2(t *testing.T, app *Headscale) humatest.TestAPI {
+func registerAPIV2(t *testing.T, app *Orgscale) humatest.TestAPI {
 	t.Helper()
 
 	_, api := humatest.New(t, apiv2.Config())
@@ -38,7 +38,7 @@ func registerAPIV2(t *testing.T, app *Headscale) humatest.TestAPI {
 
 // deviceTestEnv is one seeded, registered, user-owned node plus the v2 API.
 type deviceTestEnv struct {
-	app      *Headscale
+	app      *Orgscale
 	api      humatest.TestAPI
 	user     *types.User
 	nodeID   types.NodeID
@@ -444,7 +444,7 @@ func containsDeviceID(devs []apiv2.Device, id string) bool {
 	return false
 }
 
-// routesAPICompatSkipReasons lists route API answers where headscale differs
+// routesAPICompatSkipReasons lists route API answers where orgscale differs
 // from SaaS, keyed <test_id>/<step>/<i>/<check>, where <i> is the call's index
 // in its step. A listed check that matches fails, so a fix must delete its
 // entry.
@@ -494,7 +494,7 @@ func readRoutesCapture(t *testing.T, id string) *testcapture.Capture {
 // seedCaptureRouters puts every topology node that announces routes into the
 // NodeStore with its tags, announcing them, and returns the device IDs by
 // alias.
-func seedCaptureRouters(t *testing.T, app *Headscale, c *testcapture.Capture) map[string]string {
+func seedCaptureRouters(t *testing.T, app *Orgscale, c *testcapture.Capture) map[string]string {
 	t.Helper()
 
 	user := app.state.CreateUserForTest("capture-owner")
@@ -564,7 +564,7 @@ func replayRouteCalls(
 				}
 
 				if want.status != http.StatusOK && got.status == want.status {
-					// Headscale may wrap SaaS's text in more context.
+					// Orgscale may wrap SaaS's text in more context.
 					msg := got.message
 					if strings.Contains(msg, want.message) {
 						msg = want.message

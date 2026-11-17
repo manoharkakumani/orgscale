@@ -79,7 +79,7 @@ func writeDebug(w http.ResponseWriter, r *http.Request, jsonVal func() any, text
 	_, _ = w.Write([]byte(textVal()))
 }
 
-func (h *Headscale) debugHostGuard(next http.Handler) http.Handler {
+func (h *Orgscale) debugHostGuard(next http.Handler) http.Handler {
 	normalize := func(host string) string {
 		name, _, err := net.SplitHostPort(host)
 		if err == nil {
@@ -129,7 +129,7 @@ func isAllowedDebugHost(host string, allowed []string) bool {
 	return err == nil || slices.Contains(allowed, host)
 }
 
-func (h *Headscale) debugHTTPServer() *http.Server {
+func (h *Orgscale) debugHTTPServer() *http.Server {
 	debugMux := http.NewServeMux()
 	debug := tsweb.Debugger(debugMux)
 
@@ -221,7 +221,7 @@ func (h *Headscale) debugHTTPServer() *http.Server {
 
 		if res == nil {
 			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte("HEADSCALE_DEBUG_DUMP_MAPRESPONSE_PATH not set"))
+			_, _ = w.Write([]byte("ORGSCALE_DEBUG_DUMP_MAPRESPONSE_PATH not set"))
 
 			return
 		}
@@ -293,7 +293,7 @@ func (h *Headscale) debugHTTPServer() *http.Server {
 }
 
 // debugBatcher returns debug information about the batcher's connected nodes.
-func (h *Headscale) debugBatcher() string {
+func (h *Orgscale) debugBatcher() string {
 	var sb strings.Builder
 	sb.WriteString("=== Batcher Connected Nodes ===\n\n")
 
@@ -360,7 +360,7 @@ type DebugBatcherNodeInfo struct {
 }
 
 // debugBatcherJSON returns structured debug information about the batcher's connected nodes.
-func (h *Headscale) debugBatcherJSON() DebugBatcherInfo {
+func (h *Orgscale) debugBatcherJSON() DebugBatcherInfo {
 	info := DebugBatcherInfo{
 		ConnectedNodes: make(map[string]DebugBatcherNodeInfo),
 		TotalNodes:     0,
@@ -379,7 +379,7 @@ func (h *Headscale) debugBatcherJSON() DebugBatcherInfo {
 }
 
 // connectedNodesList returns a list of connected nodes for the ping page.
-func (h *Headscale) connectedNodesList() []templates.ConnectedNode {
+func (h *Orgscale) connectedNodesList() []templates.ConnectedNode {
 	debugInfo := h.mapBatcher.Debug()
 
 	var nodes []templates.ConnectedNode
@@ -412,7 +412,7 @@ func (h *Headscale) connectedNodesList() []templates.ConnectedNode {
 const pingTimeout = 30 * time.Second
 
 // doPing sends a [tailcfg.PingRequest] to the node identified by query and waits for a response.
-func (h *Headscale) doPing(ctx context.Context, query string) *templates.PingResult {
+func (h *Orgscale) doPing(ctx context.Context, query string) *templates.PingResult {
 	if query == "" {
 		return &templates.PingResult{
 			Status:  "error",

@@ -22,7 +22,7 @@
     "PrefixV4": "100.64.0.0/10",
     "PrefixV6": "fd7a:115c:a1e0::/48",
     "IPAllocation": "sequential",
-    "NoisePrivateKeyPath": "/var/lib/headscale/noise_private.key",
+    "NoisePrivateKeyPath": "/var/lib/orgscale/noise_private.key",
     "BaseDomain": "example.com",
     "Log": {
       "Format": "text",
@@ -39,7 +39,7 @@
         "ParameterizedQueries": true
       },
       "Sqlite": {
-        "Path": "/var/lib/headscale/db.sqlite",
+        "Path": "/var/lib/orgscale/db.sqlite",
         "WriteAheadLog": true,
         "WALAutoCheckPoint": 1000
       },
@@ -58,9 +58,9 @@
       "ServerEnabled": false,
       "AutomaticallyAddEmbeddedDerpRegion": true,
       "ServerRegionID": 999,
-      "ServerRegionCode": "headscale",
-      "ServerRegionName": "Headscale Embedded DERP",
-      "ServerPrivateKeyPath": "/var/lib/headscale/derp_server_private.key",
+      "ServerRegionCode": "orgscale",
+      "ServerRegionName": "Orgscale Embedded DERP",
+      "ServerPrivateKeyPath": "/var/lib/orgscale/derp_server_private.key",
       "ServerVerifyClients": true,
       "STUNAddr": "0.0.0.0:3478",
       "URLs": [
@@ -94,7 +94,7 @@
         "HTTPListen": ":http",
         "URL": "https://acme-v02.api.letsencrypt.org/directory",
         "Email": "",
-        "CacheDir": "/var/lib/headscale/cache"
+        "CacheDir": "/var/lib/orgscale/cache"
       }
     },
     "DNSConfig": {
@@ -146,7 +146,7 @@
       ],
       "ProviderName": ""
     },
-    "UnixSocket": "/var/run/headscale/headscale.sock",
+    "UnixSocket": "/var/run/orgscale/orgscale.sock",
     "UnixSocketPermission": 504,
     "OIDC": {
       "OnlyStartIfOIDCIsAvailable": true,

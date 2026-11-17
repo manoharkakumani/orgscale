@@ -44,8 +44,8 @@ func TestDERPServerScenario(t *testing.T) {
 			}
 		}
 
-		hsServer, err := scenario.Headscale()
-		requireNoErrGetHeadscale(t, err)
+		hsServer, err := scenario.Orgscale()
+		requireNoErrGetOrgscale(t, err)
 
 		derpRegion := tailcfg.DERPRegion{
 			RegionCode: "test-derpverify",
@@ -115,7 +115,7 @@ func derpServerScenario(
 
 	defer scenario.ShutdownAssertNoPanics(t)
 
-	err = scenario.CreateHeadscaleEnv(
+	err = scenario.CreateOrgscaleEnv(
 		[]tsic.Option{
 			tsic.WithWebsocketDERP(websocket),
 		},
@@ -125,13 +125,13 @@ func derpServerScenario(
 		// DERP clients expect the server on the standard HTTPS port.
 		hsic.WithPort(443),
 		hsic.WithConfigEnv(map[string]string{
-			"HEADSCALE_DERP_AUTO_UPDATE_ENABLED":   "true",
-			"HEADSCALE_DERP_UPDATE_FREQUENCY":      "10s",
-			"HEADSCALE_LISTEN_ADDR":                "0.0.0.0:443",
-			"HEADSCALE_DERP_SERVER_VERIFY_CLIENTS": "true",
+			"ORGSCALE_DERP_AUTO_UPDATE_ENABLED":   "true",
+			"ORGSCALE_DERP_UPDATE_FREQUENCY":      "10s",
+			"ORGSCALE_LISTEN_ADDR":                "0.0.0.0:443",
+			"ORGSCALE_DERP_SERVER_VERIFY_CLIENTS": "true",
 		}),
 	)
-	requireNoErrHeadscaleEnv(t, err)
+	requireNoErrOrgscaleEnv(t, err)
 
 	allClients, err := scenario.ListTailscaleClients()
 	requireNoErrListClients(t, err)
@@ -150,8 +150,8 @@ func derpServerScenario(
 			for _, health := range status.Health {
 				assert.NotContains(ct, health, "could not connect to any relay server",
 					"Client %s should be connected to DERP relay", client.Hostname())
-				assert.NotContains(ct, health, "could not connect to the 'Headscale Embedded DERP' relay server.",
-					"Client %s should be connected to Headscale Embedded DERP", client.Hostname())
+				assert.NotContains(ct, health, "could not connect to the 'Orgscale Embedded DERP' relay server.",
+					"Client %s should be connected to Orgscale Embedded DERP", client.Hostname())
 			}
 		}, integrationutil.StatusReadyTimeout, 2*time.Second)
 	}
@@ -171,8 +171,8 @@ func derpServerScenario(
 			for _, health := range status.Health {
 				assert.NotContains(ct, health, "could not connect to any relay server",
 					"Client %s should be connected to DERP relay after first run", client.Hostname())
-				assert.NotContains(ct, health, "could not connect to the 'Headscale Embedded DERP' relay server.",
-					"Client %s should be connected to Headscale Embedded DERP after first run", client.Hostname())
+				assert.NotContains(ct, health, "could not connect to the 'Orgscale Embedded DERP' relay server.",
+					"Client %s should be connected to Orgscale Embedded DERP after first run", client.Hostname())
 			}
 		}, integrationutil.StatusReadyTimeout, 2*time.Second)
 	}
@@ -197,8 +197,8 @@ func derpServerScenario(
 			for _, health := range status.Health {
 				assert.NotContains(ct, health, "could not connect to any relay server",
 					"Client %s should be connected to DERP relay after second run", client.Hostname())
-				assert.NotContains(ct, health, "could not connect to the 'Headscale Embedded DERP' relay server.",
-					"Client %s should be connected to Headscale Embedded DERP after second run", client.Hostname())
+				assert.NotContains(ct, health, "could not connect to the 'Orgscale Embedded DERP' relay server.",
+					"Client %s should be connected to Orgscale Embedded DERP after second run", client.Hostname())
 			}
 		}, integrationutil.StatusReadyTimeout, 2*time.Second)
 	}

@@ -13,19 +13,19 @@ import (
 )
 
 func newSQLiteTestDB() (*HSDatabase, error) {
-	tmpDir, err := os.MkdirTemp("", "headscale-db-test-*")
+	tmpDir, err := os.MkdirTemp("", "orgscale-db-test-*")
 	if err != nil {
 		return nil, err
 	}
 
-	log.Printf("database path: %s", tmpDir+"/headscale_test.db")
+	log.Printf("database path: %s", tmpDir+"/orgscale_test.db")
 
-	db, err := NewHeadscaleDatabase(
+	db, err := NewOrgscaleDatabase(
 		&types.Config{
 			Database: types.DatabaseConfig{
 				Type: types.DatabaseSqlite,
 				Sqlite: types.SqliteConfig{
-					Path: tmpDir + "/headscale_test.db",
+					Path: tmpDir + "/orgscale_test.db",
 				},
 			},
 			Policy: types.PolicyConfig{
@@ -43,7 +43,7 @@ func newSQLiteTestDB() (*HSDatabase, error) {
 func newPostgresTestDB(t *testing.T) *HSDatabase {
 	t.Helper()
 
-	return newHeadscaleDBFromPostgresURL(t, newPostgresDBForTest(t))
+	return newOrgscaleDBFromPostgresURL(t, newPostgresDBForTest(t))
 }
 
 func newPostgresDBForTest(t *testing.T) *url.URL {
@@ -69,13 +69,13 @@ func newPostgresDBForTest(t *testing.T) *url.URL {
 	return pu
 }
 
-func newHeadscaleDBFromPostgresURL(t *testing.T, pu *url.URL) *HSDatabase {
+func newOrgscaleDBFromPostgresURL(t *testing.T, pu *url.URL) *HSDatabase {
 	t.Helper()
 
 	pass, _ := pu.User.Password()
 	port, _ := strconv.Atoi(pu.Port())
 
-	db, err := NewHeadscaleDatabase(
+	db, err := NewOrgscaleDatabase(
 		&types.Config{
 			Database: types.DatabaseConfig{
 				Type: types.DatabasePostgres,

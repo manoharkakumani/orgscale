@@ -28,12 +28,12 @@ func runTailSQLService(ctx context.Context, logf logger.Logf, stateDir, dbPath s
 	}
 
 	opts := tailsql.Options{
-		Hostname: "tailsql-headscale",
+		Hostname: "tailsql-orgscale",
 		StateDir: stateDir,
 		Sources: []tailsql.DBSpec{
 			{
-				Source: "headscale",
-				Label:  "headscale - sqlite",
+				Source: "orgscale",
+				Label:  "orgscale - sqlite",
 				Driver: "sqlite",
 				URL:    dsn,
 				Named: map[string]string{

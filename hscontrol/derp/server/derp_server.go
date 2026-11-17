@@ -34,23 +34,23 @@ import (
 // following its HTTP request.
 const (
 	fastStartHeader  = "Derp-Fast-Start"
-	DerpVerifyScheme = "headscale-derp-verify"
+	DerpVerifyScheme = "orgscale-derp-verify"
 )
 
 // debugUseDERPIP is a debug-only flag that causes the DERP server to resolve
 // hostnames to IP addresses when generating the DERP region configuration.
 // This is useful for integration testing where DNS resolution may be unreliable.
-var debugUseDERPIP = envknob.Bool("HEADSCALE_DEBUG_DERP_USE_IP")
+var debugUseDERPIP = envknob.Bool("ORGSCALE_DEBUG_DERP_USE_IP")
 
-// DebugInsecureTLSListenAddr makes headscale also serve on this address over
+// DebugInsecureTLSListenAddr makes orgscale also serve on this address over
 // TLS with a throwaway self-signed certificate, advertised as the embedded
 // DERP node with InsecureForTests. Test harnesses (nix/testkit.nix) need it:
 // clients that cannot be handed a CA (tailscale-rs, Android) still get TLS
 // DERP, and Go clients get the :443 noise fallback they switch to after a
 // recent dial.
-var DebugInsecureTLSListenAddr = envknob.RegisterString("HEADSCALE_DEBUG_INSECURE_TLS_LISTEN_ADDR")
+var DebugInsecureTLSListenAddr = envknob.RegisterString("ORGSCALE_DEBUG_INSECURE_TLS_LISTEN_ADDR")
 
-var errInsecureTLSPortZero = errors.New("HEADSCALE_DEBUG_INSECURE_TLS_LISTEN_ADDR needs a fixed port: DERP clients cannot follow :0")
+var errInsecureTLSPortZero = errors.New("ORGSCALE_DEBUG_INSECURE_TLS_LISTEN_ADDR needs a fixed port: DERP clients cannot follow :0")
 
 type DERPServer struct {
 	serverURL     string
@@ -110,7 +110,7 @@ func (d *DERPServer) GenerateRegion() (tailcfg.DERPRegion, error) {
 	if addr := DebugInsecureTLSListenAddr(); addr != "" {
 		port, err = types.PortFromAddr(addr)
 		if err != nil {
-			return tailcfg.DERPRegion{}, fmt.Errorf("parsing HEADSCALE_DEBUG_INSECURE_TLS_LISTEN_ADDR: %w", err)
+			return tailcfg.DERPRegion{}, fmt.Errorf("parsing ORGSCALE_DEBUG_INSECURE_TLS_LISTEN_ADDR: %w", err)
 		}
 
 		// Clients read DERPPort 0 as 443, not as the random port :0 binds.
@@ -129,7 +129,7 @@ func (d *DERPServer) GenerateRegion() (tailcfg.DERPRegion, error) {
 		} else if len(ips) > 0 {
 			// Use the first IP address
 			ipStr := ips[0].IP.String()
-			log.Info().Caller().Msgf("HEADSCALE_DEBUG_DERP_USE_IP: resolved %s to %s", host, ipStr)
+			log.Info().Caller().Msgf("ORGSCALE_DEBUG_DERP_USE_IP: resolved %s to %s", host, ipStr)
 			host = ipStr
 		}
 	}
@@ -181,7 +181,7 @@ func (d *DERPServer) DERPHandler(
 		if upgrade != "" {
 			log.Warn().
 				Caller().
-				Msg("No Upgrade header in DERP server request. If headscale is behind a reverse proxy, make sure it is configured to pass WebSockets through.")
+				Msg("No Upgrade header in DERP server request. If orgscale is behind a reverse proxy, make sure it is configured to pass WebSockets through.")
 		}
 
 		writer.Header().Set("Content-Type", "text/plain")
@@ -330,7 +330,7 @@ func DERPProbeHandler(
 // this endpoint provides a way to help a client when it fails to start up
 // because its DNS are broken.
 // The initial implementation is here https://github.com/tailscale/tailscale/pull/1406
-// They have a cache, but not clear if that is really necessary at Headscale, uh, scale.
+// They have a cache, but not clear if that is really necessary at Orgscale, uh, scale.
 // An example implementation is found here https://derp.tailscale.com/bootstrap-dns
 // Coordination server is included automatically, since local DERP is using the same DNS Name in d.serverURL.
 // derpMap is called per request so DERP map updates are served.

@@ -199,12 +199,12 @@ func TestVerifySecretGivesUpWhenLimiterBusy(t *testing.T) {
 // <prefix><identifier(12)>-<secret(64)> and that the stored hash verifies the
 // secret without needing a rehash.
 func TestGenerateSecret(t *testing.T) {
-	full, identifier, hash := generateSecret("hskey-test-")
+	full, identifier, hash := generateSecret("oskey-test-")
 
 	require.Len(t, identifier, keyIdentifierLength)
-	require.True(t, strings.HasPrefix(full, "hskey-test-"+identifier+"-"))
+	require.True(t, strings.HasPrefix(full, "oskey-test-"+identifier+"-"))
 
-	secret := strings.TrimPrefix(full, "hskey-test-"+identifier+"-")
+	secret := strings.TrimPrefix(full, "oskey-test-"+identifier+"-")
 	require.Len(t, secret, keySecretLength)
 	assert.True(t, strings.HasPrefix(string(hash), hashPrefixSHA256))
 	assert.NotContains(t, string(hash), secret, "secret must not be stored")
@@ -229,7 +229,7 @@ func TestOAuthClientCreateAndAuthenticate(t *testing.T) {
 
 	// Secret carries the public client id as its middle segment, so it can be
 	// derived from the secret alone (the Tailscale get-authkey trick).
-	assert.True(t, strings.HasPrefix(secret, "hskey-client-"+client.ClientID+"-"))
+	assert.True(t, strings.HasPrefix(secret, "oskey-client-"+client.ClientID+"-"))
 	// Scopes/tags are deduplicated and sorted for stable storage.
 	assert.Equal(t, []string{"auth_keys", "devices:core"}, client.Scopes)
 	assert.Equal(t, []string{"tag:ci"}, client.Tags)
@@ -242,11 +242,11 @@ func TestOAuthClientCreateAndAuthenticate(t *testing.T) {
 	assert.Equal(t, client.ClientID, got.ClientID)
 
 	// A truncated/garbage secret does not.
-	_, err = db.AuthenticateOAuthClient("hskey-client-deadbeef-nope")
+	_, err = db.AuthenticateOAuthClient("oskey-client-deadbeef-nope")
 	require.ErrorIs(t, err, ErrOAuthClientFailedToParse)
 
 	// A wrong secret for a real client id reads as an unknown client.
-	_, err = db.AuthenticateOAuthClient("hskey-client-" + client.ClientID + "-" + strings.Repeat("0", 64))
+	_, err = db.AuthenticateOAuthClient("oskey-client-" + client.ClientID + "-" + strings.Repeat("0", 64))
 	require.ErrorIs(t, err, ErrOAuthClientNotFound)
 	require.ErrorIs(t, err, errSecretMismatch)
 }
@@ -333,7 +333,7 @@ func TestOAuthAccessTokenMintAuthenticateExpire(t *testing.T) {
 		&future,
 	)
 	require.NoError(t, err)
-	assert.True(t, strings.HasPrefix(tokenStr, "hskey-oauthtok-"))
+	assert.True(t, strings.HasPrefix(tokenStr, "oskey-oauthtok-"))
 
 	got, err := db.AuthenticateAccessToken(tokenStr)
 	require.NoError(t, err)

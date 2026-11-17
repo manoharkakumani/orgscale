@@ -328,9 +328,9 @@ func (b *MapResponseBuilder) buildTailPeers(peers views.Slice[types.NodeView]) (
 			// every node that can see it. Drop the offending peer, log it
 			// with the identity an operator needs to fix it, and keep
 			// building from the remaining valid peers.
-			fix := fmt.Sprintf("headscale nodes rename %d <name>", peer.ID())
+			fix := fmt.Sprintf("orgscale nodes rename %d <name>", peer.ID())
 			if errors.Is(err, types.ErrExpiryOutOfRange) {
-				fix = fmt.Sprintf("headscale nodes expire --identifier %d", peer.ID())
+				fix = fmt.Sprintf("orgscale nodes expire --identifier %d", peer.ID())
 			}
 
 			log.Warn().Caller().

@@ -63,14 +63,14 @@ func init() {
 
 var nodeCmd = &cobra.Command{
 	Use:     "nodes",
-	Short:   "Manage the nodes of Headscale",
+	Short:   "Manage the nodes of Orgscale",
 	Aliases: []string{"node"},
 }
 
 var registerNodeCmd = &cobra.Command{
 	Use:        "register",
 	Short:      "Registers a node to your network",
-	Deprecated: "use 'headscale auth register --auth-id <id> --user <user>' instead",
+	Deprecated: "use 'orgscale auth register --auth-id <id> --user <user>' instead",
 	RunE: clientRunE(func(ctx context.Context, client *clientv1.ClientWithResponses, cmd *cobra.Command, args []string) error {
 		user, _ := cmd.Flags().GetString("user")
 		registrationID, _ := cmd.Flags().GetString("key")
@@ -348,7 +348,7 @@ var backfillNodeIPsCmd = &cobra.Command{
 	Short: "Backfill IPs missing from nodes",
 	Long: `
 Backfill IPs can be used to add/remove IPs from nodes
-based on the current configuration of Headscale.
+based on the current configuration of Orgscale.
 
 If there are nodes that does not have IPv4 or IPv6
 even if prefixes for both are configured in the config,
@@ -404,12 +404,12 @@ func nodesToPtables(nodes []clientv1.Node) (pterm.TableData, error) {
 	for _, node := range nodes {
 		var lastSeenTime string
 		if node.LastSeen != nil {
-			lastSeenTime = node.LastSeen.Format(HeadscaleDateTimeFormat)
+			lastSeenTime = node.LastSeen.Format(OrgscaleDateTimeFormat)
 		}
 
 		expiryTime := "N/A"
 		if node.Expiry != nil {
-			expiryTime = node.Expiry.Format(HeadscaleDateTimeFormat)
+			expiryTime = node.Expiry.Format(OrgscaleDateTimeFormat)
 		}
 
 		var machineKey key.MachinePublic

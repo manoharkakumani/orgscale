@@ -54,7 +54,7 @@ var roundTripOpts = gocmp.Options{
 // TestRoundTrip: a configuration written by Marshal's map, in any format,
 // loads back to itself.
 func TestRoundTrip(t *testing.T) {
-	unsetHeadscaleEnv(t)
+	unsetOrgscaleEnv(t)
 
 	rows := append([]compatRow{{name: "default"}, {name: "nil lists"}}, compatRows(t)...)
 
@@ -167,19 +167,19 @@ var roundTripValues = []struct {
 	},
 	{
 		name:    "env split null",
-		env:     []string{`HEADSCALE_DNS_NAMESERVERS_SPLIT={"a.example.com":null,"b.example.com":["10.0.0.1",null]}`},
+		env:     []string{`ORGSCALE_DNS_NAMESERVERS_SPLIT={"a.example.com":null,"b.example.com":["10.0.0.1",null]}`},
 		want:    func(c *types.Config) any { return c.DNSConfig.Nameservers.Split },
 		wantVal: map[string][]string{"b.example.com": {"10.0.0.1"}},
 	},
 	{
 		name:    "env provider null",
-		env:     []string{`HEADSCALE_DNS_CHALLENGE_PROVIDER={"name":"cloudflare","api_token":null,"x":[null,1],"y":{"z":null}}`},
+		env:     []string{`ORGSCALE_DNS_CHALLENGE_PROVIDER={"name":"cloudflare","api_token":null,"x":[null,1],"y":{"z":null}}`},
 		want:    providerSettings,
 		wantVal: map[string]any{"name": "cloudflare", "x": []any{"1"}, "y": map[string]any{}},
 	},
 	{
 		name:    "env list null",
-		env:     []string{`HEADSCALE_DNS_NAMESERVERS_GLOBAL=["1.1.1.1",null]`},
+		env:     []string{`ORGSCALE_DNS_NAMESERVERS_GLOBAL=["1.1.1.1",null]`},
 		want:    globalNameservers,
 		wantVal: []string{"1.1.1.1"},
 	},
@@ -322,7 +322,7 @@ var redactHidden = []string{
 // redactShown is what of redactConfig's values a redacted rendering keeps.
 var redactShown = []string{
 	"file:/run/credentials/cli_key", "idp.example.com", "derp.example.com",
-	"https://headscale.example.com", "https://cli.example.com", "1.1.1.1",
+	"https://orgscale.example.com", "https://cli.example.com", "1.1.1.1",
 	"https://dns.example.com/dns-query", "https://dns.example.com/q",
 }
 
@@ -330,7 +330,7 @@ var redactShown = []string{
 // one, provider as dns.challenge.provider, and some set only from Go.
 func redactConfig(provider map[string]any) types.Config {
 	cfg := Default()
-	cfg.ServerURL = "https://marker-server-user:marker-server-pass@headscale.example.com" //nolint:gosec // test markers, not credentials
+	cfg.ServerURL = "https://marker-server-user:marker-server-pass@orgscale.example.com" //nolint:gosec // test markers, not credentials
 	cfg.CLI.Address = "https://marker-cli-user@cli.example.com"
 	cfg.DNSConfig.Nameservers.Global = []string{"1.1.1.1", "https://marker-dns-user:marker-dns-pass@dns.example.com/dns-query"}
 	cfg.DNSConfig.Nameservers.Split = map[string][]string{"corp.example.com": {"https://marker-split-user@dns.example.com/q"}}
@@ -385,14 +385,14 @@ var serverURLRedactTests = []struct {
 	serverURL string
 	shown     string
 }{
-	{serverURL: "https://headscale.example.com", shown: "https://headscale.example.com"},
-	{serverURL: "https://marker-user:marker-pass@headscale.example.com", shown: "https://headscale.example.com"}, //nolint:gosec // test markers, not credentials
-	{serverURL: "https://marker-user@headscale.example.com", shown: "https://headscale.example.com"},
-	{serverURL: "https://marker-user:marker-pass@headscale.example.com/%zz"}, //nolint:gosec // test markers, not credentials
-	{serverURL: "https://alice:marker-pass?@headscale.example.com"},
-	{serverURL: "https://alice:marker-pass#@headscale.example.com"},
-	{serverURL: "https://alice:marker-pass@headscale.example.com:port"},
-	{serverURL: "https:/alice:marker-pass@headscale.example.com"},
+	{serverURL: "https://orgscale.example.com", shown: "https://orgscale.example.com"},
+	{serverURL: "https://marker-user:marker-pass@orgscale.example.com", shown: "https://orgscale.example.com"}, //nolint:gosec // test markers, not credentials
+	{serverURL: "https://marker-user@orgscale.example.com", shown: "https://orgscale.example.com"},
+	{serverURL: "https://marker-user:marker-pass@orgscale.example.com/%zz"}, //nolint:gosec // test markers, not credentials
+	{serverURL: "https://alice:marker-pass?@orgscale.example.com"},
+	{serverURL: "https://alice:marker-pass#@orgscale.example.com"},
+	{serverURL: "https://alice:marker-pass@orgscale.example.com:port"},
+	{serverURL: "https:/alice:marker-pass@orgscale.example.com"},
 }
 
 // TestMarshalRedactsServerURL: server_url is a string, not an HTTPURL, but

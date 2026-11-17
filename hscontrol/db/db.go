@@ -40,10 +40,10 @@ type HSDatabase struct {
 	cfg *types.Config
 }
 
-// NewHeadscaleDatabase creates a new database connection and runs migrations.
+// NewOrgscaleDatabase creates a new database connection and runs migrations.
 //
 //nolint:gocyclo // migration closures inflate the count; each is linear
-func NewHeadscaleDatabase(cfg *types.Config) (*HSDatabase, error) {
+func NewOrgscaleDatabase(cfg *types.Config) (*HSDatabase, error) {
 	dbConn, err := openDB(cfg.Database, cfg.SQLitePath())
 	if err != nil {
 		return nil, err

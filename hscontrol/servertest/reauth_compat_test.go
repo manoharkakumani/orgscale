@@ -34,7 +34,7 @@ import (
 	"tailscale.com/wgengine/filter"
 )
 
-// reauthSkipReasons lists checks where headscale differs from SaaS, keyed
+// reauthSkipReasons lists checks where orgscale differs from SaaS, keyed
 // <test_id>/<step>[/<node>]/<check>. A listed check that matches fails, so a
 // fix must delete its entry.
 var reauthSkipReasons = map[string]string{
@@ -72,9 +72,9 @@ var reauthSkipReasons = map[string]string{
 }
 
 const (
-	refusalText = "REFUSAL_TEXT: SaaS refuses a key by naming its ID; headscale says why the key is refused"
+	refusalText = "REFUSAL_TEXT: SaaS refuses a key by naming its ID; orgscale says why the key is refused"
 	tagsAwake   = "TAGS_AWAKE: SaaS takes the tags a node asks for under its own node key, with any key or none " +
-		"(reauth-wake-tags), and expires its node key when they are not its to take; headscale applies " +
+		"(reauth-wake-tags), and expires its node key when they are not its to take; orgscale applies " +
 		"requested tags only at login"
 )
 
@@ -171,7 +171,7 @@ func runReauthCompat(t *testing.T, id string, viaLogin bool) {
 
 	for _, step := range c.Steps {
 		// The replay has no OAuth client; ../policy/v2 checks the mints
-		// against TagOwnedByTags, which headscale's mint asks.
+		// against TagOwnedByTags, which orgscale's mint asks.
 		if slices.ContainsFunc(step.Actions, func(a testcapture.Action) bool { return a.Kind == "token" }) {
 			break
 		}
@@ -221,7 +221,7 @@ type reauthRun struct {
 	evaluated    map[string]bool
 }
 
-// before is headscale's state for a step's cells just before it runs.
+// before is orgscale's state for a step's cells just before it runs.
 type before struct {
 	attempts map[string]int
 	views    map[string]deviceView
@@ -563,9 +563,9 @@ func stepDeviceRead(step testcapture.Step) ([]saasDevice, time.Time, bool) {
 }
 
 // deviceView is one device as the checks read it, from a SaaS device list
-// or headscale's NodeStore.
+// or orgscale's NodeStore.
 type deviceView struct {
-	id        string // SaaS label or headscale node ID
+	id        string // SaaS label or orgscale node ID
 	nodeID    tailcfg.NodeID
 	tagged    bool
 	owner     string
@@ -902,7 +902,7 @@ func matchLines(m filter.Match, names map[netip.Addr]string) []string {
 func filterLine(srcs []netip.Prefix, names map[netip.Addr]string, first, last uint16) string {
 	set := map[string]bool{}
 
-	// Headscale merges adjacent addresses into prefixes, so a Tailscale
+	// Orgscale merges adjacent addresses into prefixes, so a Tailscale
 	// prefix stands for every device inside it.
 	for _, p := range srcs {
 		matched := false
@@ -931,7 +931,7 @@ func filterLines(lines []string) string {
 	return strings.Join(slices.Compact(lines), "\n")
 }
 
-// addrNames names each headscale node by its machine's alias, with "#2"
+// addrNames names each orgscale node by its machine's alias, with "#2"
 // onward for later nodes on one machine, as SaaS labels devices.
 func (r *stepReplay) addrNames() map[netip.Addr]string {
 	out := map[netip.Addr]string{}

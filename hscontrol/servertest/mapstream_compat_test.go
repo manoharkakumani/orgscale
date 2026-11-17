@@ -40,7 +40,7 @@ import (
 	"tailscale.com/util/dnsname"
 )
 
-// mapStreamSkipReasons lists checks where headscale differs from SaaS, keyed
+// mapStreamSkipReasons lists checks where orgscale differs from SaaS, keyed
 // <test_id>/<step>/<node>/<check>. A listed check that matches fails, so a
 // fix must delete its entry.
 var mapStreamSkipReasons = map[string]string{
@@ -81,8 +81,8 @@ var mapStreamSkipReasons = map[string]string{
 }
 
 const (
-	policyResponseToEveryNode = "POLICY_RESPONSE_TO_EVERY_NODE: headscale sends every connected node a policy response when the policy, a node's tags or approved routes, or the set of nodes change; SaaS sends only the nodes whose peers or filter change"
-	restartEndpointsKept      = "RESTART_ENDPOINTS_KEPT: headscale keeps a restarted node's last endpoints at its peers until it reports new ones; SaaS sends peers the node without endpoints until then"
+	policyResponseToEveryNode = "POLICY_RESPONSE_TO_EVERY_NODE: orgscale sends every connected node a policy response when the policy, a node's tags or approved routes, or the set of nodes change; SaaS sends only the nodes whose peers or filter change"
+	restartEndpointsKept      = "RESTART_ENDPOINTS_KEPT: orgscale keeps a restarted node's last endpoints at its peers until it reports new ones; SaaS sends peers the node without endpoints until then"
 )
 
 // mapStreamNotCompared lists, by key prefix, checks left out: SaaS's answer
@@ -224,7 +224,7 @@ func TestPeerExitNodeIDCompat(t *testing.T) {
 		}
 	})
 
-	t.Run("headscale", func(t *testing.T) {
+	t.Run("orgscale", func(t *testing.T) {
 		t.Parallel()
 
 		srv := servertest.NewServer(t)
@@ -314,7 +314,7 @@ var mapEntryFields = []struct {
 
 // TestMapEntryFieldsCompat reads what SaaS put on the wire for a node's own
 // entry and for its peers, then replays the capture up to its quiet step and
-// compares which of those fields headscale's entries carry. Netmaps cannot
+// compares which of those fields orgscale's entries carry. Netmaps cannot
 // settle LastSeen: a client keeps it when an online patch arrives.
 func TestMapEntryFieldsCompat(t *testing.T) {
 	t.Parallel()
@@ -374,11 +374,11 @@ func requireWireEntries(t *testing.T, at string, resp *tailcfg.MapResponse) {
 	}
 }
 
-// TestExitNodeFilteredSetCompat holds SaaS and headscale with MagicDNS on to
+// TestExitNodeFilteredSetCompat holds SaaS and orgscale with MagicDNS on to
 // one rule: every name in a node's map falls under an entry an exit node
-// refuses to proxy. SaaS lists its own domains; headscale's names sit under
+// refuses to proxy. SaaS lists its own domains; orgscale's names sit under
 // base_domain, and listing ts.net as well would refuse public names there. SaaS
-// also sends its list with MagicDNS off; generateDNSConfig says why headscale
+// also sends its list with MagicDNS off; generateDNSConfig says why orgscale
 // does not.
 func TestExitNodeFilteredSetCompat(t *testing.T) {
 	t.Parallel()
@@ -397,7 +397,7 @@ func TestExitNodeFilteredSetCompat(t *testing.T) {
 		}
 	})
 
-	t.Run("headscale", func(t *testing.T) {
+	t.Run("orgscale", func(t *testing.T) {
 		t.Parallel()
 
 		h := servertest.NewHarness(t, 2, servertest.WithServerOptions(servertest.WithMagicDNS("Tail.Example.com")))
@@ -583,7 +583,7 @@ func replayMapDelivery(
 
 // replayDelivery applies the step's actions one at a time. What a node
 // reported is replayed from its captured map requests, so the CLI lever SaaS
-// was driven with does not decide what headscale sees. Headscale settles
+// was driven with does not decide what orgscale sees. Orgscale settles
 // where SaaS waited or sent the next action a while later; actions sent
 // together stay together.
 func (r *stepReplay) replayDelivery(t *testing.T, step testcapture.Step) {
@@ -1431,7 +1431,7 @@ func saasRemovedPeers(frames []testcapture.Frame, alias func(tailcfg.NodeID) (st
 	return sortedStrings(slices.Collect(maps.Keys(set)))
 }
 
-// hsRemovedPeers names the nodes headscale told cl were removed since mark:
+// hsRemovedPeers names the nodes orgscale told cl were removed since mark:
 // removals it applied as a delta, and peers its netmaps dropped.
 //
 // shortcut: a removal of a peer cl never held, sent with fields a delta
@@ -1688,12 +1688,12 @@ func requireUserRoleResult(t *testing.T, step testcapture.Step) {
 }
 
 // applyUserRole applies one user-role step, each action landing before the
-// next. Headscale has no user roles, so a name stands in for the admin role:
+// next. Orgscale has no user roles, so a name stands in for the admin role:
 // autogroup:admin becomes the tailnet owner, whom SaaS counts as an admin,
 // plus each user's name with adminSuffix, and a role call renames its user
 // to or from that name through the v1 API. Like the role call, the rename is
 // a user change the policy resolves while its text stays the same, sent by
-// headscale's own admin path. Roles held before the capture's first role
+// orgscale's own admin path. Roles held before the capture's first role
 // call are not mirrored, so the setup step's checks fail if one decides
 // what a node reaches.
 func (r *stepReplay) applyUserRole(t *testing.T, step testcapture.Step) {
@@ -1718,7 +1718,7 @@ func (r *stepReplay) applyUserRole(t *testing.T, step testcapture.Step) {
 }
 
 // TestAdminRolePolicyRefusedCompat pins NO_USER_ROLES on the policy the replay
-// rewrites: SaaS accepts a policy naming autogroup:admin, and headscale, which
+// rewrites: SaaS accepts a policy naming autogroup:admin, and orgscale, which
 // has no user roles, refuses all of it.
 func TestAdminRolePolicyRefusedCompat(t *testing.T) {
 	t.Parallel()

@@ -76,7 +76,7 @@ const (
 )
 
 type noiseServer struct {
-	headscale *Headscale
+	orgscale *Orgscale
 
 	conn       *controlbase.Conn
 	machineKey key.MachinePublic
@@ -88,7 +88,7 @@ type noiseServer struct {
 
 // NoiseUpgradeHandler is to upgrade the connection and hijack the [net.Conn]
 // in order to use the Noise-based TS2021 protocol. Listens in /ts2021.
-func (h *Headscale) NoiseUpgradeHandler(
+func (h *Orgscale) NoiseUpgradeHandler(
 	writer http.ResponseWriter,
 	req *http.Request,
 ) {
@@ -96,19 +96,19 @@ func (h *Headscale) NoiseUpgradeHandler(
 
 	upgrade := req.Header.Get("Upgrade")
 	if upgrade == "" {
-		// This probably means that the user is running Headscale behind an
+		// This probably means that the user is running Orgscale behind an
 		// improperly configured reverse proxy. TS2021 requires WebSockets to
-		// be passed to Headscale. Let's give them a hint.
+		// be passed to Orgscale. Let's give them a hint.
 		log.Warn().
 			Caller().
-			Msg("no upgrade header in TS2021 request. If headscale is behind a reverse proxy, make sure it is configured to pass WebSockets through.")
+			Msg("no upgrade header in TS2021 request. If orgscale is behind a reverse proxy, make sure it is configured to pass WebSockets through.")
 		http.Error(writer, "Internal error", http.StatusInternalServerError)
 
 		return
 	}
 
 	ns := noiseServer{
-		headscale: h,
+		orgscale: h,
 		challenge: key.NewChallenge(),
 	}
 
@@ -319,7 +319,7 @@ func (ns *noiseServer) NotImplementedHandler(writer http.ResponseWriter, req *ht
 }
 
 // maxC2NResponseBytes bounds the c2n response body a node may send. The
-// responses headscale asks for are small JSON documents.
+// responses orgscale asks for are small JSON documents.
 const maxC2NResponseBytes = 64 << 10
 
 // C2NResponseHandler handles the POST a node makes with the HTTP response
@@ -336,13 +336,13 @@ func (ns *noiseServer) C2NResponseHandler(
 		return
 	}
 
-	nodeID, ok := ns.headscale.state.C2NTarget(c2nID)
+	nodeID, ok := ns.orgscale.state.C2NTarget(c2nID)
 	if !ok {
 		http.Error(writer, "unknown or expired c2n request", http.StatusNotFound)
 		return
 	}
 
-	nv, ok := ns.headscale.state.GetNodeByID(nodeID)
+	nv, ok := ns.orgscale.state.GetNodeByID(nodeID)
 	if !ok {
 		httpError(writer, NewHTTPError(http.StatusNotFound, "node not found", nil))
 		return
@@ -367,7 +367,7 @@ func (ns *noiseServer) C2NResponseHandler(
 		return
 	}
 
-	if !ns.headscale.state.CompleteC2N(c2nID, body) {
+	if !ns.orgscale.state.CompleteC2N(c2nID, body) {
 		http.Error(writer, "unknown or expired c2n request", http.StatusNotFound)
 		return
 	}
@@ -378,7 +378,7 @@ func (ns *noiseServer) C2NResponseHandler(
 // PingResponseHandler handles HEAD requests from clients responding to a
 // [tailcfg.PingRequest]. The client calls this endpoint to prove connectivity.
 // The unguessable ping ID serves as authentication.
-func (h *Headscale) PingResponseHandler(
+func (h *Orgscale) PingResponseHandler(
 	writer http.ResponseWriter,
 	req *http.Request,
 ) {
@@ -459,7 +459,7 @@ func (ns *noiseServer) SSHActionHandler(
 	// throwaway machine key and pollute lastSSHAuth for arbitrary
 	// (src, dst) pairs, defeating SSH check-mode's stolen-key
 	// protections.
-	dstNode, ok := ns.headscale.state.GetNodeByID(dstNodeID)
+	dstNode, ok := ns.orgscale.state.GetNodeByID(dstNodeID)
 	if !ok {
 		httpError(writer, NewHTTPError(
 			http.StatusNotFound,
@@ -548,7 +548,7 @@ func (ns *noiseServer) sshAction(
 	// trusting URL parameters, which the client could tamper with.
 	// local_user only narrows which rule applies, and it comes from dst,
 	// the node enforcing the login.
-	checkPeriod, checkFound := ns.headscale.state.SSHCheckParams(
+	checkPeriod, checkFound := ns.orgscale.state.SSHCheckParams(
 		srcNodeID, dstNodeID, localUser,
 	)
 
@@ -568,7 +568,7 @@ func (ns *noiseServer) sshAction(
 
 	// Initial request — check if auto-approval applies.
 	if checkPeriod > 0 {
-		if lastAuth, ok := ns.headscale.state.GetLastSSHAuth(
+		if lastAuth, ok := ns.orgscale.state.GetLastSSHAuth(
 			srcNodeID, dstNodeID,
 		); ok && time.Since(lastAuth) < checkPeriod {
 			reqLog.Trace().Caller().
@@ -590,7 +590,7 @@ func (ns *noiseServer) sshAction(
 // 200 Reject, not an HTTP error: tailssh retries errors for up to 30 minutes.
 func sshActionDeny(reqLog zerolog.Logger, action *tailcfg.SSHAction) *tailcfg.SSHAction {
 	action.Reject = true
-	action.Message = "# Headscale SSH: no check rule in the tailnet policy covers this connection.\n"
+	action.Message = "# Orgscale SSH: no check rule in the tailnet policy covers this connection.\n"
 
 	reqLog.Info().Caller().Msg("SSH check denied: no matching check rule")
 
@@ -607,7 +607,7 @@ func (ns *noiseServer) sshActionHoldAndDelegate(
 	localUser string,
 ) (*tailcfg.SSHAction, error) {
 	holdURL, err := url.Parse(
-		ns.headscale.cfg.ServerURL +
+		ns.orgscale.cfg.ServerURL +
 			"/machine/ssh/action/$SRC_NODE_ID/to/$DST_NODE_ID",
 	)
 	if err != nil {
@@ -627,7 +627,7 @@ func (ns *noiseServer) sshActionHoldAndDelegate(
 		)
 	}
 
-	err = ns.headscale.state.SetAuthCacheEntry(
+	err = ns.orgscale.state.SetAuthCacheEntry(
 		authID,
 		types.NewSSHCheckAuthRequest(srcNodeID, dstNodeID),
 	)
@@ -635,7 +635,7 @@ func (ns *noiseServer) sshActionHoldAndDelegate(
 		return nil, authAdmissionError(err)
 	}
 
-	authURL := ns.headscale.authProvider.AuthURL(authID)
+	authURL := ns.orgscale.authProvider.AuthURL(authID)
 
 	// The concrete user, not $LOCAL_USER: Encode escapes the placeholder
 	// and tailssh only expands it literally.
@@ -649,9 +649,9 @@ func (ns *noiseServer) sshActionHoldAndDelegate(
 	// TODO(kradalby): here we can also send a very tiny mapresponse
 	// "popping" the url and opening it for the user.
 	action.Message = fmt.Sprintf(
-		"# Headscale SSH requires an additional check.\n"+
+		"# Orgscale SSH requires an additional check.\n"+
 			"# To authenticate, visit: %s\n"+
-			"# Authentication checked with Headscale SSH.\n",
+			"# Authentication checked with Orgscale SSH.\n",
 		authURL,
 	)
 
@@ -696,7 +696,7 @@ func (ns *noiseServer) sshActionFollowUp(
 		)
 	}
 
-	auth, ok := ns.headscale.state.GetAuthCacheEntry(authID)
+	auth, ok := ns.orgscale.state.GetAuthCacheEntry(authID)
 	if !ok {
 		return sessionGone("SSH check auth session missing; re-delegating")
 	}
@@ -755,7 +755,7 @@ func (ns *noiseServer) sshActionFollowUp(
 	case verdict, verdictOK = <-auth.WaitForAuth():
 	}
 
-	ns.headscale.state.DeleteAuthCacheEntry(authID)
+	ns.orgscale.state.DeleteAuthCacheEntry(authID)
 
 	// FinishAuth buffers one verdict, then closes the channel. A closed
 	// receive yields the zero verdict, which Accept() reports as success,
@@ -775,14 +775,14 @@ func (ns *noiseServer) sshActionFollowUp(
 
 	// The policy may have changed while the user authenticated, and the
 	// client won't drop a connection still waiting on its check.
-	if _, ok := ns.headscale.state.SSHCheckParams(srcNodeID, dstNodeID, localUser); !ok {
+	if _, ok := ns.orgscale.state.SSHCheckParams(srcNodeID, dstNodeID, localUser); !ok {
 		return sshActionDeny(reqLog, action), nil
 	}
 
 	action.Accept = true
 
 	// Record the successful auth for future auto-approval.
-	ns.headscale.state.SetLastSSHAuth(srcNodeID, dstNodeID)
+	ns.orgscale.state.SetLastSSHAuth(srcNodeID, dstNodeID)
 
 	reqLog.Trace().Caller().
 		Msg("auth recorded for auto-approval")
@@ -867,7 +867,7 @@ func (ns *noiseServer) PollNetMapHandler(
 
 	ns.recordLastControlAddress(nv, req.RemoteAddr)
 
-	sess := ns.headscale.newMapSession(req.Context(), mapRequest, writer, nv)
+	sess := ns.orgscale.newMapSession(req.Context(), mapRequest, writer, nv)
 	sess.log.Trace().Caller().Msg("a node sending a MapRequest with Noise protocol")
 
 	if !sess.isStreaming() {
@@ -887,9 +887,9 @@ var challengeValueRE = regexp.MustCompile(`^[A-Za-z0-9_-]{43}$`)
 // record is visible. The client never asks for removal; [dns.Challenges]
 // removes the record later.
 func (ns *noiseServer) SetDNSHandler(writer http.ResponseWriter, req *http.Request) {
-	challenges := ns.headscale.challenges
+	challenges := ns.orgscale.challenges
 	if challenges == nil {
-		http.Error(writer, "HTTPS certificates are not enabled on this headscale server", http.StatusNotImplemented)
+		http.Error(writer, "HTTPS certificates are not enabled on this orgscale server", http.StatusNotImplemented)
 
 		return
 	}
@@ -907,7 +907,7 @@ func (ns *noiseServer) SetDNSHandler(writer http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	nv, ok := ns.headscale.state.GetNodeByNodeKey(setDNS.NodeKey)
+	nv, ok := ns.orgscale.state.GetNodeByNodeKey(setDNS.NodeKey)
 	if !ok {
 		httpError(writer, NewHTTPError(http.StatusNotFound, "node not found", nil))
 
@@ -921,7 +921,7 @@ func (ns *noiseServer) SetDNSHandler(writer http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	name, err := validateSetDNS(setDNS, nv, ns.headscale.cfg)
+	name, err := validateSetDNS(setDNS, nv, ns.orgscale.cfg)
 	if err != nil {
 		httpError(writer, err)
 
@@ -934,9 +934,9 @@ func (ns *noiseServer) SetDNSHandler(writer http.ResponseWriter, req *http.Reque
 		case errors.Is(err, dns.ErrTooManyChallenges):
 			err = NewHTTPError(http.StatusTooManyRequests, "too many pending certificate challenges, try again later", err)
 		case errors.Is(err, dns.ErrChallengesClosed):
-			err = NewHTTPError(http.StatusServiceUnavailable, "headscale is shutting down, try again later", err)
+			err = NewHTTPError(http.StatusServiceUnavailable, "orgscale is shutting down, try again later", err)
 		case errors.Is(err, dns.ErrChallengeProvider):
-			err = NewHTTPError(http.StatusBadGateway, "DNS provider could not create the record, see the headscale log", err)
+			err = NewHTTPError(http.StatusBadGateway, "DNS provider could not create the record, see the orgscale log", err)
 		default:
 			err = NewHTTPError(http.StatusGatewayTimeout, "DNS record not visible on all nameservers yet, try again", err)
 		}
@@ -1058,7 +1058,7 @@ func (ns *noiseServer) RegistrationHandler(
 		// A waiting follow-up must not retain the decoder's excess slice capacity.
 		registerRequest.Hostinfo = registerRequest.Hostinfo.Clone()
 
-		resp, err := ns.headscale.handleRegister(req.Context(), registerRequest, ns.machineKey)
+		resp, err := ns.orgscale.handleRegister(req.Context(), registerRequest, ns.machineKey)
 		if err != nil {
 			// The client only retries, so this is the operator's one sign of a refused node.
 			e := log.Warn().Err(err).
@@ -1109,7 +1109,7 @@ func (ns *noiseServer) RegistrationHandler(
 // Its 404s end a client's session: clients read a map 404 as removal from the
 // tailnet, so a node that still exists must never be answered with one.
 func (ns *noiseServer) getAndValidateNode(mapRequest tailcfg.MapRequest) (types.NodeView, error) {
-	nv, ok := ns.headscale.state.GetNodeByNodeKey(mapRequest.NodeKey)
+	nv, ok := ns.orgscale.state.GetNodeByNodeKey(mapRequest.NodeKey)
 	if !ok {
 		return types.NodeView{}, NewHTTPError(http.StatusNotFound, "node not found", nil)
 	}
@@ -1131,7 +1131,7 @@ func (ns *noiseServer) recordLastControlAddress(node types.NodeView, remoteAddr 
 		return
 	}
 
-	err := ns.headscale.state.SetLastControlAddress(node.ID(), addr)
+	err := ns.orgscale.state.SetLastControlAddress(node.ID(), addr)
 	if err != nil {
 		log.Error().Err(err).EmbedObject(node).Msg("could not persist node control connection address")
 	}

@@ -8,7 +8,7 @@ import (
 
 func Apple(url string) *elem.Element {
 	return page(
-		"headscale - Apple",
+		"orgscale - Apple",
 		H1(elem.Text("iOS configuration")),
 		H2(elem.Text("GUI")),
 		Ol(
@@ -41,7 +41,7 @@ func Apple(url string) *elem.Element {
 			elem.Li(
 				nil,
 				elem.Text(
-					"Enter your credentials and log in. Headscale should now be working on your iOS device",
+					"Enter your credentials and log in. Orgscale should now be working on your iOS device",
 				),
 			),
 		),
@@ -72,7 +72,7 @@ func Apple(url string) *elem.Element {
 				nil,
 				elem.Text("Enter "),
 				Code(elem.Text(url)),
-				elem.Text(" of the headscale instance and press "),
+				elem.Text(" of the orgscale instance and press "),
 				elem.Strong(nil, elem.Text("Add Account")),
 			),
 			elem.Li(
@@ -83,7 +83,7 @@ func Apple(url string) *elem.Element {
 		H2(elem.Text("Profiles")),
 		P(
 			elem.Text(
-				"Headscale can be set to the default server by installing a Headscale configuration profile:",
+				"Orgscale can be set to the default server by installing a Orgscale configuration profile:",
 			),
 		),
 		elem.Div(
@@ -108,7 +108,7 @@ func Apple(url string) *elem.Element {
 			elem.Li(
 				nil,
 				elem.Text("Find and install the "),
-				elem.Strong(nil, elem.Text("Headscale")),
+				elem.Strong(nil, elem.Text("Orgscale")),
 				elem.Text(" profile"),
 			),
 			elem.Li(
@@ -191,7 +191,7 @@ func Apple(url string) *elem.Element {
 			),
 			elem.Li(
 				nil,
-				elem.Text("Headscale should now be working on your tvOS device"),
+				elem.Text("Orgscale should now be working on your tvOS device"),
 			),
 		),
 	)

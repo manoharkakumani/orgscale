@@ -13,7 +13,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// oauthTailnet is the single Headscale tailnet the v2 API addresses as "-".
+// oauthTailnet is the single Orgscale tailnet the v2 API addresses as "-".
 const oauthTailnet = "-"
 
 func init() {
@@ -44,7 +44,7 @@ var createOAuthClientCmd = &cobra.Command{
 	Long: `Create a general-purpose OAuth client. It authenticates with the OAuth 2.0
 client-credentials grant and mints short-lived, scope-limited access tokens.
 The wire format is compatible with Tailscale tooling (the Terraform provider,
-the Kubernetes operator, tscli, ...), so those can drive Headscale unchanged.
+the Kubernetes operator, tscli, ...), so those can drive Orgscale unchanged.
 
 The client secret is shown ONCE on creation and cannot be retrieved again; if
 you lose it, delete the client and create a new one.
@@ -130,7 +130,7 @@ var listOAuthClientsCmd = &cobra.Command{
 					strings.Join(ptrStrs(c.Scopes), ","),
 					strings.Join(ptrStrs(c.Tags), ","),
 					ptrStr(c.Description),
-					c.Created.Format(HeadscaleDateTimeFormat),
+					c.Created.Format(OrgscaleDateTimeFormat),
 				})
 			}
 
@@ -183,7 +183,7 @@ func newV2Client() (context.Context, *clientv2.ClientWithResponses, context.Canc
 
 		httpClient := &http.Client{Transport: &http.Transport{
 			DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
-				return dialHeadscaleSocket(ctx, socketPath)
+				return dialOrgscaleSocket(ctx, socketPath)
 			},
 		}}
 

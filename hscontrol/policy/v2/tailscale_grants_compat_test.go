@@ -1,7 +1,7 @@
 // This file implements a data-driven test runner for grant compatibility
 // tests. It loads HuJSON golden files from testdata/grant_results/grant-*.hujson
 // and via-grant-*.hujson, captured from a Tailscale-hosted control plane, and compares
-// headscale's grants engine output against the captured packet filter rules.
+// orgscale's grants engine output against the captured packet filter rules.
 //
 // Each file is a testcapture.Capture containing:
 //   - A full policy with grants (and optionally ACLs)
@@ -9,7 +9,7 @@
 //   - Or an error response for invalid policies
 //
 // Tests known to fail due to unimplemented features or known differences are
-// skipped with a TODO comment explaining the root cause. As headscale's grants
+// skipped with a TODO comment explaining the root cause. As orgscale's grants
 // implementation improves, tests should be removed from the skip list.
 //
 // Test data source: testdata/grant_results/{grant,via-grant}-*.hujson
@@ -139,13 +139,13 @@ func loadGrantTestFile(t *testing.T, path string) *testcapture.Capture {
 	return c
 }
 
-// grantSkipReasons lists checks where headscale differs from SaaS, keyed
+// grantSkipReasons lists checks where orgscale differs from SaaS, keyed
 // <test_id>[/<node>/<check>]. A listed check that matches fails, so a fix
 // must delete its entry.
 var grantSkipReasons = map[string]string{}
 
 // TestGrantsCompat is a data-driven test that loads all GRANT-*.json
-// test files captured from Tailscale SaaS and compares headscale's grants
+// test files captured from Tailscale SaaS and compares orgscale's grants
 // engine output against the real Tailscale behavior.
 //
 // Each JSON file contains:
@@ -153,7 +153,7 @@ var grantSkipReasons = map[string]string{}
 //   - For success cases: expected packet_filter_rules per node
 //   - For error cases: expected error message
 //
-// The test converts Tailscale user email formats to headscale format
+// The test converts Tailscale user email formats to orgscale format
 // (@example.com, @example.org) and runs the policy through unmarshalPolicy,
 // validate, compileFilterRulesForNode, and ReduceFilterRules.
 //
@@ -223,7 +223,7 @@ func testGrantSuccess(
 	require.NoError(t, err, "%s: policy manager should load the policy", tf.TestID)
 
 	// EquateEmpty treats nil and empty slices as equal since Tailscale's
-	// JSON null -> nil, headscale may return empty slice.
+	// JSON null -> nil, orgscale may return empty slice.
 	opts := append(cmpOptions(), cmpopts.EquateEmpty())
 
 	for nodeName, capture := range tf.Captures {
@@ -248,11 +248,11 @@ func testGrantSuccess(
 				var diffs []string
 
 				if diff := cmp.Diff(wantRules, gotRules, opts...); diff != "" {
-					diffs = append(diffs, "filter rules mismatch (-tailscale +headscale):\n"+diff)
+					diffs = append(diffs, "filter rules mismatch (-tailscale +orgscale):\n"+diff)
 				}
 
 				if diff := cmp.Diff(wantRules, pmRules, opts...); diff != "" {
-					diffs = append(diffs, "policy manager filter rules mismatch (-tailscale +headscale):\n"+diff)
+					diffs = append(diffs, "policy manager filter rules mismatch (-tailscale +orgscale):\n"+diff)
 				}
 
 				return strings.Join(diffs, "\n")

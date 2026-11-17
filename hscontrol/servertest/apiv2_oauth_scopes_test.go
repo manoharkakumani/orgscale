@@ -373,10 +373,10 @@ func (tf *tofu) runExpectError(t *testing.T, mustContain ...string) {
 
 // TestAPIv2OAuthTailscaleClientAuthKey drives the tailscale client's own
 // feature/oauthkey resolver (via tsnet, as `tailscale up --authkey` does) with a
-// tskey-client- secret against headscale: the client parses the ?attributes,
+// tskey-client- secret against orgscale: the client parses the ?attributes,
 // exchanges the secret at baseURL, mints a tagged key via CreateKey, and
 // registers re-advertising the key's tags. Each row pins what the client sends
-// and what headscale must do with it.
+// and what orgscale must do with it.
 func TestAPIv2OAuthTailscaleClientAuthKey(t *testing.T) {
 	srv := servertest.NewServer(t, servertest.WithRealListener())
 	owner := srv.CreateUser(t, "apiv2-oauth")
@@ -435,7 +435,7 @@ func TestAPIv2OAuthTailscaleClientAuthKey(t *testing.T) {
 			wantEphemeral: true,
 		},
 		{
-			// Headscale always authorizes pre-auth-key nodes; preauthorized=false
+			// Orgscale always authorizes pre-auth-key nodes; preauthorized=false
 			// does not hold the node for approval.
 			name:          "preauthorized_false",
 			authKey:       tsSecret + base + "&preauthorized=false",
@@ -463,7 +463,7 @@ func TestAPIv2OAuthTailscaleClientAuthKey(t *testing.T) {
 		},
 		{
 			// The client appends "/api/v2/..." verbatim, so a trailing slash
-			// yields "//api/v2/oauth/token", which headscale does not route.
+			// yields "//api/v2/oauth/token", which orgscale does not route.
 			name:    "baseurl_trailing_slash",
 			authKey: tsSecret + base + "/",
 			tags:    []string{"tag:ci"},
@@ -476,7 +476,7 @@ func TestAPIv2OAuthTailscaleClientAuthKey(t *testing.T) {
 			wantErr: `ephemeral value "maybe"`,
 		},
 		{
-			name:    "baseurl_not_headscale",
+			name:    "baseurl_not_orgscale",
 			authKey: tsSecret + "?baseURL=http://127.0.0.1:1",
 			tags:    []string{"tag:ci"},
 			wantErr: "connection refused",
@@ -484,7 +484,7 @@ func TestAPIv2OAuthTailscaleClientAuthKey(t *testing.T) {
 		{
 			// Without the tskey-client- prefix the client skips the exchange and
 			// presents the raw secret as a pre-auth key, which is not one.
-			name:    "hskey_prefix_not_exchanged",
+			name:    "oskey_prefix_not_exchanged",
 			authKey: secret + base,
 			tags:    []string{"tag:ci"},
 			wantErr: "invalid pre auth key",
@@ -510,7 +510,7 @@ func TestAPIv2OAuthTailscaleClientAuthKey(t *testing.T) {
 		},
 		{
 			// Only ephemeral, preauthorized and baseURL are understood; the
-			// client rejects anything else before contacting headscale.
+			// client rejects anything else before contacting orgscale.
 			name:    "unknown_attribute",
 			authKey: tsSecret + base + "&reusable=true",
 			tags:    []string{"tag:ci"},

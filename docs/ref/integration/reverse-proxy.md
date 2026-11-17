@@ -1,31 +1,31 @@
-# Running Headscale behind a reverse proxy
+# Running Orgscale behind a reverse proxy
 
 !!! warning "Community documentation"
 
-    This page is not actively maintained by the Headscale authors and is
-    written by community members. It is _not_ verified by Headscale developers.
+    This page is not actively maintained by the Orgscale authors and is
+    written by community members. It is _not_ verified by Orgscale developers.
 
     **It might be outdated and it might miss necessary steps**.
 
-Running Headscale behind a reverse proxy is useful when running multiple applications on the same server, and you want
+Running Orgscale behind a reverse proxy is useful when running multiple applications on the same server, and you want
 to reuse the same external IP and port - usually tcp/443 for HTTPS.
 
 Please see [limitations](#limitations) for known issues and limitations.
 
 ## Configuration
 
-The configuration depends on the set of Headscale features you intend to use. Please have a look at the
+The configuration depends on the set of Orgscale features you intend to use. Please have a look at the
 [requirements](../../setup/requirements.md) and especially the [ports in use](../../setup/requirements.md#ports-in-use)
 section to learn what a Tailscale clients expects.
 
 The configuration examples in this documentation are basic and cover only HTTP and HTTPS traffic. Other features such as
-STUN for Headscale's [embedded DERP server](../derp.md) are expected to be exposed directly or to be only available on
+STUN for Orgscale's [embedded DERP server](../derp.md) are expected to be exposed directly or to be only available on
 localhost.
 
 ### WebSocket
 
 Tailscale clients are using a custom protocol (Tailscale Control Protocol) to communicate with a control server such as
-Headscale. The reverse proxy **must** be configured to support WebSockets in order to communicate with Tailscale clients
+Orgscale. The reverse proxy **must** be configured to support WebSockets in order to communicate with Tailscale clients
 and it needs to handle two peculiarities of the Tailscale Control Protocol:
 
 - The POST method is used to upgrade the WebSocket connection.
@@ -33,8 +33,8 @@ and it needs to handle two peculiarities of the Tailscale Control Protocol:
 
 ### TLS
 
-Headscale can be configured not to use TLS, leaving it to the reverse proxy to handle. Add the following configuration
-values to your Headscale [configuration file](../configuration.md):
+Orgscale can be configured not to use TLS, leaving it to the reverse proxy to handle. Add the following configuration
+values to your Orgscale [configuration file](../configuration.md):
 
 ```yaml title="config.yaml" hl_lines="1"
 server_url: https://<SERVER_NAME>
@@ -43,12 +43,12 @@ tls:
   key_path: ""
 ```
 
-Headscale logs `WRN listening without TLS but ServerURL does not start with http://` during startup. This is expected
+Orgscale logs `WRN listening without TLS but ServerURL does not start with http://` during startup. This is expected
 and indicates that the reverse proxy is in charge of terminating TLS.
 
 ### Trusted proxies
 
-Headscale ignores `True-Client-IP`, `X-Real-IP` and `X-Forwarded-For` headers unless the request's TCP peer matches the
+Orgscale ignores `True-Client-IP`, `X-Real-IP` and `X-Forwarded-For` headers unless the request's TCP peer matches the
 `trusted_proxies` configuration option. Set this to the CIDR(s) your reverse proxy connects from so the real client IP
 appears in access logs and in the v2 API's `ip:publicAddress` device attribute. Without it, every node reports the
 proxy's address.
@@ -60,7 +60,7 @@ trusted_proxies:
 ```
 
 The reverse proxy is responsible to replace any client-supplied `True-Client-IP`, `X-Real-IP`, `X-Forwarded-For` headers
-on inbound requests with sanitized values. Headscale picks the first valid IP address supplied by headers in this order:
+on inbound requests with sanitized values. Orgscale picks the first valid IP address supplied by headers in this order:
 
 - `True-Client-IP`
 - `X-Real-IP`
@@ -79,12 +79,12 @@ on inbound requests with sanitized values. Headscale picks the first valid IP ad
     This section of the documentation is specific for third-party software and services. We recommend users read the
     third-party documentation for a secure configuration.
 
-This following Headscale configuration may be used as base for the various reverse proxy examples below. The following
+This following Orgscale configuration may be used as base for the various reverse proxy examples below. The following
 is [assumed](../../setup/requirements.md):
 
 - Service for Tailscale clients is served via HTTPS on port 443.
 - The reverse proxy redirects HTTP to HTTPS and is terminating TLS.
-- Both Headscale and the reverse proxy are running on the same host.
+- Both Orgscale and the reverse proxy are running on the same host.
 - [Metrics](../debug.md#metrics-and-debug-endpoint) are not proxied, those are available via localhost.
 
 ```yaml title="config.yaml" hl_lines="1"
@@ -101,10 +101,10 @@ tls:
 
 ### Apache
 
-The following basic Apache configuration works with the Headscale configuration [as shown
+The following basic Apache configuration works with the Orgscale configuration [as shown
 above](#reverse-proxy-specific-configuration). Substitute placeholders and adjust the configuration as needed:
 
-- `<SERVER_NAME>`: The server name for your instance, e.g. `headscale.example.com`
+- `<SERVER_NAME>`: The server name for your instance, e.g. `orgscale.example.com`
 - `<PATH_TO_TLS_CERT>`: Absolute path to your TLS certificate
 - `<PATH_TO_TLS_KEY>`: Absolute path to your TLS private key
 
@@ -139,10 +139,10 @@ docs](https://httpd.apache.org/docs/current/mod/mod_proxy.html#upgrade) for more
 
 ### Caddy
 
-The following basic Caddyfile works with the Headscale configuration [as shown
+The following basic Caddyfile works with the Orgscale configuration [as shown
 above](#reverse-proxy-specific-configuration). Substitute placeholders and adjust the configuration as needed:
 
-- `<SERVER_NAME>`: The server name for your instance, e.g. `headscale.example.com`
+- `<SERVER_NAME>`: The server name for your instance, e.g. `orgscale.example.com`
 
 ```none title="Caddyfile" hl_lines="1 12"
 http://<SERVER_NAME> {
@@ -169,7 +169,7 @@ domain/subdomain, force HTTPS, and proxy WebSocket connections.
 
 ### Cloudflare
 
-Running Headscale behind a Cloudflare Proxy or Cloudflare Tunnel is not supported and will not work as Cloudflare does
+Running Orgscale behind a Cloudflare Proxy or Cloudflare Tunnel is not supported and will not work as Cloudflare does
 not support [WebSocket POSTs as required by the Tailscale protocol](#websocket). See [issue
 1468](https://github.com/juanfont/headscale/issues/1468) for more information.
 
@@ -186,7 +186,7 @@ Same as [envoy](#envoy), we can use `EnvoyFilter` to add a new upgrade_type name
 apiVersion: networking.istio.io/v1alpha3
 kind: EnvoyFilter
 metadata:
-  name: headscale-behind-istio-ingress
+  name: orgscale-behind-istio-ingress
   namespace: istio-system
 spec:
   configPatches:
@@ -207,16 +207,16 @@ spec:
 
 ### Nginx
 
-The following basic Nginx configuration works with the Headscale configuration [as shown
+The following basic Nginx configuration works with the Orgscale configuration [as shown
 above](#reverse-proxy-specific-configuration). Substitute placeholders and adjust the configuration as needed:
 
-- `<SERVER_NAME>`: The server name for your instance, e.g. `headscale.example.com`
+- `<SERVER_NAME>`: The server name for your instance, e.g. `orgscale.example.com`
 - `<PATH_TO_TLS_CERT>`: Absolute path to your TLS certificate
 - `<PATH_TO_TLS_KEY>`: Absolute path to your TLS private key
 
 ```nginx title="nginx.conf" hl_lines="19 37 39-40"
-# headscale
-upstream headscale {
+# orgscale
+upstream orgscale {
   zone upstreams 64K;
   server 127.0.0.1:8080 max_fails=1 fail_timeout=5s;
   keepalive 2;
@@ -266,7 +266,7 @@ server {
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_buffering off;
-    proxy_pass http://headscale;
+    proxy_pass http://orgscale;
   }
 }
 ```

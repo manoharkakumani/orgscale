@@ -1,8 +1,8 @@
 name: tailscale-action integration
 
 # Integration tests for the official Tailscale GitHub Action
-# (https://github.com/tailscale/github-action) against a self-hosted headscale.
-# A nix-built headscale runs over self-signed TLS with embedded DERP and a
+# (https://github.com/tailscale/github-action) against a self-hosted orgscale.
+# A nix-built orgscale runs over self-signed TLS with embedded DERP and a
 # regular node already joined; the action then connects a runner to that tailnet
 # and its built-in ping to the existing node is the success gate. SQLite only.
 
@@ -13,7 +13,7 @@ on:
   pull_request:
     paths:
       - ".github/workflows/tailscale-action-integration.yaml"
-      - ".github/actions/headscale-up/**"
+      - ".github/actions/orgscale-up/**"
       - "hscontrol/api/v2/**"
       - "hscontrol/scope/**"
       - "hscontrol/db/oauth*.go"
@@ -34,9 +34,9 @@ permissions:
   contents: read
 
 jobs:
-  # The action connects a runner to headscale and pings the already-joined node.
+  # The action connects a runner to orgscale and pings the already-joined node.
   # Both of the action's auth modes are exercised: an OAuth client (delivered as a
-  # tskey-client- secret the client resolves against headscale) and a plain auth
+  # tskey-client- secret the client resolves against orgscale) and a plain auth
   # key. Ping is the pass/fail gate — real connectivity, not just registration.
   connect:
     runs-on: ubuntu-latest
@@ -48,7 +48,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7.0.1
       - id: hs
-        uses: $/.github/actions/headscale-up
+        uses: $/.github/actions/orgscale-up
 
       - name: Prepare ${{ matrix.auth }} credential
         id: prep
@@ -58,11 +58,11 @@ jobs:
         run: |
           set -euo pipefail
           if [ "${{ matrix.auth }}" = "oauth" ]; then
-            FULL=$(./result/bin/headscale oauth-clients create -s auth_keys -t tag:ci -o json | jq -r .key)
+            FULL=$(./result/bin/orgscale oauth-clients create -s auth_keys -t tag:ci -o json | jq -r .key)
             # The upstream client only runs its OAuth exchange for tskey-client-
             # secrets, and reads the control URL from a baseURL= attribute on the
             # secret itself (--login-server governs registration, not the exchange).
-            TS="tskey-${FULL#hskey-}?baseURL=${URL}&ephemeral=true&preauthorized=true"
+            TS="tskey-${FULL#oskey-}?baseURL=${URL}&ephemeral=true&preauthorized=true"
             echo "::add-mask::$TS"
             echo "authkey=$TS" >> "$GITHUB_OUTPUT"
             echo "args=--login-server=${URL} --advertise-tags=tag:ci" >> "$GITHUB_OUTPUT"
@@ -81,7 +81,7 @@ jobs:
       - name: Assert node registered
         run: |
           set -euo pipefail
-          ./result/bin/headscale nodes list -o json > nodes.json
+          ./result/bin/orgscale nodes list -o json > nodes.json
           test "$(jq length nodes.json)" -ge 2
           if [ "${{ matrix.auth }}" = "oauth" ]; then
             jq -e '[.[] | select((.tags // []) | index("tag:ci"))] | length >= 1' nodes.json
@@ -108,7 +108,7 @@ jobs:
         include:
           - input: hostname
             hostname: feature-host
-            assert: ./result/bin/headscale nodes list -o json | jq -e '[.[]|select(.givenName=="feature-host")]|length>=1'
+            assert: ./result/bin/orgscale nodes list -o json | jq -e '[.[]|select(.givenName=="feature-host")]|length>=1'
           - input: version
             version: "1.98.4"
             # The running daemon, not just the CLI binary, must be the pinned one.
@@ -125,7 +125,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7.0.1
       - id: hs
-        uses: $/.github/actions/headscale-up
+        uses: $/.github/actions/orgscale-up
 
       - name: Connect with ${{ matrix.input }}
         uses: tailscale/github-action@v4.4.0

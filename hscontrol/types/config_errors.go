@@ -12,7 +12,7 @@ import (
 // ErrConfig is a sentinel matching any *ConfigError. Callers can do
 // errors.Is(err, types.ErrConfig) to detect "this came from config
 // validation" without caring which rule triggered.
-var ErrConfig = errors.New("headscale: config validation")
+var ErrConfig = errors.New("orgscale: config validation")
 
 // ConfigError is a structured config-validation error. Pointer receivers
 // throughout, following the stdlib convention (*net.OpError,

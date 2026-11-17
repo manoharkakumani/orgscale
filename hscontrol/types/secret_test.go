@@ -35,7 +35,7 @@ func TestResolveSecret(t *testing.T) {
 			if tt.wantErr != "" {
 				require.ErrorContains(t, err, tt.wantErr)
 				require.ErrorContains(t, err, "oidc.client_secret: ")
-				require.ErrorContains(t, err, "readable by the user running headscale")
+				require.ErrorContains(t, err, "readable by the user running orgscale")
 
 				return
 			}

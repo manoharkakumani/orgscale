@@ -36,7 +36,7 @@ var errVersionFormat = errors.New(
 	"version does not follow semver major.minor.patch format",
 )
 
-// DatabaseVersion tracks the headscale version that last
+// DatabaseVersion tracks the orgscale version that last
 // successfully started against this database.
 // It is a single-row table (ID is always 1).
 type DatabaseVersion struct {
@@ -235,7 +235,7 @@ func checkMinimumMigration(db *gorm.DB) error {
 	return nil
 }
 
-// checkVersionUpgradePath verifies that the running headscale version
+// checkVersionUpgradePath verifies that the running orgscale version
 // is compatible with the version that last used this database.
 //
 // Rules:
@@ -264,7 +264,7 @@ func checkVersionUpgradePath(db *gorm.DB) error {
 		if storedVersion != "" && !isDev(storedVersion) {
 			log.Warn().
 				Str("database_version", storedVersion).
-				Msg("running a development build of headscale without a version number, " +
+				Msg("running a development build of orgscale without a version number, " +
 					"database version check is skipped, the stored database version is preserved")
 		}
 
@@ -299,7 +299,7 @@ func checkVersionUpgradePath(db *gorm.DB) error {
 
 	if current.Major != stored.Major {
 		return fmt.Errorf(
-			"headscale version %s cannot be used with a database last used by %s: %w",
+			"orgscale version %s cannot be used with a database last used by %s: %w",
 			currentVersion, storedVersion, errVersionMajorChange,
 		)
 	}
@@ -318,7 +318,7 @@ func checkVersionUpgradePath(db *gorm.DB) error {
 	case minorDiff > 1:
 		// Multi-minor upgrade — blocked.
 		return fmt.Errorf(
-			"headscale version %s cannot be used with a database last used by %s, "+
+			"orgscale version %s cannot be used with a database last used by %s, "+
 				"upgrading more than one minor version at a time is not supported, "+
 				"please upgrade to the latest v%d.%d.x release first, then to %s, "+
 				"release page: https://github.com/juanfont/headscale/releases: %w",
@@ -331,7 +331,7 @@ func checkVersionUpgradePath(db *gorm.DB) error {
 	default:
 		// minorDiff < 0 — any minor downgrade is blocked.
 		return fmt.Errorf(
-			"headscale version %s cannot be used with a database last used by %s, "+
+			"orgscale version %s cannot be used with a database last used by %s, "+
 				"downgrading to a previous minor version is not supported, "+
 				"release page: https://github.com/juanfont/headscale/releases: %w",
 			currentVersion, storedVersion,

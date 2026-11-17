@@ -15,7 +15,7 @@ import (
 	"tailscale.com/tailcfg"
 )
 
-// TestSSHTestsRejectFailingPolicy asserts `headscale policy set` rejects
+// TestSSHTestsRejectFailingPolicy asserts `orgscale policy set` rejects
 // a policy whose sshTests fail, surfaces the engine's "test(s) failed"
 // sentinel, and leaves the stored policy unchanged. The tests name user1's
 // node by its user, so no tagged node is needed.
@@ -70,16 +70,16 @@ func TestSSHTestsRejectFailingPolicy(t *testing.T) {
 
 	defer scenario.ShutdownAssertNoPanics(t)
 
-	err = scenario.CreateHeadscaleEnv(
+	err = scenario.CreateOrgscaleEnv(
 		[]tsic.Option{},
 		hsic.WithTestName("cli-policyset-sshtests"),
 		hsic.WithConfigEnv(map[string]string{
-			"HEADSCALE_POLICY_MODE": string(types.PolicyModeDB),
+			"ORGSCALE_POLICY_MODE": string(types.PolicyModeDB),
 		}),
 	)
 	require.NoError(t, err)
 
-	headscale, err := scenario.Headscale()
+	orgscale, err := scenario.Orgscale()
 	require.NoError(t, err)
 
 	goodBytes, err := json.Marshal(goodPolicy)
@@ -89,22 +89,22 @@ func TestSSHTestsRejectFailingPolicy(t *testing.T) {
 	require.NoError(t, err)
 
 	const (
-		goodPath = "/etc/headscale/policy-good.json"
-		badPath  = "/etc/headscale/policy-bad.json"
+		goodPath = "/etc/orgscale/policy-good.json"
+		badPath  = "/etc/orgscale/policy-bad.json"
 	)
 
-	require.NoError(t, headscale.WriteFile(goodPath, goodBytes))
-	require.NoError(t, headscale.WriteFile(badPath, badBytes))
+	require.NoError(t, orgscale.WriteFile(goodPath, goodBytes))
+	require.NoError(t, orgscale.WriteFile(badPath, badBytes))
 
 	// Establish the good policy as the live policy.
-	_, err = headscale.Execute([]string{
-		"headscale", "policy", "set", "-f", goodPath,
+	_, err = orgscale.Execute([]string{
+		"orgscale", "policy", "set", "-f", goodPath,
 	})
 	require.NoError(t, err, "setting the good policy must succeed")
 
 	// Confirm the server returns the good policy.
-	stdoutBefore, err := headscale.Execute([]string{
-		"headscale", "policy", "get",
+	stdoutBefore, err := orgscale.Execute([]string{
+		"orgscale", "policy", "get",
 	})
 	require.NoError(t, err)
 	require.JSONEq(t, string(goodBytes), stdoutBefore,
@@ -113,16 +113,16 @@ func TestSSHTestsRejectFailingPolicy(t *testing.T) {
 	// Attempt to overwrite with a policy whose sshTests fail. The CLI
 	// must surface the engine's "test(s) failed" sentinel and exit
 	// non-zero.
-	_, err = headscale.Execute([]string{
-		"headscale", "policy", "set", "-f", badPath,
+	_, err = orgscale.Execute([]string{
+		"orgscale", "policy", "set", "-f", badPath,
 	})
 	require.Error(t, err, "setting a policy with failing sshTests must fail")
 	require.ErrorContains(t, err, "test(s) failed",
 		"CLI error must surface the engine's test failure sentinel")
 
 	// The rejected write must not have mutated the stored policy.
-	stdoutAfter, err := headscale.Execute([]string{
-		"headscale", "policy", "get",
+	stdoutAfter, err := orgscale.Execute([]string{
+		"orgscale", "policy", "get",
 	})
 	require.NoError(t, err)
 	require.JSONEq(t, string(goodBytes), stdoutAfter,
@@ -141,16 +141,16 @@ func TestPolicyCommand(t *testing.T) {
 	require.NoError(t, err)
 	defer scenario.ShutdownAssertNoPanics(t)
 
-	err = scenario.CreateHeadscaleEnv(
+	err = scenario.CreateOrgscaleEnv(
 		[]tsic.Option{},
 		hsic.WithTestName("cli-policy"),
 		hsic.WithConfigEnv(map[string]string{
-			"HEADSCALE_POLICY_MODE": "database", // test sets/gets policy via CLI
+			"ORGSCALE_POLICY_MODE": "database", // test sets/gets policy via CLI
 		}),
 	)
 	require.NoError(t, err)
 
-	headscale, err := scenario.Headscale()
+	orgscale, err := scenario.Orgscale()
 	require.NoError(t, err)
 
 	p := policyv2.Policy{
@@ -171,16 +171,16 @@ func TestPolicyCommand(t *testing.T) {
 
 	pBytes, _ := json.Marshal(p) //nolint:errchkjson
 
-	policyFilePath := "/etc/headscale/policy.json"
+	policyFilePath := "/etc/orgscale/policy.json"
 
-	err = headscale.WriteFile(policyFilePath, pBytes)
+	err = orgscale.WriteFile(policyFilePath, pBytes)
 	require.NoError(t, err)
 
 	// No policy is present at this time.
 	// Add a new policy from a file.
-	_, err = headscale.Execute(
+	_, err = orgscale.Execute(
 		[]string{
-			"headscale",
+			"orgscale",
 			"policy",
 			"set",
 			"-f",
@@ -196,9 +196,9 @@ func TestPolicyCommand(t *testing.T) {
 
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		err = executeAndUnmarshal(
-			headscale,
+			orgscale,
 			[]string{
-				"headscale",
+				"orgscale",
 				"policy",
 				"get",
 				"--output",
@@ -226,16 +226,16 @@ func TestPolicyBrokenConfigCommand(t *testing.T) {
 	require.NoError(t, err)
 	defer scenario.ShutdownAssertNoPanics(t)
 
-	err = scenario.CreateHeadscaleEnv(
+	err = scenario.CreateOrgscaleEnv(
 		[]tsic.Option{},
 		hsic.WithTestName("cli-policybad"),
 		hsic.WithConfigEnv(map[string]string{
-			"HEADSCALE_POLICY_MODE": "database", // test sets invalid policy via CLI
+			"ORGSCALE_POLICY_MODE": "database", // test sets invalid policy via CLI
 		}),
 	)
 	require.NoError(t, err)
 
-	headscale, err := scenario.Headscale()
+	orgscale, err := scenario.Orgscale()
 	require.NoError(t, err)
 
 	p := policyv2.Policy{
@@ -258,16 +258,16 @@ func TestPolicyBrokenConfigCommand(t *testing.T) {
 
 	pBytes, _ := json.Marshal(p) //nolint:errchkjson
 
-	policyFilePath := "/etc/headscale/policy.json"
+	policyFilePath := "/etc/orgscale/policy.json"
 
-	err = headscale.WriteFile(policyFilePath, pBytes)
+	err = orgscale.WriteFile(policyFilePath, pBytes)
 	require.NoError(t, err)
 
 	// No policy is present at this time.
 	// Add a new policy from a file.
-	_, err = headscale.Execute(
+	_, err = orgscale.Execute(
 		[]string{
-			"headscale",
+			"orgscale",
 			"policy",
 			"set",
 			"-f",
@@ -278,9 +278,9 @@ func TestPolicyBrokenConfigCommand(t *testing.T) {
 
 	// The new policy was invalid, the old one should still be in place, which
 	// is none.
-	_, err = headscale.Execute(
+	_, err = orgscale.Execute(
 		[]string{
-			"headscale",
+			"orgscale",
 			"policy",
 			"get",
 			"--output",

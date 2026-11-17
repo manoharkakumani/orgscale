@@ -205,7 +205,7 @@ func TestNodeAttrsBaselineCapsAlwaysOn(t *testing.T) {
 // TestTaildropDisabledWithholdsFileSharingCap asserts the off path of
 // the Taildrop config gate. The Tailscale v2 API does not expose the
 // equivalent tailnet setting, so the nodeAttrs compat suite cannot
-// vary it; this test covers the headscale side directly.
+// vary it; this test covers the orgscale side directly.
 func TestTaildropDisabledWithholdsFileSharingCap(t *testing.T) {
 	t.Parallel()
 
@@ -227,7 +227,7 @@ func TestTaildropDisabledWithholdsFileSharingCap(t *testing.T) {
 }
 
 // TestSSHBehaviorIsAnAdminChoice pins a deliberate difference from SaaS, which
-// stamps ssh-behavior-v1 on every node: headscale sends it only through a
+// stamps ssh-behavior-v1 on every node: orgscale sends it only through a
 // nodeAttr, so sessions keep their login environment and PAM by default.
 func TestSSHBehaviorIsAnAdminChoice(t *testing.T) {
 	t.Parallel()

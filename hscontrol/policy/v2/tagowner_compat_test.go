@@ -22,17 +22,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// tagOwnerSkipReasons lists checks where headscale differs from SaaS, keyed
+// tagOwnerSkipReasons lists checks where orgscale differs from SaaS, keyed
 // <test_id>/<step>/<function>. A listed check that matches fails, so a fix
 // must delete its entry.
 var tagOwnerSkipReasons = map[string]string{
 	"tag-owner-chain/C-two-mint-subset/TagOwnedByTags": clientTagSubset,
 }
 
-const clientTagSubset = "CLIENT_TAG_SUBSET: headscale lets an OAuth client mint a key with a subset of its tags; SaaS needs that subset owned by the client's tags"
+const clientTagSubset = "CLIENT_TAG_SUBSET: orgscale lets an OAuth client mint a key with a subset of its tags; SaaS needs that subset owned by the client's tags"
 
 // TestTagOwnerChainCompat compares each SaaS verdict on a tag request with
-// the policy function headscale asks for that request:
+// the policy function orgscale asks for that request:
 //   - a join with a user's untagged key and requested tags: UserCanHaveTag,
 //     and NodeCanHaveTag for a node the policy does not know yet;
 //   - a relogin of the user's existing node with requested tags:
@@ -185,7 +185,7 @@ func TestTagOwnerChainCompat(t *testing.T) {
 			for _, r := range stepRows {
 				compatCheck(t, tagOwnerSkipReasons, id+"/"+r.step+"/"+r.function, func() string {
 					if got := r.got(); got != r.want {
-						return fmt.Sprintf("SaaS allowed %t, headscale %t", r.want, got)
+						return fmt.Sprintf("SaaS allowed %t, orgscale %t", r.want, got)
 					}
 
 					return ""

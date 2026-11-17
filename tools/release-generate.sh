@@ -6,7 +6,7 @@ set -euo pipefail
 
 rm -rf release-assets
 mkdir release-assets
-go build -o release-assets/headscale ./cmd/orgscale
-release-assets/headscale generate config > release-assets/config-example.yaml
-release-assets/headscale generate nixos-options --release > release-assets/headscale-nixos-options.nix
-rm release-assets/headscale
+go build -o release-assets/orgscale ./cmd/orgscale
+release-assets/orgscale generate config > release-assets/config-example.yaml
+release-assets/orgscale generate nixos-options --release > release-assets/orgscale-nixos-options.nix
+rm release-assets/orgscale

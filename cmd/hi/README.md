@@ -1,4 +1,4 @@
-# hi — Headscale Integration test runner
+# hi — Orgscale Integration test runner
 
 `hi` wraps Docker container orchestration around the tests in
 [`../../integration`](../../integration) and extracts debugging artefacts
@@ -63,22 +63,22 @@ changing.
 | `--logs-dir`        | `control_logs` | Where to save run artefacts                                                 |
 | `--verbose`         | `false`        | Verbose output                                                              |
 | `--stats`           | `false`        | Collect container resource-usage stats                                      |
-| `--hs-memory-limit` | `0`            | Fail if any headscale container exceeds N MB (0 = disabled)                 |
+| `--hs-memory-limit` | `0`            | Fail if any orgscale container exceeds N MB (0 = disabled)                 |
 | `--ts-memory-limit` | `0`            | Fail if any tailscale container exceeds N MB                                |
 
 ### Precompiled tests in CI
 
-CI builds the Headscale server, `hi`, and the integration test binary once
+CI builds the Orgscale server, `hi`, and the integration test binary once
 for the worker architecture. Each test job loads the prebuilt images and
 runs its own fresh test container:
 
 ```bash
 CGO_ENABLED=0 GOOS=linux go test -c ./integration -o integration.test
-go run ./cmd/hi run --test-binary=./integration.test "^TestHeadscale$"
+go run ./cmd/hi run --test-binary=./integration.test "^TestOrgscale$"
 ```
 
 With `--test-binary`, the runner mounts the executable read-only and uses
-`HEADSCALE_INTEGRATION_HEADSCALE_IMAGE` as its runtime image when set.
+`ORGSCALE_INTEGRATION_ORGSCALE_IMAGE` as its runtime image when set.
 Otherwise it uses the usual Go image. Build the binary with `CGO_ENABLED=0`
 for the runner architecture so it needs no compiler or shared Go libraries.
 The checkout, test fixtures, Docker access, per-run logs, resource checks,
@@ -154,8 +154,8 @@ Every run saves debugging artefacts under `control_logs/{runID}/`:
 
 ```
 control_logs/20260409-104215-mdjtzx/
-├── hs-<test>-<hash>.stderr.log        # headscale server errors
-├── hs-<test>-<hash>.stdout.log        # headscale server output
+├── hs-<test>-<hash>.stderr.log        # orgscale server errors
+├── hs-<test>-<hash>.stdout.log        # orgscale server output
 ├── hs-<test>-<hash>.db                # database snapshot (SQLite)
 ├── hs-<test>-<hash>_metrics.txt       # Prometheus metrics dump
 ├── hs-<test>-<hash>-mapresponses/     # MapResponse protocol captures
@@ -171,7 +171,7 @@ unwanted directories to reclaim disk.
 
 When a test fails, read the artefacts **in this order**:
 
-1. **`hs-*.stderr.log`** — headscale server errors, panics, policy
+1. **`hs-*.stderr.log`** — orgscale server errors, panics, policy
    evaluation failures. Most issues originate server-side.
 
    ```bash

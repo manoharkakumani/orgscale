@@ -230,7 +230,7 @@ func TestNextDNSCapMapRendering(t *testing.T) {
 	})
 }
 
-// nextDNSResolverSkipReasons lists checks where headscale's DoH address
+// nextDNSResolverSkipReasons lists checks where orgscale's DoH address
 // differs from SaaS, keyed <test_id>/<check>.
 var nextDNSResolverSkipReasons = map[string]string{}
 
@@ -296,7 +296,7 @@ func TestNextDNSResolverCompat(t *testing.T) {
 					"device_id": cmp.Diff(wantID, gotID),
 				} {
 					if diff != "" {
-						diffs[check] = append(diffs[check], name+" (-tailscale +headscale):\n"+diff)
+						diffs[check] = append(diffs[check], name+" (-tailscale +orgscale):\n"+diff)
 					}
 				}
 			}
@@ -371,7 +371,7 @@ func TestBuildFromChangeFiltersPeerPatchesByVisibility(t *testing.T) {
 			Sqlite: types.SqliteConfig{Path: tmp + "/h.db"},
 		},
 		Prefixes:  types.PrefixesConfig{V4: &p4, V6: &p6, Allocation: types.IPAllocationStrategySequential},
-		DNSConfig: types.DNSConfig{BaseDomain: "headscale.test"},
+		DNSConfig: types.DNSConfig{BaseDomain: "orgscale.test"},
 		Policy:    types.PolicyConfig{Mode: types.PolicyModeDB},
 		DERP: types.DERPConfig{
 			DERPMap: &tailcfg.DERPMap{
@@ -384,7 +384,7 @@ func TestBuildFromChangeFiltersPeerPatchesByVisibility(t *testing.T) {
 		},
 	}
 
-	database, err := db.NewHeadscaleDatabase(cfg)
+	database, err := db.NewOrgscaleDatabase(cfg)
 	require.NoError(t, err)
 
 	user1 := database.CreateUserForTest("u1")
@@ -455,7 +455,7 @@ func TestBuildFromChangeFiltersUserProfilesByVisibility(t *testing.T) {
 			Sqlite: types.SqliteConfig{Path: tmp + "/h.db"},
 		},
 		Prefixes:  types.PrefixesConfig{V4: &p4, V6: &p6, Allocation: types.IPAllocationStrategySequential},
-		DNSConfig: types.DNSConfig{BaseDomain: "headscale.test"},
+		DNSConfig: types.DNSConfig{BaseDomain: "orgscale.test"},
 		Policy:    types.PolicyConfig{Mode: types.PolicyModeDB},
 		DERP: types.DERPConfig{
 			DERPMap: &tailcfg.DERPMap{
@@ -468,7 +468,7 @@ func TestBuildFromChangeFiltersUserProfilesByVisibility(t *testing.T) {
 		},
 	}
 
-	database, err := db.NewHeadscaleDatabase(cfg)
+	database, err := db.NewOrgscaleDatabase(cfg)
 	require.NoError(t, err)
 
 	user1 := database.CreateUserForTest("u1")
@@ -538,7 +538,7 @@ func TestBuildFromChangeVisibilityMatchesFullMap(t *testing.T) {
 			Sqlite: types.SqliteConfig{Path: tmp + "/h.db"},
 		},
 		Prefixes:  types.PrefixesConfig{V4: &p4, V6: &p6, Allocation: types.IPAllocationStrategySequential},
-		DNSConfig: types.DNSConfig{BaseDomain: "headscale.test"},
+		DNSConfig: types.DNSConfig{BaseDomain: "orgscale.test"},
 		Policy:    types.PolicyConfig{Mode: types.PolicyModeDB},
 		DERP: types.DERPConfig{
 			DERPMap: &tailcfg.DERPMap{
@@ -551,7 +551,7 @@ func TestBuildFromChangeVisibilityMatchesFullMap(t *testing.T) {
 		},
 	}
 
-	database, err := db.NewHeadscaleDatabase(cfg)
+	database, err := db.NewOrgscaleDatabase(cfg)
 	require.NoError(t, err)
 
 	user1 := database.CreateUserForTest("u1")
@@ -748,7 +748,7 @@ func TestFullMapResponseSurvivesPeerWithInvalidData(t *testing.T) {
 					Sqlite: types.SqliteConfig{Path: tmp + "/h.db"},
 				},
 				Prefixes:  types.PrefixesConfig{V4: &p4, V6: &p6, Allocation: types.IPAllocationStrategySequential},
-				DNSConfig: types.DNSConfig{BaseDomain: "headscale.test"},
+				DNSConfig: types.DNSConfig{BaseDomain: "orgscale.test"},
 				Policy:    types.PolicyConfig{Mode: types.PolicyModeDB},
 				DERP: types.DERPConfig{
 					DERPMap: &tailcfg.DERPMap{
@@ -761,7 +761,7 @@ func TestFullMapResponseSurvivesPeerWithInvalidData(t *testing.T) {
 				},
 			}
 
-			database, err := db.NewHeadscaleDatabase(cfg)
+			database, err := db.NewOrgscaleDatabase(cfg)
 			require.NoError(t, err)
 
 			user := database.CreateUserForTest("u1")
@@ -1009,7 +1009,7 @@ func TestBackfillNodeIPsReachesBackfilledNode(t *testing.T) {
 			Sqlite: types.SqliteConfig{Path: tmp + "/h.db"},
 		},
 		Prefixes:  types.PrefixesConfig{V4: &p4, V6: &p6, Allocation: types.IPAllocationStrategySequential},
-		DNSConfig: types.DNSConfig{BaseDomain: "headscale.test"},
+		DNSConfig: types.DNSConfig{BaseDomain: "orgscale.test"},
 		Policy:    types.PolicyConfig{Mode: types.PolicyModeDB},
 		DERP: types.DERPConfig{
 			DERPMap: &tailcfg.DERPMap{
@@ -1022,7 +1022,7 @@ func TestBackfillNodeIPsReachesBackfilledNode(t *testing.T) {
 		},
 	}
 
-	database, err := db.NewHeadscaleDatabase(cfg)
+	database, err := db.NewOrgscaleDatabase(cfg)
 	require.NoError(t, err)
 
 	user := database.CreateUserForTest("u1")
@@ -1082,7 +1082,7 @@ func TestFailedExpiryOfPrimaryAnnouncesBackup(t *testing.T) {
 			Sqlite: types.SqliteConfig{Path: tmp + "/h.db"},
 		},
 		Prefixes:  types.PrefixesConfig{V4: &p4, V6: &p6, Allocation: types.IPAllocationStrategySequential},
-		DNSConfig: types.DNSConfig{BaseDomain: "headscale.test"},
+		DNSConfig: types.DNSConfig{BaseDomain: "orgscale.test"},
 		Policy:    types.PolicyConfig{Mode: types.PolicyModeDB},
 		DERP: types.DERPConfig{
 			DERPMap: &tailcfg.DERPMap{
@@ -1097,7 +1097,7 @@ func TestFailedExpiryOfPrimaryAnnouncesBackup(t *testing.T) {
 
 	route := netip.MustParsePrefix("10.77.0.0/24")
 
-	database, err := db.NewHeadscaleDatabase(cfg)
+	database, err := db.NewOrgscaleDatabase(cfg)
 	require.NoError(t, err)
 
 	user := database.CreateUserForTest("u1")
@@ -1180,14 +1180,14 @@ func TestGenerateMapResponseDebugOnlyOnFullMaps(t *testing.T) {
 		},
 		// Without these the DERP map and DNS config renders carry
 		// nothing and no frame is generated at all.
-		DNSConfig: types.DNSConfig{MagicDNS: true, BaseDomain: "headscale.test"},
+		DNSConfig: types.DNSConfig{MagicDNS: true, BaseDomain: "orgscale.test"},
 		Tuning: types.Tuning{
 			NodeStoreBatchSize:    state.TestBatchSize,
 			NodeStoreBatchTimeout: state.TestBatchTimeout,
 		},
 	}
 
-	database, err := db.NewHeadscaleDatabase(cfg)
+	database, err := db.NewOrgscaleDatabase(cfg)
 	require.NoError(t, err)
 
 	user := database.CreateUserForTest("u1")
@@ -1759,7 +1759,7 @@ func (b *MapResponseBuilder) buildTailPeersCapMapsReference(peers views.Slice[ty
 				Uint64(zf.NodeID, peer.ID().Uint64()).
 				Str(zf.NodeHostname, peer.Hostname()).
 				Uint64("map.viewer.node.id", b.nodeID.Uint64()).
-				Msgf("dropping peer %d from map response: invalid node data; fix with `headscale nodes rename %d <name>`", peer.ID(), peer.ID())
+				Msgf("dropping peer %d from map response: invalid node data; fix with `orgscale nodes rename %d <name>`", peer.ID(), peer.ID())
 
 			continue
 		}
@@ -1849,14 +1849,14 @@ func capMapsMapperFixture(tb testing.TB, n int, attrs string) (*mapper, []types.
 			Sqlite: types.SqliteConfig{Path: tb.TempDir() + "/caps.db"},
 		},
 		Prefixes:  types.PrefixesConfig{V4: &p4, V6: &p6, Allocation: types.IPAllocationStrategySequential},
-		DNSConfig: types.DNSConfig{BaseDomain: "headscale.test"},
+		DNSConfig: types.DNSConfig{BaseDomain: "orgscale.test"},
 		Policy:    types.PolicyConfig{Mode: types.PolicyModeDB},
 		Tuning: types.Tuning{
 			NodeStoreBatchSize:    state.TestBatchSize,
 			NodeStoreBatchTimeout: state.TestBatchTimeout,
 		},
 	}
-	database, err := db.NewHeadscaleDatabase(cfg)
+	database, err := db.NewOrgscaleDatabase(cfg)
 	require.NoError(tb, err)
 
 	user := database.CreateUserForTest("capuser")

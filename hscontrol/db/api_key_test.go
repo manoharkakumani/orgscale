@@ -122,10 +122,10 @@ func TestAPIKeyWithPrefix(t *testing.T) {
 				keyStr, apiKey, err := db.CreateAPIKey(nil)
 				require.NoError(t, err)
 
-				// Verify format: hskey-api-{12-char-prefix}-{64-char-secret}
-				assert.True(t, strings.HasPrefix(keyStr, "hskey-api-"))
+				// Verify format: oskey-api-{12-char-prefix}-{64-char-secret}
+				assert.True(t, strings.HasPrefix(keyStr, "oskey-api-"))
 
-				_, prefixAndSecret, found := strings.Cut(keyStr, "hskey-api-")
+				_, prefixAndSecret, found := strings.Cut(keyStr, "oskey-api-")
 				assert.True(t, found)
 				assert.GreaterOrEqual(t, len(prefixAndSecret), 12+1+64)
 
@@ -164,10 +164,10 @@ func TestAPIKeyWithPrefix(t *testing.T) {
 
 				invalidKeys := []string{
 					"",
-					"hskey-api-short",
-					"hskey-api-ABCDEFGHIJKL-tooshort",
-					"hskey-api-ABC$EFGHIJKL-" + strings.Repeat("a", 64),
-					"hskey-api-ABCDEFGHIJKL" + strings.Repeat("a", 64), // missing separator
+					"oskey-api-short",
+					"oskey-api-ABCDEFGHIJKL-tooshort",
+					"oskey-api-ABC$EFGHIJKL-" + strings.Repeat("a", 64),
+					"oskey-api-ABCDEFGHIJKL" + strings.Repeat("a", 64), // missing separator
 				}
 
 				for _, invalidKey := range invalidKeys {
@@ -222,9 +222,9 @@ func TestAPIKeyWithPrefix(t *testing.T) {
 				require.NoError(t, err)
 
 				// Tamper with the secret
-				_, prefixAndSecret, _ := strings.Cut(keyStr, "hskey-api-")
+				_, prefixAndSecret, _ := strings.Cut(keyStr, "oskey-api-")
 				prefix := prefixAndSecret[:12]
-				tamperedKey := "hskey-api-" + prefix + "-" + strings.Repeat("x", 64)
+				tamperedKey := "oskey-api-" + prefix + "-" + strings.Repeat("x", 64)
 
 				valid, err := db.ValidateAPIKey(tamperedKey)
 				require.Error(t, err)
@@ -297,7 +297,7 @@ func TestAPIKeyLazyRehashesBcrypt(t *testing.T) {
 
 	prefix := "abcdefghijkl"
 	secret := strings.Repeat("a", 64)
-	keyStr := "hskey-api-" + prefix + "-" + secret
+	keyStr := "oskey-api-" + prefix + "-" + secret
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(secret), bcrypt.MinCost)
 	require.NoError(t, err)

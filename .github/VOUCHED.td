@@ -1,6 +1,6 @@
 # Vouched (or actively denounced) users for this repository.
 #
-# Headscale gates pull requests to vouched contributors only. Issues
+# Orgscale gates pull requests to vouched contributors only. Issues
 # remain open to everyone — see CONTRIBUTING.md for the rationale and
 # the process for getting vouched.
 #

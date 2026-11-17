@@ -173,7 +173,7 @@ func TestLoadExample(t *testing.T) {
 	}
 }
 
-// TestDescribeLeafNixTag: nix:"path" lets a file headscale only reads be a
+// TestDescribeLeafNixTag: nix:"path" lets a file orgscale only reads be a
 // Nix path, in the store; nix:"external" keeps a key or state file out of
 // it. Any other value, or a tag on another type, is an error, so a secret
 // never takes a store path.

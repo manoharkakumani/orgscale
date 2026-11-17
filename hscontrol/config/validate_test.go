@@ -13,11 +13,11 @@ import (
 var errTestSentinel = errors.New("sentinel")
 
 // OK
-// server_url: headscale.com, base: clients.headscale.com
-// server_url: headscale.com, base: headscale.net
+// server_url: orgscale.com, base: clients.orgscale.com
+// server_url: orgscale.com, base: headscale.net
 //
 // NOT OK
-// server_url: server.headscale.com, base: headscale.com.
+// server_url: server.orgscale.com, base: orgscale.com.
 func TestSafeServerURL(t *testing.T) {
 	tests := []struct {
 		serverURL, baseDomain,
@@ -28,30 +28,30 @@ func TestSafeServerURL(t *testing.T) {
 			baseDomain: "example.org",
 		},
 		{
-			serverURL:  "https://headscale.com",
-			baseDomain: "headscale.com",
+			serverURL:  "https://orgscale.com",
+			baseDomain: "orgscale.com",
 			wantErr:    errServerURLSame.Error(),
 		},
 		{
-			serverURL:  "https://headscale.com",
-			baseDomain: "clients.headscale.com",
+			serverURL:  "https://orgscale.com",
+			baseDomain: "clients.orgscale.com",
 		},
 		{
-			serverURL:  "https://headscale.com",
-			baseDomain: "clients.subdomain.headscale.com",
+			serverURL:  "https://orgscale.com",
+			baseDomain: "clients.subdomain.orgscale.com",
 		},
 		{
-			serverURL:  "https://headscale.kristoffer.com",
+			serverURL:  "https://orgscale.kristoffer.com",
 			baseDomain: "mybase",
 		},
 		{
-			serverURL:  "https://server.headscale.com",
-			baseDomain: "headscale.com",
+			serverURL:  "https://server.orgscale.com",
+			baseDomain: "orgscale.com",
 			wantErr:    errServerURLSuffix.Error(),
 		},
 		{
-			serverURL:  "https://server.subdomain.headscale.com",
-			baseDomain: "headscale.com",
+			serverURL:  "https://server.subdomain.orgscale.com",
+			baseDomain: "orgscale.com",
 			wantErr:    errServerURLSuffix.Error(),
 		},
 		{
@@ -81,18 +81,18 @@ func TestSafeServerURLWithPort(t *testing.T) {
 		wantErr string
 	}{
 		{
-			serverURL:  "https://server.headscale.com:443",
-			baseDomain: "headscale.com",
+			serverURL:  "https://server.orgscale.com:443",
+			baseDomain: "orgscale.com",
 			wantErr:    errServerURLSuffix.Error(),
 		},
 		{
-			serverURL:  "https://server.subdomain.headscale.com:8080",
-			baseDomain: "headscale.com",
+			serverURL:  "https://server.subdomain.orgscale.com:8080",
+			baseDomain: "orgscale.com",
 			wantErr:    errServerURLSuffix.Error(),
 		},
 		{
-			serverURL:  "https://headscale.com:443",
-			baseDomain: "headscale.com",
+			serverURL:  "https://orgscale.com:443",
+			baseDomain: "orgscale.com",
 			wantErr:    errServerURLSame.Error(),
 		},
 		{

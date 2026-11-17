@@ -19,28 +19,28 @@ const (
 		"!!! note \"Generated page\"\n\n" +
 		"    This page is generated from the doc comments in `hscontrol/types/config.go` by\n" +
 		"    `go generate ./hscontrol/types/`. Edit the comments there, not this page.\n\n" +
-		"Every key headscale reads, in the order `headscale generate config` prints them, with its type, default,\n" +
+		"Every key orgscale reads, in the order `orgscale generate config` prints them, with its type, default,\n" +
 		"environment variable and an example for a configuration file, the environment and NixOS. Keys that no longer\n" +
-		"work are listed under [Removed keys](#removed-keys). [Configuration](configuration.md) explains where headscale\n" +
+		"work are listed under [Removed keys](#removed-keys). [Configuration](configuration.md) explains where orgscale\n" +
 		"finds its configuration, how to check it, and shows the full example.\n\n" +
 		"## Conventions { #conventions }\n\n" +
 		"### Value types { #types }\n\n"
 
 	referenceEnv = "### Environment variables { #env }\n\n" +
-		"Every key can also be set with an environment variable: `HEADSCALE_` and the key's path in capitals, with `_` for\n" +
-		"`.`, e.g. `HEADSCALE_LOG_LEVEL` for `log.level`. Each key below names its variable. A variable wins over the\n" +
+		"Every key can also be set with an environment variable: `ORGSCALE_` and the key's path in capitals, with `_` for\n" +
+		"`.`, e.g. `ORGSCALE_LOG_LEVEL` for `log.level`. Each key below names its variable. A variable wins over the\n" +
 		"configuration file, which wins over the default. An empty variable, like a key written with no value in the\n" +
 		"file, counts as unset and keeps the default. A variable set to `\"\"` means what `\"\"` means in the configuration\n" +
 		"file: it clears a key with a default, as `prefixes.v6: \"\"` does, and is an error where the file's `\"\"` is one. A\n" +
-		"list also clears with `[]`. Quote the value so the quotes reach headscale:\n\n" +
+		"list also clears with `[]`. Quote the value so the quotes reach orgscale:\n\n" +
 		"```shell\n" +
-		"export HEADSCALE_PREFIXES_V6='\"\"'\n" +
-		"export HEADSCALE_DERP_URLS='[]'\n" +
+		"export ORGSCALE_PREFIXES_V6='\"\"'\n" +
+		"export ORGSCALE_DERP_URLS='[]'\n" +
 		"```\n\n" +
 		"```yaml title=\"docker-compose.yaml\"\n" +
 		"environment:\n" +
-		"  HEADSCALE_PREFIXES_V6: '\"\"'\n" +
-		"  HEADSCALE_DERP_URLS: '[]'\n" +
+		"  ORGSCALE_PREFIXES_V6: '\"\"'\n" +
+		"  ORGSCALE_DERP_URLS: '[]'\n" +
 		"```\n\n" +
 		"An env file (a Compose `env_file`, a systemd `EnvironmentFile=`) and a systemd `Environment=` strip one level of\n" +
 		"quotes, so `KEY=\"\"` there arrives empty and keeps the default: write `KEY='\"\"'` in an env file and\n" +
@@ -48,26 +48,26 @@ const (
 		"A list is a JSON array or, unless its values are objects, its values separated by spaces. A map is a JSON object,\n" +
 		"which replaces the map in the configuration file instead of merging into it. The examples below write every list\n" +
 		"and map as JSON.\n\n" +
-		"A `HEADSCALE_` variable that names no key logs a warning, and one for a removed key also says what to do instead.\n" +
-		"Other software uses the same prefix, so neither stops headscale.\n\n" +
-		"A DNS provider setting that takes text can also be set on its own as `HEADSCALE_DNS_CHALLENGE_PROVIDER_<SETTING>`,\n" +
-		"e.g. `HEADSCALE_DNS_CHALLENGE_PROVIDER_API_TOKEN`; see [`dns.challenge.provider`](#dns.challenge.provider).\n\n"
+		"A `ORGSCALE_` variable that names no key logs a warning, and one for a removed key also says what to do instead.\n" +
+		"Other software uses the same prefix, so neither stops orgscale.\n\n" +
+		"A DNS provider setting that takes text can also be set on its own as `ORGSCALE_DNS_CHALLENGE_PROVIDER_<SETTING>`,\n" +
+		"e.g. `ORGSCALE_DNS_CHALLENGE_PROVIDER_API_TOKEN`; see [`dns.challenge.provider`](#dns.challenge.provider).\n\n"
 
 	referenceSecrets = "### Secrets { #secrets }\n\n" +
 		"A secret takes the value itself or `file:<path>`, which reads it from that file. Environment variables in the path\n" +
 		"are expanded, as in `file:${CREDENTIALS_DIRECTORY}/oidc_client_secret`, and whitespace around the file's contents\n" +
-		"is trimmed; an empty file is an error. Headscale reads the file only where the secret is used, and\n" +
-		"`headscale check config` and `headscale check all` never read it. `headscale generate config --running` and\n" +
+		"is trimmed; an empty file is an error. Orgscale reads the file only where the secret is used, and\n" +
+		"`orgscale check config` and `orgscale check all` never read it. `orgscale generate config --running` and\n" +
 		"`/debug/config` show a literal secret as `<redacted>` and a `file:` reference as written.\n\n"
 
 	referenceNixSecret = "On NixOS, keep a secret out of the Nix store: load it as a systemd credential and point the key at it.\n\n" +
 		"```nix\n" +
-		"services.headscale.settings.oidc.client_secret = \"file:\\${CREDENTIALS_DIRECTORY}/oidc_client_secret\";\n" +
-		"systemd.services.headscale.serviceConfig.LoadCredential = [ \"oidc_client_secret:/run/secrets/oidc_client_secret\" ];\n" +
+		"services.orgscale.settings.oidc.client_secret = \"file:\\${CREDENTIALS_DIRECTORY}/oidc_client_secret\";\n" +
+		"systemd.services.orgscale.serviceConfig.LoadCredential = [ \"oidc_client_secret:/run/secrets/oidc_client_secret\" ];\n" +
 		"```\n\n"
 
 	referenceRemoved = "## Removed keys { #removed-keys }\n\n" +
-		"Keys headscale no longer reads. One in the configuration file stops headscale with an error and a variable for\n" +
+		"Keys orgscale no longer reads. One in the configuration file stops orgscale with an error and a variable for\n" +
 		"one logs a warning, each saying what to do instead, as the table does.\n\n"
 
 	secretsDir = "file:/run/secrets/"
@@ -255,8 +255,8 @@ func (r *reference) details(k keyInfo) {
 
 		r.table([]string{"Provider", "Settings"}, providers)
 		// The variable holds text, so an object setting cannot have one.
-		r.paragraph("Each text setting can also be set on its own as `HEADSCALE_DNS_CHALLENGE_PROVIDER_<SETTING>`, e.g. " +
-			"`HEADSCALE_DNS_CHALLENGE_PROVIDER_API_TOKEN`, which wins over the same setting in `" + k.Env + "` and in the configuration file. " +
+		r.paragraph("Each text setting can also be set on its own as `ORGSCALE_DNS_CHALLENGE_PROVIDER_<SETTING>`, e.g. " +
+			"`ORGSCALE_DNS_CHALLENGE_PROVIDER_API_TOKEN`, which wins over the same setting in `" + k.Env + "` and in the configuration file. " +
 			"An object setting, such as the `config` of `acmedns`, goes inside the JSON object of `" + k.Env + "`; " +
 			"see [Environment variables](dns.md#environment-variables).")
 	}
@@ -278,9 +278,9 @@ func (r *reference) examples(k keyInfo) error {
 	if !clientOnly(k.Path) {
 		var creds []string
 
-		nix := "services.headscale.settings." + k.Path + " = " + nixLiteral(credentials(k.Path, k.Example, &creds), 0) + ";\n"
+		nix := "services.orgscale.settings." + k.Path + " = " + nixLiteral(credentials(k.Path, k.Example, &creds), 0) + ";\n"
 		if len(creds) > 0 {
-			nix += "systemd.services.headscale.serviceConfig.LoadCredential = [ \"" + strings.Join(creds, "\" \"") + "\" ];\n"
+			nix += "systemd.services.orgscale.serviceConfig.LoadCredential = [ \"" + strings.Join(creds, "\" \"") + "\" ];\n"
 		}
 
 		r.WriteString("=== \"NixOS\"\n\n")
@@ -542,7 +542,7 @@ func yamlText(v any) (string, error) {
 }
 
 // envLine is the shell line setting the variable env to v, exported so
-// the headscale started next reads it.
+// the orgscale started next reads it.
 func envLine(env string, v any) string {
 	return "export " + env + "=" + shellQuote(envValue(v)) + "\n"
 }

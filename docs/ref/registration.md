@@ -1,6 +1,6 @@
 # Registration methods
 
-Headscale supports multiple ways to register a node. The preferred registration method depends on the identity of a node
+Orgscale supports multiple ways to register a node. The preferred registration method depends on the identity of a node
 and your use case.
 
 ## Identity model
@@ -14,8 +14,8 @@ Tailscale's identity model distinguishes between personal and tagged nodes:
   tagged nodes, e.g. a tagged node is not allowed to [Tailscale SSH](https://tailscale.com/docs/features/tailscale-ssh)
   into a personal node.
 
-Headscale implements Tailscale's identity model and distinguishes between personal and tagged nodes where a personal
-node is owned by a Headscale user and a tagged node is owned by a tag. Tagged devices are grouped under the special user
+Orgscale implements Tailscale's identity model and distinguishes between personal and tagged nodes where a personal
+node is owned by a Orgscale user and a tagged node is owned by a tag. Tagged devices are grouped under the special user
 `tagged-devices`.
 
 ## Registration methods
@@ -26,18 +26,18 @@ authenticated key](#pre-authenticated-key). Both methods can be used to register
 ### Web authentication
 
 Web authentication is the default method to register a new node. It's interactive, where the client initiates the
-registration and the Headscale administrator needs to approve the new node before it is allowed to join the network. A
+registration and the Orgscale administrator needs to approve the new node before it is allowed to join the network. A
 node can be approved with:
 
-- Headscale CLI (described in this documentation)
-- [Headscale API](api.md)
+- Orgscale CLI (described in this documentation)
+- [Orgscale API](api.md)
 - Or delegated to an identity provider via [OpenID Connect](oidc.md)
 
-Web authentication relies on the presence of a Headscale user. Use the `headscale users` command to create a new
+Web authentication relies on the presence of a Orgscale user. Use the `orgscale users` command to create a new
 user[^1]:
 
 ```console
-headscale users create <USER>
+orgscale users create <USER>
 ```
 
 === "Personal devices"
@@ -45,22 +45,22 @@ headscale users create <USER>
     Run `tailscale up` to login your personal device:
 
     ```console
-    tailscale up --login-server <YOUR_HEADSCALE_URL>
+    tailscale up --login-server <YOUR_ORGSCALE_URL>
     ```
 
     Usually, a browser window with further instructions is opened. This page explains how to complete the registration
-    on your Headscale server and it also prints the Auth ID required to approve the node:
+    on your Orgscale server and it also prints the Auth ID required to approve the node:
 
     ```console
-    headscale auth register --user <USER> --auth-id <AUTH_ID>
+    orgscale auth register --user <USER> --auth-id <AUTH_ID>
     ```
 
     Congrations, the registration of your personal node is complete and it should be listed as "online" in the output of
-    `headscale nodes list`. The "User" column displays `<USER>` as the owner of the node.
+    `orgscale nodes list`. The "User" column displays `<USER>` as the owner of the node.
 
 === "Tagged devices"
 
-    Your Headscale user needs to be authorized to register tagged devices. This authorization is specified in the
+    Your Orgscale user needs to be authorized to register tagged devices. This authorization is specified in the
     [`tagOwners`](https://tailscale.com/docs/reference/syntax/policy-file#tag-owners) section of the
     [policy](policy.md). A simple example looks like this:
 
@@ -76,24 +76,24 @@ headscale users create <USER>
     Run `tailscale up` and provide at least one tag to login a tagged device:
 
     ```console
-    tailscale up --login-server <YOUR_HEADSCALE_URL> --advertise-tags tag:<TAG>
+    tailscale up --login-server <YOUR_ORGSCALE_URL> --advertise-tags tag:<TAG>
     ```
 
     Usually, a browser window with further instructions is opened. This page explains how to complete the registration
-    on your Headscale server and it also prints the Auth ID required to approve the node:
+    on your Orgscale server and it also prints the Auth ID required to approve the node:
 
     ```console
-    headscale auth register --user <USER> --auth-id <AUTH_ID>
+    orgscale auth register --user <USER> --auth-id <AUTH_ID>
     ```
 
-    Headscale checks that `<USER>` is allowed to register a node with the specified tag(s) and then transfers ownership
+    Orgscale checks that `<USER>` is allowed to register a node with the specified tag(s) and then transfers ownership
     of the new node to the special user `tagged-devices`. The registration of a tagged node is complete and it should be
-    listed as "online" in the output of `headscale nodes list`. The "User" column displays `tagged-devices` as the owner
+    listed as "online" in the output of `orgscale nodes list`. The "User" column displays `tagged-devices` as the owner
     of the node. See the "Tags" column for the list of assigned tags.
 
 ### Pending authentication limits
 
-Headscale keeps admitted authentication requests until they complete or expire.
+Orgscale keeps admitted authentication requests until they complete or expire.
 When registration capacity is reached, new requests receive HTTP 503 with
 `Retry-After` instead of invalidating someone else's pending approval. Existing
 approvals and pre-authenticated key registration remain available. SSH checks
@@ -121,40 +121,40 @@ overload.
 
 ### Pre authenticated key
 
-Registration with a pre authenticated key (or auth key) is a non-interactive way to register a new node. The Headscale
+Registration with a pre authenticated key (or auth key) is a non-interactive way to register a new node. The Orgscale
 administrator creates a preauthkey upfront and this preauthkey can then be used to register a node non-interactively.
 Its best suited for automation.
 
 === "Personal devices"
 
-    A personal node is always assigned to a Headscale user. Use the `headscale users` command to create a new user[^1]:
+    A personal node is always assigned to a Orgscale user. Use the `orgscale users` command to create a new user[^1]:
 
     ```console
-    headscale users create <USER>
+    orgscale users create <USER>
     ```
 
-    Create a new pre authenticated key for your user, by name or by the `<USER_ID>` that `headscale user list` shows:
+    Create a new pre authenticated key for your user, by name or by the `<USER_ID>` that `orgscale user list` shows:
 
     ```console
-    headscale preauthkeys create --user <USER>
+    orgscale preauthkeys create --user <USER>
     ```
 
     The above prints a pre authenticated key with the default settings (can be used once and is valid for one hour). Use
     this auth key to register a node non-interactively:
 
     ```console
-    tailscale up --login-server <YOUR_HEADSCALE_URL> --authkey <YOUR_AUTH_KEY>
+    tailscale up --login-server <YOUR_ORGSCALE_URL> --authkey <YOUR_AUTH_KEY>
     ```
 
     Congrations, the registration of your personal node is complete and it should be listed as "online" in the output of
-    `headscale nodes list`. The "User" column displays `<USER>` as the owner of the node.
+    `orgscale nodes list`. The "User" column displays `<USER>` as the owner of the node.
 
 === "Tagged devices"
 
     Create a new pre authenticated key and provide at least one tag:
 
     ```console
-    headscale preauthkeys create --tags tag:<TAG>
+    orgscale preauthkeys create --tags tag:<TAG>
     ```
 
     The above prints a pre authenticated key with the default settings (can be used once and is valid for one hour). Use
@@ -163,11 +163,11 @@ Its best suited for automation.
     any other tag is rejected:
 
     ```console
-    tailscale up --login-server <YOUR_HEADSCALE_URL> --authkey <YOUR_AUTH_KEY>
+    tailscale up --login-server <YOUR_ORGSCALE_URL> --authkey <YOUR_AUTH_KEY>
     ```
 
     The registration of a tagged node is complete and it should be listed as "online" in the output of
-    `headscale nodes list`. The "User" column displays `tagged-devices` as the owner of the node. See the "Tags" column for the list of
+    `orgscale nodes list`. The "User" column displays `tagged-devices` as the owner of the node. See the "Tags" column for the list of
     assigned tags.
 
-[^1]: [Ensure that the Headscale username does not end with `@`.](oidc.md#reference-a-user-in-the-policy)
+[^1]: [Ensure that the Orgscale username does not end with `@`.](oidc.md#reference-a-user-in-the-policy)

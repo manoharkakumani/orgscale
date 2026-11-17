@@ -83,7 +83,7 @@ func (hsdb *HSDatabase) CreateTokenPreAuthKey(
 	})
 }
 
-const authKeyPrefix = "hskey-auth-"
+const authKeyPrefix = "oskey-auth-"
 
 // CreatePreAuthKey creates a new [types.PreAuthKey] in a user, and returns it.
 // The uid parameter can be nil for system-created tagged keys.
@@ -265,7 +265,7 @@ func legacyAuthKeyIdentifier(key string) string {
 }
 
 // parsePrefixedKey splits the prefix-and-secret portion of a new-format key
-// (the part after the "hskey-*-" prefix) into its fixed-length prefix and
+// (the part after the "oskey-*-" prefix) into its fixed-length prefix and
 // secret components, validating the length, separator position, and that both
 // components are base64 URL-safe. Fixed-length parsing is used instead of
 // separator-based to handle dashes in base64 URL-safe characters.

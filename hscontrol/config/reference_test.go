@@ -185,7 +185,7 @@ func TestReferenceKeys(t *testing.T) {
 		path       string
 		want, hide []string
 	}{
-		{path: "server_url", want: []string{"\n- **Required**\n", "\n    export HEADSCALE_SERVER_URL=https://headscale.example.com\n"}},
+		{path: "server_url", want: []string{"\n- **Required**\n", "\n    export ORGSCALE_SERVER_URL=https://orgscale.example.com\n"}},
 		{path: "database.type", want: []string{
 			"- **Type:** [enum](#type-enum): `sqlite`, `sqlite3`, `postgres`\n",
 			"- **Default:** `sqlite`\n",
@@ -196,29 +196,29 @@ func TestReferenceKeys(t *testing.T) {
 		{path: "unix_socket_permission", want: []string{"- **Type:** [file mode](#type-file-mode)\n", "- **Default:** `\"0770\"`\n"}},
 		{path: "dns.nameservers.split", want: []string{
 			"- **Type:** [map of `<domain>` → list of strings](#type-map)\n",
-			"- **Env:** `HEADSCALE_DNS_NAMESERVERS_SPLIT` ([JSON object](#env))\n",
-			"    export HEADSCALE_DNS_NAMESERVERS_SPLIT='{\"corp.example.com\":[\"192.0.2.53\"],",
-			"    services.headscale.settings.dns.nameservers.split = {\n      \"corp.example.com\" = [\n",
+			"- **Env:** `ORGSCALE_DNS_NAMESERVERS_SPLIT` ([JSON object](#env))\n",
+			"    export ORGSCALE_DNS_NAMESERVERS_SPLIT='{\"corp.example.com\":[\"192.0.2.53\"],",
+			"    services.orgscale.settings.dns.nameservers.split = {\n      \"corp.example.com\" = [\n",
 		}, hide: []string{"Each `<domain>` key"}},
 		{path: "database.postgres.pass", want: []string{
 			"- **Type:** [secret](#secrets)\n",
-			"    services.headscale.settings.database.postgres.pass = \"file:\\${CREDENTIALS_DIRECTORY}/database_postgres_pass\";\n",
-			"    systemd.services.headscale.serviceConfig.LoadCredential = [ \"database_postgres_pass:/run/secrets/postgres_password\" ];\n",
+			"    services.orgscale.settings.database.postgres.pass = \"file:\\${CREDENTIALS_DIRECTORY}/database_postgres_pass\";\n",
+			"    systemd.services.orgscale.serviceConfig.LoadCredential = [ \"database_postgres_pass:/run/secrets/postgres_password\" ];\n",
 			"Replaces `database.postgres.password_file` ([removed](#database.postgres.password_file)).",
 		}},
 		{path: "dns.challenge.provider", want: []string{
 			"| Provider ",
 			"| `cloudflare` ",
-			"Each text setting can also be set on its own as `HEADSCALE_DNS_CHALLENGE_PROVIDER_<SETTING>`",
-			"An object setting, such as the `config` of `acmedns`, goes inside the JSON object of `HEADSCALE_DNS_CHALLENGE_PROVIDER`",
+			"Each text setting can also be set on its own as `ORGSCALE_DNS_CHALLENGE_PROVIDER_<SETTING>`",
+			"An object setting, such as the `config` of `acmedns`, goes inside the JSON object of `ORGSCALE_DNS_CHALLENGE_PROVIDER`",
 			"(dns.md#environment-variables)",
 			"api_token = \"file:\\${CREDENTIALS_DIRECTORY}/dns_challenge_provider_api_token\";",
 			"LoadCredential = [ \"dns_challenge_provider_api_token:/run/secrets/cloudflare\" ];",
 		}},
-		{path: "cli", want: []string{"`services.headscale.settings`"}},
-		{path: "cli.api_key", want: []string{"=== \"Environment\"", "export HEADSCALE_CLI_API_KEY=file:/run/secrets/"}, hide: []string{"=== \"NixOS\"", "CREDENTIALS_DIRECTORY"}},
+		{path: "cli", want: []string{"`services.orgscale.settings`"}},
+		{path: "cli.api_key", want: []string{"=== \"Environment\"", "export ORGSCALE_CLI_API_KEY=file:/run/secrets/"}, hide: []string{"=== \"NixOS\"", "CREDENTIALS_DIRECTORY"}},
 		{path: "dns.extra_records", want: []string{
-			"- **Env:** `HEADSCALE_DNS_EXTRA_RECORDS` ([JSON array](#env))\n",
+			"- **Env:** `ORGSCALE_DNS_EXTRA_RECORDS` ([JSON array](#env))\n",
 			"| Field ",
 			"| `value` | [string](#type-string) | The IP address the name resolves to. ",
 		}},
@@ -338,7 +338,7 @@ func exported(t *testing.T, line, env string) string {
 }
 
 // TestReferenceEnvTabs: an Environment tab pasted into a shell reaches
-// the headscale it starts.
+// the orgscale it starts.
 func TestReferenceEnvTabs(t *testing.T) {
 	blocks := keyBlocks(referencePage(t))
 	byPath := schemaByPath(t)
@@ -356,7 +356,7 @@ func TestReferenceEnvTabs(t *testing.T) {
 
 	t.Run("quotes", func(t *testing.T) {
 		v := `it's "q" $HOME`
-		require.Equal(t, v, exported(t, envLine("HEADSCALE_X", v), "HEADSCALE_X"))
+		require.Equal(t, v, exported(t, envLine("ORGSCALE_X", v), "ORGSCALE_X"))
 	})
 }
 

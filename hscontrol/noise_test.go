@@ -72,7 +72,7 @@ func TestNoiseRouter_DoesNotExposeAdministrativeEndpoints(t *testing.T) {
 			t.Parallel()
 
 			serverKey := key.NewMachine()
-			app := &Headscale{
+			app := &Orgscale{
 				cfg:             &types.Config{MetricsAddr: types.ListenAddr(metricsAddr)},
 				noisePrivateKey: &serverKey,
 			}
@@ -161,7 +161,7 @@ func TestMetricsRouterIsolation(t *testing.T) {
 // newNoiseRouterWithBodyLimit builds a chi router with the same body-limit
 // middleware used in the real Noise router but wired to a test handler that
 // captures the [io.ReadAll] result. This lets us verify the limit without
-// needing a full [Headscale] instance.
+// needing a full [Orgscale] instance.
 func newNoiseRouterWithBodyLimit(readBody *[]byte, readErr *error) http.Handler {
 	r := chi.NewRouter()
 	r.Use(func(next http.Handler) http.Handler {
@@ -351,7 +351,7 @@ func TestPollNetMapHandler_LastControlAddress(t *testing.T) {
 	}
 	view := app.state.PutNodeInStoreForTest(*node)
 
-	ns := &noiseServer{headscale: app, machineKey: view.MachineKey()}
+	ns := &noiseServer{orgscale: app, machineKey: view.MachineKey()}
 	request := tailcfg.MapRequest{
 		Version:   tailcfg.CurrentCapabilityVersion,
 		NodeKey:   view.NodeKey(),
@@ -398,7 +398,7 @@ func TestPollNetMapHandler_LastControlAddress(t *testing.T) {
 	})
 
 	t.Run("machine key mismatch cannot overwrite", func(t *testing.T) {
-		rogue := &noiseServer{headscale: app, machineKey: key.NewMachine().Public()}
+		rogue := &noiseServer{orgscale: app, machineKey: key.NewMachine().Public()}
 		resp := pollMapRequest(t, rogue, "192.0.2.99:1234", request)
 		assert.Equal(t, http.StatusNotFound, resp.Code)
 
@@ -475,7 +475,7 @@ func TestRegistrationHandler_AdmissionRetry(t *testing.T) {
 
 	require.NoError(t, app.state.SetAuthCacheEntry(types.MustAuthID(), types.NewAuthRequest()))
 
-	ns := &noiseServer{headscale: app, machineKey: key.NewMachine().Public()}
+	ns := &noiseServer{orgscale: app, machineKey: key.NewMachine().Public()}
 	rec := serveRegister(t, ns, tailcfg.RegisterRequest{
 		Version:  capver.MinSupportedCapabilityVersion,
 		NodeKey:  key.NewNode().Public(),
@@ -497,7 +497,7 @@ func TestRegistrationHandler_RegistrationPayloadLimit(t *testing.T) {
 	hostinfo := &tailcfg.Hostinfo{Hostname: "node", OS: strings.Repeat("x", types.MaxHostinfoSize-128)}
 	require.NoError(t, types.ValidateHostinfo(hostinfo), "the full registration must reach cache admission")
 
-	ns := &noiseServer{headscale: app, machineKey: key.NewMachine().Public()}
+	ns := &noiseServer{orgscale: app, machineKey: key.NewMachine().Public()}
 	rec := serveRegister(t, ns, tailcfg.RegisterRequest{
 		Version:  capver.MinSupportedCapabilityVersion,
 		NodeKey:  key.NewNode().Public(),
@@ -520,13 +520,13 @@ func TestSSHActionFollowUp_ReleasesConsumedSession(t *testing.T) {
 	authID, auth := f.mint(t)
 	auth.FinishAuth(types.AuthVerdict{})
 
-	_, ok := f.ns.headscale.state.GetAuthCacheEntry(authID)
+	_, ok := f.ns.orgscale.state.GetAuthCacheEntry(authID)
 	require.True(t, ok, "approval must remain available until the client consumes it")
 
 	action := sshActionFromRecorder(t, f.followUp(t, authID))
 	require.True(t, action.Accept)
 
-	_, ok = f.ns.headscale.state.GetAuthCacheEntry(authID)
+	_, ok = f.ns.orgscale.state.GetAuthCacheEntry(authID)
 	require.False(t, ok, "a consumed verdict must release its admission slot")
 }
 
@@ -538,7 +538,7 @@ func requireBelowFloorRejected(t *testing.T, rec *httptest.ResponseRecorder) {
 }
 
 // TestRegistrationHandler_BelowFloorLeavesNoStateChange pins that the
-// capability floor is checked before [Headscale.handleRegister]. A logout,
+// capability floor is checked before [Orgscale.handleRegister]. A logout,
 // pre-auth key use or auth-cache write that ran first would not be undone by
 // the 400 the client then receives.
 func TestRegistrationHandler_BelowFloorLeavesNoStateChange(t *testing.T) {
@@ -554,7 +554,7 @@ func TestRegistrationHandler_BelowFloorLeavesNoStateChange(t *testing.T) {
 		{"floor-1", capver.MinSupportedCapabilityVersion - 1},
 	}
 
-	// A nil headscale proves the rejected request never reaches it.
+	// A nil orgscale proves the rejected request never reaches it.
 	t.Run("nil_server", func(t *testing.T) {
 		t.Parallel()
 
@@ -602,7 +602,7 @@ func TestRegistrationHandler_BelowFloorLeavesNoStateChange(t *testing.T) {
 	})
 
 	// A request that passes the floor but fails to decode must be answered
-	// with RegisterResponse.Error before anything reaches the nil headscale.
+	// with RegisterResponse.Error before anything reaches the nil orgscale.
 	// NodeKey 1 is a type error, which still leaves Version decoded.
 	t.Run("decode_error_at_floor", func(t *testing.T) {
 		t.Parallel()
@@ -634,7 +634,7 @@ func TestRegistrationHandler_BelowFloorLeavesNoStateChange(t *testing.T) {
 				pak, err := app.state.CreatePreAuthKey(user.TypedID(), false, false, nil, nil)
 				require.NoError(t, err)
 
-				ns := &noiseServer{headscale: app, machineKey: key.NewMachine().Public()}
+				ns := &noiseServer{orgscale: app, machineKey: key.NewMachine().Public()}
 				rec := serveRegister(t, ns, tailcfg.RegisterRequest{
 					Version:  tc.version,
 					NodeKey:  key.NewNode().Public(),
@@ -698,7 +698,7 @@ func TestRegistrationHandler_BelowFloorLeavesNoStateChange(t *testing.T) {
 				require.Equal(t, tc.ephemeral, before.IsEphemeral())
 				require.False(t, before.IsExpired())
 
-				ns := &noiseServer{headscale: app, machineKey: machineKey}
+				ns := &noiseServer{orgscale: app, machineKey: machineKey}
 				rec := serveRegister(t, ns, tailcfg.RegisterRequest{
 					Version: capver.MinSupportedCapabilityVersion - 1,
 					NodeKey: nodeKey,
@@ -715,7 +715,7 @@ func TestRegistrationHandler_BelowFloorLeavesNoStateChange(t *testing.T) {
 }
 
 // TestSSHActionRoute_OldPathReturns404 pins the wire-format shape of the
-// SSH check-action endpoint. Pre-alignment headscale served
+// SSH check-action endpoint. Pre-alignment orgscale served
 // /machine/ssh/action/from/{src}/to/{dst}?ssh_user=...; the current
 // endpoint is /machine/ssh/action/{src}/to/{dst}?local_user=.... If
 // someone re-adds the old route shape, this fails.
@@ -775,7 +775,7 @@ func newSSHActionRequest(t *testing.T, src, dst types.NodeID) *http.Request {
 // putTestNodeInStore creates a node via the database test helper and
 // also stages it into the in-memory [state.NodeStore] so handlers that read
 // [state.NodeStore]-backed APIs (e.g. [state.State.GetNodeByID]) can see it.
-func putTestNodeInStore(t *testing.T, app *Headscale, user *types.User, hostname string) *types.Node {
+func putTestNodeInStore(t *testing.T, app *Orgscale, user *types.User, hostname string) *types.Node {
 	t.Helper()
 
 	node := app.state.CreateNodeForTest(user, hostname)
@@ -798,7 +798,7 @@ func sshCheckPolicy(userName string) string {
 // putSSHCheckNodes stages one node per hostname for a new user and sets
 // [sshCheckPolicy], so the SSH action handler holds and delegates for any
 // pair of them.
-func putSSHCheckNodes(t *testing.T, app *Headscale, userName string, hostnames ...string) []*types.Node {
+func putSSHCheckNodes(t *testing.T, app *Orgscale, userName string, hostnames ...string) []*types.Node {
 	t.Helper()
 
 	user := app.state.CreateUserForTest(userName)
@@ -841,7 +841,7 @@ func TestSSHActionHandler_RejectsRogueMachineKey(t *testing.T) {
 	require.NotEqual(t, dst.MachineKey, rogue, "test sanity: rogue key must differ from dst")
 
 	ns := &noiseServer{
-		headscale:  app,
+		orgscale:  app,
 		machineKey: rogue,
 	}
 
@@ -867,7 +867,7 @@ func TestSSHActionHandler_RejectsUnknownDst(t *testing.T) {
 	src := putTestNodeInStore(t, app, user, "src-node")
 
 	ns := &noiseServer{
-		headscale:  app,
+		orgscale:  app,
 		machineKey: key.NewMachine().Public(),
 	}
 
@@ -903,7 +903,7 @@ func TestSSHActionFollowUp_RejectsBindingMismatch(t *testing.T) {
 	// the outer machine-key check passes — only the binding check
 	// should reject it.
 	ns := &noiseServer{
-		headscale:  app,
+		orgscale:  app,
 		machineKey: dstOther.MachineKey,
 	}
 
@@ -963,7 +963,7 @@ func TestSSHActionHoldAndDelegate_PersistsAuthSession(t *testing.T) {
 	nodes := putSSHCheckNodes(t, app, "ssh-persist-user", "src-node", "dst-node")
 	src, dst := nodes[0], nodes[1]
 
-	ns := &noiseServer{headscale: app, machineKey: dst.MachineKey}
+	ns := &noiseServer{orgscale: app, machineKey: dst.MachineKey}
 
 	rec := httptest.NewRecorder()
 	ns.SSHActionHandler(rec, newSSHActionRequest(t, src.ID, dst.ID))
@@ -1003,7 +1003,7 @@ func TestSSHActionHandler_RejectsWithoutCheck(t *testing.T) {
 	_, checkFound := app.state.SSHCheckParams(src.ID, dst.ID, sshTestLocalUser)
 	require.False(t, checkFound, "test setup: pair must not be subject to a check")
 
-	ns := &noiseServer{headscale: app, machineKey: dst.MachineKey}
+	ns := &noiseServer{orgscale: app, machineKey: dst.MachineKey}
 
 	for name, req := range map[string]*http.Request{
 		"initial":   newSSHActionRequest(t, src.ID, dst.ID),
@@ -1064,7 +1064,7 @@ func TestSSHActionFollowUp_RejectsVerdictAfterCheckRemoved(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			ns := &noiseServer{headscale: app, machineKey: dst.MachineKey}
+			ns := &noiseServer{orgscale: app, machineKey: dst.MachineKey}
 
 			// Call the follow-up directly: the verdict is already in, as if
 			// the policy changed while the user was authenticating.
@@ -1224,7 +1224,7 @@ func newSSHVerdictFixture(t *testing.T) *sshVerdictFixture {
 	require.True(t, ok)
 
 	return &sshVerdictFixture{
-		ns:  &noiseServer{headscale: app, machineKey: dst.MachineKey()},
+		ns:  &noiseServer{orgscale: app, machineKey: dst.MachineKey()},
 		src: ids[0],
 		dst: ids[1],
 	}
@@ -1239,7 +1239,7 @@ func (f *sshVerdictFixture) mint(t *testing.T) (types.AuthID, *types.AuthRequest
 
 	authID := requireSSHHold(t, sshActionFromRecorder(t, rec))
 
-	auth, ok := f.ns.headscale.state.GetAuthCacheEntry(authID)
+	auth, ok := f.ns.orgscale.state.GetAuthCacheEntry(authID)
 	require.True(t, ok, "minted session must be cached")
 
 	return authID, auth
@@ -1333,7 +1333,7 @@ func TestSSHActionFollowUp_ConsumedVerdictNotReplayed(t *testing.T) {
 			assert.NotEqual(t, authID, replayID, "re-delegation must mint a new session")
 
 			// A replay that recorded auth would feed auto-approval.
-			_, recorded := f.ns.headscale.state.GetLastSSHAuth(f.src, f.dst)
+			_, recorded := f.ns.orgscale.state.GetLastSSHAuth(f.src, f.dst)
 			assert.Equal(t, tc.accept, recorded, "only an accepted verdict may record auth")
 		})
 	}
@@ -1352,10 +1352,10 @@ func TestSSHActionFollowUp_ConsumedVerdictNotReplayed(t *testing.T) {
 			require.True(t, carriesSSHVerdict(first, tc.accept),
 				"first follow-up must carry the verdict, got %+v", first)
 
-			_, err := f.ns.headscale.state.SetPolicy([]byte(`{}`))
+			_, err := f.ns.orgscale.state.SetPolicy([]byte(`{}`))
 			require.NoError(t, err)
 
-			_, checkFound := f.ns.headscale.state.SSHCheckParams(f.src, f.dst, sshTestLocalUser)
+			_, checkFound := f.ns.orgscale.state.SSHCheckParams(f.src, f.dst, sshTestLocalUser)
 			require.False(t, checkFound, "test setup: pair must no longer be subject to a check")
 
 			rec := f.followUp(t, authID)
@@ -1517,7 +1517,7 @@ func TestSSHActionFollowUp_LostResponseRedecides(t *testing.T) {
 	freshID := requireSSHHold(t, retry)
 	require.NotEqual(t, authID, freshID)
 
-	fresh, ok := f.ns.headscale.state.GetAuthCacheEntry(freshID)
+	fresh, ok := f.ns.orgscale.state.GetAuthCacheEntry(freshID)
 	require.True(t, ok, "re-delegated session must be cached")
 	fresh.FinishAuth(types.AuthVerdict{})
 
@@ -1563,7 +1563,7 @@ func TestPollNetMapHandler_DeletedNodeGetsNotFound(t *testing.T) {
 			_, err := app.state.DeleteNode(nodeView)
 			require.NoError(t, err)
 
-			ns := &noiseServer{headscale: app, machineKey: node.MachineKey}
+			ns := &noiseServer{orgscale: app, machineKey: node.MachineKey}
 
 			rec := httptest.NewRecorder()
 			ns.PollNetMapHandler(rec, newMapRequest(t, tailcfg.MapRequest{
@@ -1589,7 +1589,7 @@ func TestPollNetMapHandler_ForeignMachineKeyStillRejected(t *testing.T) {
 	victim := putTestNodeInStore(t, app, user, "victim-node")
 	impostor := putTestNodeInStore(t, app, user, "impostor-node")
 
-	ns := &noiseServer{headscale: app, machineKey: impostor.MachineKey}
+	ns := &noiseServer{orgscale: app, machineKey: impostor.MachineKey}
 
 	rec := httptest.NewRecorder()
 	ns.PollNetMapHandler(rec, newMapRequest(t, tailcfg.MapRequest{
@@ -1612,7 +1612,7 @@ func challengeValue(seed string) string {
 
 // setDNSTestApp returns an app with node certificates enabled and an
 // in-memory DNS provider that records every call.
-func setDNSTestApp(t *testing.T) (*Headscale, *dnstest.Provider) {
+func setDNSTestApp(t *testing.T) (*Orgscale, *dnstest.Provider) {
 	t.Helper()
 
 	app := createTestApp(t)
@@ -1626,7 +1626,7 @@ func setDNSTestApp(t *testing.T) (*Headscale, *dnstest.Provider) {
 	return app, provider
 }
 
-func putCertNode(t *testing.T, app *Headscale, user *types.User, name string, modify ...func(*types.Node)) *types.Node {
+func putCertNode(t *testing.T, app *Orgscale, user *types.User, name string, modify ...func(*types.Node)) *types.Node {
 	t.Helper()
 
 	node := app.state.CreateNodeForTest(user, name)
@@ -1825,7 +1825,7 @@ func TestSetDNSHandler(t *testing.T) {
 				tt.mutate(&req, &mkey)
 			}
 
-			rec := setDNS(t, &noiseServer{headscale: app, machineKey: mkey}, req)
+			rec := setDNS(t, &noiseServer{orgscale: app, machineKey: mkey}, req)
 			require.Equal(t, tt.wantCode, rec.Code, rec.Body.String())
 
 			if !tt.wantValue {
@@ -1849,7 +1849,7 @@ func TestSetDNSHandlerProviderErrors(t *testing.T) {
 	app, provider := setDNSTestApp(t)
 	user := app.state.CreateUserForTest("set-dns-errors-user")
 	laptop := putCertNode(t, app, user, "laptop")
-	ns := &noiseServer{headscale: app, machineKey: laptop.MachineKey}
+	ns := &noiseServer{orgscale: app, machineKey: laptop.MachineKey}
 
 	req := func(seed string) tailcfg.SetDNSRequest {
 		return tailcfg.SetDNSRequest{
@@ -1900,7 +1900,7 @@ func TestSetDNSHandlerBadBody(t *testing.T) {
 	laptop := putCertNode(t, app, user, "laptop")
 
 	rec := httptest.NewRecorder()
-	(&noiseServer{headscale: app, machineKey: laptop.MachineKey}).SetDNSHandler(rec, httptest.NewRequestWithContext(
+	(&noiseServer{orgscale: app, machineKey: laptop.MachineKey}).SetDNSHandler(rec, httptest.NewRequestWithContext(
 		t.Context(), http.MethodPost, "/machine/set-dns", strings.NewReader("{not json")))
 
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
@@ -1916,7 +1916,7 @@ func TestSetDNSHandlerDisabled(t *testing.T) {
 	user := app.state.CreateUserForTest("set-dns-off-user")
 	laptop := putCertNode(t, app, user, "laptop")
 
-	rec := setDNS(t, &noiseServer{headscale: app, machineKey: laptop.MachineKey}, tailcfg.SetDNSRequest{
+	rec := setDNS(t, &noiseServer{orgscale: app, machineKey: laptop.MachineKey}, tailcfg.SetDNSRequest{
 		Version: tailcfg.CurrentCapabilityVersion,
 		NodeKey: laptop.NodeKey,
 		Name:    "_acme-challenge.laptop." + setDNSZone,
@@ -1962,7 +1962,7 @@ func TestPollNetMapHandler_AcceptsClientReport(t *testing.T) {
 		},
 	}
 
-	ns := &noiseServer{headscale: app, machineKey: node.MachineKey}
+	ns := &noiseServer{orgscale: app, machineKey: node.MachineKey}
 	rec := httptest.NewRecorder()
 	ns.PollNetMapHandler(rec, newMapRequest(t, report))
 	require.Equal(t, http.StatusOK, rec.Code, "body=%q", rec.Body.String())
@@ -2031,7 +2031,7 @@ func TestPollNetMapHandler_RejectsOversizedClientReport(t *testing.T) {
 			before, ok := app.state.GetNodeByID(node.ID)
 			require.True(t, ok)
 
-			ns := &noiseServer{headscale: app, machineKey: node.MachineKey}
+			ns := &noiseServer{orgscale: app, machineKey: node.MachineKey}
 			rec := httptest.NewRecorder()
 			tt.report.Version = tailcfg.CurrentCapabilityVersion
 
@@ -2053,7 +2053,7 @@ func TestPollNetMapHandler_RejectsOversizedClientReport(t *testing.T) {
 func TestPollNetMapHandler_UnknownNodeBeforeReportValidation(t *testing.T) {
 	t.Parallel()
 	app := createTestApp(t)
-	ns := &noiseServer{headscale: app, machineKey: key.NewMachine().Public()}
+	ns := &noiseServer{orgscale: app, machineKey: key.NewMachine().Public()}
 	rec := httptest.NewRecorder()
 	ns.PollNetMapHandler(rec, newMapRequest(t, tailcfg.MapRequest{
 		Version: tailcfg.CurrentCapabilityVersion, NodeKey: key.NewNode().Public(),
@@ -2069,7 +2069,7 @@ func TestRegistrationHandler_ValidatesClientReport(t *testing.T) {
 		t.Parallel()
 
 		app := createTestApp(t)
-		ns := &noiseServer{headscale: app, machineKey: key.NewMachine().Public()}
+		ns := &noiseServer{orgscale: app, machineKey: key.NewMachine().Public()}
 
 		rec := serveRegister(t, ns, tailcfg.RegisterRequest{
 			Version: tailcfg.CurrentCapabilityVersion,
@@ -2104,7 +2104,7 @@ func TestRegistrationHandler_ValidatesClientReport(t *testing.T) {
 	t.Run("followup discards unused request data", func(t *testing.T) {
 		t.Parallel()
 		app := createTestApp(t)
-		ns := &noiseServer{headscale: app, machineKey: key.NewMachine().Public()}
+		ns := &noiseServer{orgscale: app, machineKey: key.NewMachine().Public()}
 		rec := serveRegister(t, ns, tailcfg.RegisterRequest{
 			Version: tailcfg.CurrentCapabilityVersion, NodeKey: key.NewNode().Public(),
 			Followup: "http://localhost:8080/register/" + types.MustAuthID().String(),
@@ -2133,7 +2133,7 @@ func TestRegistrationHandler_ValidatesClientReport(t *testing.T) {
 	t.Run("oversized report", func(t *testing.T) {
 		t.Parallel()
 
-		// A nil headscale proves rejection happens before any state access.
+		// A nil orgscale proves rejection happens before any state access.
 		ns := &noiseServer{machineKey: key.NewMachine().Public()}
 
 		rec := serveRegister(t, ns, tailcfg.RegisterRequest{
@@ -2159,7 +2159,7 @@ func TestRegistrationHandler_ValidatesClientReport(t *testing.T) {
 		require.NoError(t, err)
 
 		nodeKey := key.NewNode().Public()
-		ns := &noiseServer{headscale: app, machineKey: key.NewMachine().Public()}
+		ns := &noiseServer{orgscale: app, machineKey: key.NewMachine().Public()}
 		rec := serveRegister(t, ns, tailcfg.RegisterRequest{
 			Version: tailcfg.CurrentCapabilityVersion, NodeKey: nodeKey,
 			Auth: &tailcfg.RegisterResponseAuth{AuthKey: pak.Key},
@@ -2194,7 +2194,7 @@ func TestRegistrationHandler_ValidatesClientReport(t *testing.T) {
 		require.NoError(t, err)
 
 		nodeKey := key.NewNode().Public()
-		ns := &noiseServer{headscale: app, machineKey: key.NewMachine().Public()}
+		ns := &noiseServer{orgscale: app, machineKey: key.NewMachine().Public()}
 
 		rec := serveRegister(t, ns, tailcfg.RegisterRequest{
 			Version:  tailcfg.CurrentCapabilityVersion,
@@ -2389,7 +2389,7 @@ func TestSSHActionFollowUp_ParksOneRequestPerSession(t *testing.T) {
 	auth := types.NewSSHCheckAuthRequest(src.ID, dst.ID)
 	require.NoError(t, app.state.SetAuthCacheEntry(authID, auth))
 
-	ns := &noiseServer{headscale: app, machineKey: dst.MachineKey}
+	ns := &noiseServer{orgscale: app, machineKey: dst.MachineKey}
 
 	const followups = 50
 
@@ -2464,7 +2464,7 @@ func TestC2NResponseHandler_DeliversBody(t *testing.T) {
 	c2nID, responseCh := app.state.RegisterC2N(node.ID)
 	defer app.state.CancelC2N(c2nID)
 
-	ns := &noiseServer{headscale: app, machineKey: node.MachineKey}
+	ns := &noiseServer{orgscale: app, machineKey: node.MachineKey}
 
 	const raw = "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\n{}"
 
@@ -2493,7 +2493,7 @@ func TestC2NResponseHandler_RejectsRogueMachineKey(t *testing.T) {
 	c2nID, responseCh := app.state.RegisterC2N(node.ID)
 	defer app.state.CancelC2N(c2nID)
 
-	ns := &noiseServer{headscale: app, machineKey: key.NewMachine().Public()}
+	ns := &noiseServer{orgscale: app, machineKey: key.NewMachine().Public()}
 
 	rec := httptest.NewRecorder()
 	ns.C2NResponseHandler(rec, newC2NResponseRequest(c2nID, []byte("HTTP/1.1 200 OK\r\n\r\n")))
@@ -2516,7 +2516,7 @@ func TestC2NResponseHandler_UnknownID(t *testing.T) {
 	t.Parallel()
 
 	app := createTestApp(t)
-	ns := &noiseServer{headscale: app, machineKey: key.NewMachine().Public()}
+	ns := &noiseServer{orgscale: app, machineKey: key.NewMachine().Public()}
 
 	for id, want := range map[string]int{
 		"":        http.StatusBadRequest,
@@ -2541,7 +2541,7 @@ func TestC2NResponseHandler_OversizedBody(t *testing.T) {
 	c2nID, _ := app.state.RegisterC2N(node.ID)
 	defer app.state.CancelC2N(c2nID)
 
-	ns := &noiseServer{headscale: app, machineKey: node.MachineKey}
+	ns := &noiseServer{orgscale: app, machineKey: node.MachineKey}
 
 	rec := httptest.NewRecorder()
 	ns.C2NResponseHandler(rec, newC2NResponseRequest(c2nID, bytes.Repeat([]byte("a"), maxC2NResponseBytes+1)))
@@ -2564,7 +2564,7 @@ func TestC2NResponseHandler_BrokenBody(t *testing.T) {
 	c2nID, _ := app.state.RegisterC2N(node.ID)
 	defer app.state.CancelC2N(c2nID)
 
-	ns := &noiseServer{headscale: app, machineKey: node.MachineKey}
+	ns := &noiseServer{orgscale: app, machineKey: node.MachineKey}
 
 	req := newC2NResponseRequest(c2nID, nil)
 	req.Body = io.NopCloser(iotest.ErrReader(io.ErrUnexpectedEOF))

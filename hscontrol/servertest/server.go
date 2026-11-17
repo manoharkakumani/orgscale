@@ -1,5 +1,5 @@
-// Package servertest provides an in-process test harness for Headscale's
-// control plane. It wires a real Headscale server to real Tailscale
+// Package servertest provides an in-process test harness for Orgscale's
+// control plane. It wires a real Orgscale server to real Tailscale
 // [controlclient.Direct] instances, enabling fast, deterministic tests
 // of the full control protocol without Docker or separate processes.
 package servertest
@@ -26,13 +26,13 @@ import (
 	"tailscale.com/tailcfg"
 )
 
-// TestServer is an in-process Headscale control server suitable for
+// TestServer is an in-process Orgscale control server suitable for
 // use with Tailscale's [controlclient.Direct].
 //
 // Networking uses tailscale.com/net/memnet so that all TCP
 // connections stay in-process — no real sockets are opened.
 type TestServer struct {
-	App *hscontrol.Headscale
+	App *hscontrol.Orgscale
 	URL string
 
 	memNet     *memnet.Network
@@ -150,7 +150,7 @@ func WithLogTailEnabled() ServerOption {
 	return func(c *serverConfig) { c.logTailEnabled = true }
 }
 
-// NewServer creates and starts a Headscale test server.
+// NewServer creates and starts a Orgscale test server.
 // The server is fully functional and accepts real Tailscale control
 // protocol connections over Noise.
 func NewServer(tb testing.TB, opts ...ServerOption) *TestServer {
@@ -174,7 +174,7 @@ func NewServer(tb testing.TB, opts ...ServerOption) *TestServer {
 	cfg.Prefixes.V4 = &prefixV4
 	cfg.Prefixes.V6 = &prefixV6
 	cfg.Database.Type = types.DatabaseSqlite
-	cfg.Database.Sqlite.Path = tmpDir + "/headscale_test.db"
+	cfg.Database.Sqlite.Path = tmpDir + "/orgscale_test.db"
 	cfg.Policy.Mode = types.PolicyModeDB
 	cfg.Taildrop.Enabled = sc.taildropEnabled
 	cfg.LogTail.Enabled = sc.logTailEnabled
@@ -214,22 +214,22 @@ func NewServer(tb testing.TB, opts ...ServerOption) *TestServer {
 // NewServerFromConfig starts cfg, as loaded, as a test server. Only the
 // server URL, set to the in-memory listener, and the DERP map, set
 // in-process, differ from serving cfg; the DERP map is never fetched.
-// [hscontrol.Headscale.Serve] never runs: no configured listeners, no unix
-// socket and no scheduled tasks, so this is not `headscale serve`.
+// [hscontrol.Orgscale.Serve] never runs: no configured listeners, no unix
+// socket and no scheduled tasks, so this is not `orgscale serve`.
 func NewServerFromConfig(tb testing.TB, cfg types.Config) *TestServer {
 	tb.Helper()
 
 	return start(tb, cfg, cfg.Node.Ephemeral.InactivityTimeout, false)
 }
 
-// start runs cfg through [hscontrol.NewHeadscale], then sets the ephemeral
+// start runs cfg through [hscontrol.NewOrgscale], then sets the ephemeral
 // timeout and starts the server's subsystems and listener.
 func start(tb testing.TB, cfg types.Config, ephemeralTimeout time.Duration, realListener bool) *TestServer {
 	tb.Helper()
 
-	app, err := hscontrol.NewHeadscale(&cfg)
+	app, err := hscontrol.NewOrgscale(&cfg)
 	if err != nil {
-		tb.Fatalf("servertest: NewHeadscale: %v", err)
+		tb.Fatalf("servertest: NewOrgscale: %v", err)
 	}
 
 	// Validate's floor is for clients that reconnect over real networks;
@@ -322,8 +322,8 @@ func (s *TestServer) State() *state.State {
 
 // Close shuts down the in-memory HTTP server and listener.
 // Subsystem cleanup (batcher, ephemeral GC) is handled by
-// [testing.TB.Cleanup] callbacks registered in [hscontrol.Headscale.StartBatcherForTest] and
-// [hscontrol.Headscale.StartEphemeralGCForTest].
+// [testing.TB.Cleanup] callbacks registered in [hscontrol.Orgscale.StartBatcherForTest] and
+// [hscontrol.Orgscale.StartEphemeralGCForTest].
 func (s *TestServer) Close() {
 	s.httpServer.Close()
 	s.ln.Close()
@@ -355,7 +355,7 @@ func (s *TestServer) CreateUser(tb testing.TB, name string) *types.User {
 }
 
 // ApproveAuth registers the pending login authID to user through the v1
-// API, as `headscale auth register` does.
+// API, as `orgscale auth register` does.
 func (s *TestServer) ApproveAuth(ctx context.Context, authID, user string) error {
 	apiKey, _, err := s.st.CreateAPIKey(nil)
 	if err != nil {

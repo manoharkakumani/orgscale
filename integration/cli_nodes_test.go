@@ -29,10 +29,10 @@ func TestNodeCommand(t *testing.T) {
 	require.NoError(t, err)
 	defer scenario.ShutdownAssertNoPanics(t)
 
-	err = scenario.CreateHeadscaleEnv([]tsic.Option{}, hsic.WithTestName("cli-node"))
+	err = scenario.CreateOrgscaleEnv([]tsic.Option{}, hsic.WithTestName("cli-node"))
 	require.NoError(t, err)
 
-	headscale, err := scenario.Headscale()
+	orgscale, err := scenario.Orgscale()
 	require.NoError(t, err)
 
 	regIDs := []string{
@@ -47,9 +47,9 @@ func TestNodeCommand(t *testing.T) {
 	require.NoError(t, err)
 
 	for index, regID := range regIDs {
-		_, err := headscale.Execute(
+		_, err := orgscale.Execute(
 			[]string{
-				"headscale",
+				"orgscale",
 				"debug",
 				"create-node",
 				"--name",
@@ -68,9 +68,9 @@ func TestNodeCommand(t *testing.T) {
 
 		assert.EventuallyWithT(t, func(c *assert.CollectT) {
 			err = executeAndUnmarshal(
-				headscale,
+				orgscale,
 				[]string{
-					"headscale",
+					"orgscale",
 					"auth",
 					"register",
 					"--user",
@@ -97,9 +97,9 @@ func TestNodeCommand(t *testing.T) {
 
 	assert.EventuallyWithT(t, func(ct *assert.CollectT) {
 		err := executeAndUnmarshal(
-			headscale,
+			orgscale,
 			[]string{
-				"headscale",
+				"orgscale",
 				"nodes",
 				"list",
 				"--output",
@@ -132,9 +132,9 @@ func TestNodeCommand(t *testing.T) {
 	require.NoError(t, err)
 
 	for index, regID := range otherUserRegIDs {
-		_, err := headscale.Execute(
+		_, err := orgscale.Execute(
 			[]string{
-				"headscale",
+				"orgscale",
 				"debug",
 				"create-node",
 				"--name",
@@ -153,9 +153,9 @@ func TestNodeCommand(t *testing.T) {
 
 		assert.EventuallyWithT(t, func(c *assert.CollectT) {
 			err = executeAndUnmarshal(
-				headscale,
+				orgscale,
 				[]string{
-					"headscale",
+					"orgscale",
 					"auth",
 					"register",
 					"--user",
@@ -182,9 +182,9 @@ func TestNodeCommand(t *testing.T) {
 
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		err = executeAndUnmarshal(
-			headscale,
+			orgscale,
 			[]string{
-				"headscale",
+				"orgscale",
 				"nodes",
 				"list",
 				"--output",
@@ -209,9 +209,9 @@ func TestNodeCommand(t *testing.T) {
 
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		err = executeAndUnmarshal(
-			headscale,
+			orgscale,
 			[]string{
-				"headscale",
+				"orgscale",
 				"nodes",
 				"list",
 				"--user",
@@ -241,9 +241,9 @@ func TestNodeCommand(t *testing.T) {
 	)
 
 	// Delete a nodes
-	_, err = headscale.Execute(
+	_, err = orgscale.Execute(
 		[]string{
-			"headscale",
+			"orgscale",
 			"nodes",
 			"delete",
 			"--identifier",
@@ -261,9 +261,9 @@ func TestNodeCommand(t *testing.T) {
 
 	assert.EventuallyWithT(t, func(ct *assert.CollectT) {
 		err := executeAndUnmarshal(
-			headscale,
+			orgscale,
 			[]string{
-				"headscale",
+				"orgscale",
 				"nodes",
 				"list",
 				"--user",
@@ -290,10 +290,10 @@ func TestNodeExpireCommand(t *testing.T) {
 	require.NoError(t, err)
 	defer scenario.ShutdownAssertNoPanics(t)
 
-	err = scenario.CreateHeadscaleEnv([]tsic.Option{}, hsic.WithTestName("cli-nodeexpire"))
+	err = scenario.CreateOrgscaleEnv([]tsic.Option{}, hsic.WithTestName("cli-nodeexpire"))
 	require.NoError(t, err)
 
-	headscale, err := scenario.Headscale()
+	orgscale, err := scenario.Orgscale()
 	require.NoError(t, err)
 
 	regIDs := []string{
@@ -306,9 +306,9 @@ func TestNodeExpireCommand(t *testing.T) {
 	nodes := make([]*clientv1.Node, len(regIDs))
 
 	for index, regID := range regIDs {
-		_, err := headscale.Execute(
+		_, err := orgscale.Execute(
 			[]string{
-				"headscale",
+				"orgscale",
 				"debug",
 				"create-node",
 				"--name",
@@ -327,9 +327,9 @@ func TestNodeExpireCommand(t *testing.T) {
 
 		assert.EventuallyWithT(t, func(c *assert.CollectT) {
 			err = executeAndUnmarshal(
-				headscale,
+				orgscale,
 				[]string{
-					"headscale",
+					"orgscale",
 					"auth",
 					"register",
 					"--user",
@@ -353,9 +353,9 @@ func TestNodeExpireCommand(t *testing.T) {
 
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		err = executeAndUnmarshal(
-			headscale,
+			orgscale,
 			[]string{
-				"headscale",
+				"orgscale",
 				"nodes",
 				"list",
 				"--output",
@@ -376,9 +376,9 @@ func TestNodeExpireCommand(t *testing.T) {
 	}
 
 	for idx := range 3 {
-		_, err := headscale.Execute(
+		_, err := orgscale.Execute(
 			[]string{
-				"headscale",
+				"orgscale",
 				"nodes",
 				"expire",
 				"--identifier",
@@ -392,9 +392,9 @@ func TestNodeExpireCommand(t *testing.T) {
 
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		err = executeAndUnmarshal(
-			headscale,
+			orgscale,
 			[]string{
-				"headscale",
+				"orgscale",
 				"nodes",
 				"list",
 				"--output",
@@ -429,10 +429,10 @@ func TestNodeRenameCommand(t *testing.T) {
 	require.NoError(t, err)
 	defer scenario.ShutdownAssertNoPanics(t)
 
-	err = scenario.CreateHeadscaleEnv([]tsic.Option{}, hsic.WithTestName("cli-noderename"))
+	err = scenario.CreateOrgscaleEnv([]tsic.Option{}, hsic.WithTestName("cli-noderename"))
 	require.NoError(t, err)
 
-	headscale, err := scenario.Headscale()
+	orgscale, err := scenario.Orgscale()
 	require.NoError(t, err)
 
 	regIDs := []string{
@@ -447,9 +447,9 @@ func TestNodeRenameCommand(t *testing.T) {
 	require.NoError(t, err)
 
 	for index, regID := range regIDs {
-		_, err := headscale.Execute(
+		_, err := orgscale.Execute(
 			[]string{
-				"headscale",
+				"orgscale",
 				"debug",
 				"create-node",
 				"--name",
@@ -468,9 +468,9 @@ func TestNodeRenameCommand(t *testing.T) {
 
 		assert.EventuallyWithT(t, func(c *assert.CollectT) {
 			err = executeAndUnmarshal(
-				headscale,
+				orgscale,
 				[]string{
-					"headscale",
+					"orgscale",
 					"auth",
 					"register",
 					"--user",
@@ -494,9 +494,9 @@ func TestNodeRenameCommand(t *testing.T) {
 
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		err = executeAndUnmarshal(
-			headscale,
+			orgscale,
 			[]string{
-				"headscale",
+				"orgscale",
 				"nodes",
 				"list",
 				"--output",
@@ -516,9 +516,9 @@ func TestNodeRenameCommand(t *testing.T) {
 	assert.Contains(t, listAll[4].GivenName, "node-5")
 
 	for idx := range 3 {
-		res, err := headscale.Execute(
+		res, err := orgscale.Execute(
 			[]string{
-				"headscale",
+				"orgscale",
 				"nodes",
 				"rename",
 				"--identifier",
@@ -535,9 +535,9 @@ func TestNodeRenameCommand(t *testing.T) {
 
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		err = executeAndUnmarshal(
-			headscale,
+			orgscale,
 			[]string{
-				"headscale",
+				"orgscale",
 				"nodes",
 				"list",
 				"--output",
@@ -557,9 +557,9 @@ func TestNodeRenameCommand(t *testing.T) {
 	assert.Contains(t, listAllAfterRename[4].GivenName, "node-5")
 
 	// Test failure for too long names
-	_, err = headscale.Execute(
+	_, err = orgscale.Execute(
 		[]string{
-			"headscale",
+			"orgscale",
 			"nodes",
 			"rename",
 			"--identifier",
@@ -573,9 +573,9 @@ func TestNodeRenameCommand(t *testing.T) {
 
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		err = executeAndUnmarshal(
-			headscale,
+			orgscale,
 			[]string{
-				"headscale",
+				"orgscale",
 				"nodes",
 				"list",
 				"--output",
@@ -613,25 +613,25 @@ func TestPreAuthKeyCorrectUserLoggedInCommand(t *testing.T) {
 	require.NoError(t, err)
 	defer scenario.ShutdownAssertNoPanics(t)
 
-	err = scenario.CreateHeadscaleEnv(
+	err = scenario.CreateOrgscaleEnv(
 		[]tsic.Option{},
 		hsic.WithTestName("cli-paklogin"),
 	)
 	require.NoError(t, err)
 
-	headscale, err := scenario.Headscale()
+	orgscale, err := scenario.Orgscale()
 	require.NoError(t, err)
 
-	u2, err := headscale.CreateUser(user2)
+	u2, err := orgscale.CreateUser(user2)
 	require.NoError(t, err)
 
 	var user2Key clientv1.PreAuthKey
 
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		err = executeAndUnmarshal(
-			headscale,
+			orgscale,
 			[]string{
-				"headscale",
+				"orgscale",
 				"preauthkeys",
 				"--user",
 				u2.Id,
@@ -654,7 +654,7 @@ func TestPreAuthKeyCorrectUserLoggedInCommand(t *testing.T) {
 	assert.EventuallyWithT(t, func(ct *assert.CollectT) {
 		var err error
 
-		listNodes, err = headscale.ListNodes()
+		listNodes, err = orgscale.ListNodes()
 		assert.NoError(ct, err)
 		assert.Len(ct, listNodes, 1, "Should have exactly 1 node for user1")
 
@@ -687,7 +687,7 @@ func TestPreAuthKeyCorrectUserLoggedInCommand(t *testing.T) {
 			"Expected node to be logged out, backend state: %s", status.BackendState)
 	}, integrationutil.StatusReadyTimeout, 2*time.Second)
 
-	err = client.Login(headscale.GetEndpoint(), user2Key.Key)
+	err = client.Login(orgscale.GetEndpoint(), user2Key.Key)
 	require.NoError(t, err)
 
 	assert.EventuallyWithT(t, func(ct *assert.CollectT) {
@@ -703,7 +703,7 @@ func TestPreAuthKeyCorrectUserLoggedInCommand(t *testing.T) {
 	assert.EventuallyWithT(t, func(ct *assert.CollectT) {
 		var err error
 
-		listNodes, err = headscale.ListNodes()
+		listNodes, err = orgscale.ListNodes()
 		assert.NoError(ct, err)
 		// A tagged key converts the machine's user-owned node in place,
 		// whoever made the key, so it shows as "tagged-devices".
@@ -733,16 +733,16 @@ func TestTaggedNodesCLIOutput(t *testing.T) {
 	require.NoError(t, err)
 	defer scenario.ShutdownAssertNoPanics(t)
 
-	err = scenario.CreateHeadscaleEnv(
+	err = scenario.CreateOrgscaleEnv(
 		[]tsic.Option{},
 		hsic.WithTestName("tagcli"),
 	)
 	require.NoError(t, err)
 
-	headscale, err := scenario.Headscale()
+	orgscale, err := scenario.Orgscale()
 	require.NoError(t, err)
 
-	u2, err := headscale.CreateUser(user2)
+	u2, err := orgscale.CreateUser(user2)
 	require.NoError(t, err)
 
 	var user2Key clientv1.PreAuthKey
@@ -750,9 +750,9 @@ func TestTaggedNodesCLIOutput(t *testing.T) {
 	// Create a tagged PreAuthKey for user2
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		err = executeAndUnmarshal(
-			headscale,
+			orgscale,
 			[]string{
-				"headscale",
+				"orgscale",
 				"preauthkeys",
 				"--user",
 				u2.Id,
@@ -773,7 +773,7 @@ func TestTaggedNodesCLIOutput(t *testing.T) {
 	var userNodeID string
 
 	assert.EventuallyWithT(t, func(ct *assert.CollectT) {
-		nodes, err := headscale.ListNodes()
+		nodes, err := orgscale.ListNodes()
 		assert.NoError(ct, err)
 		assert.Len(ct, nodes, 1, "Should have exactly 1 node for user1")
 
@@ -804,7 +804,7 @@ func TestTaggedNodesCLIOutput(t *testing.T) {
 	}, integrationutil.StatusReadyTimeout, 2*time.Second)
 
 	// Log in with the tagged PreAuthKey (from user2, with tags)
-	err = client.Login(headscale.GetEndpoint(), user2Key.Key)
+	err = client.Login(orgscale.GetEndpoint(), user2Key.Key)
 	require.NoError(t, err)
 
 	assert.EventuallyWithT(t, func(ct *assert.CollectT) {
@@ -818,7 +818,7 @@ func TestTaggedNodesCLIOutput(t *testing.T) {
 
 	// A tagged key converts the machine's user-owned node in place.
 	assert.EventuallyWithT(t, func(ct *assert.CollectT) {
-		listNodes, err := headscale.ListNodes()
+		listNodes, err := orgscale.ListNodes()
 		assert.NoError(ct, err)
 		assert.Len(ct, listNodes, 1, "Should still have 1 node after re-login with tagged key")
 
@@ -847,13 +847,13 @@ func TestTaggedNodesCLIOutput(t *testing.T) {
 func TestNodeExpireFlagsCommand(t *testing.T) {
 	IntegrationSkip(t)
 
-	scenario, headscale := setupCLIScenario(t, "cli-nodeexpireflags", []string{"expire-flags-user"}, 0)
+	scenario, orgscale := setupCLIScenario(t, "cli-nodeexpireflags", []string{"expire-flags-user"}, 0)
 	defer scenario.ShutdownAssertNoPanics(t)
 
 	regID := types.MustAuthID().String()
 
-	_, err := headscale.Execute([]string{
-		"headscale", "debug", "create-node",
+	_, err := orgscale.Execute([]string{
+		"orgscale", "debug", "create-node",
 		"--name", "flagnode",
 		"--user", "expire-flags-user",
 		"--key", regID,
@@ -864,9 +864,9 @@ func TestNodeExpireFlagsCommand(t *testing.T) {
 	var node clientv1.Node
 
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		err := executeAndUnmarshal(headscale,
+		err := executeAndUnmarshal(orgscale,
 			[]string{
-				"headscale", "auth", "register",
+				"orgscale", "auth", "register",
 				"--user", "expire-flags-user",
 				"--auth-id", regID,
 				"--output", "json",
@@ -885,8 +885,8 @@ func TestNodeExpireFlagsCommand(t *testing.T) {
 	listNodeByID := func(ct *assert.CollectT) *clientv1.Node {
 		var nodes []clientv1.Node
 
-		err := executeAndUnmarshal(headscale,
-			[]string{"headscale", "nodes", "list", "--output", "json"},
+		err := executeAndUnmarshal(orgscale,
+			[]string{"orgscale", "nodes", "list", "--output", "json"},
 			&nodes,
 		)
 		require.NoError(ct, err)
@@ -905,8 +905,8 @@ func TestNodeExpireFlagsCommand(t *testing.T) {
 	// Set a future expiry, then confirm the node reports it.
 	future := time.Now().Add(2 * time.Hour).UTC()
 
-	_, err = headscale.Execute([]string{
-		"headscale", "nodes", "expire",
+	_, err = orgscale.Execute([]string{
+		"orgscale", "nodes", "expire",
 		"--identifier", nodeID,
 		"--expiry", future.Format(time.RFC3339),
 		"--output", "json",
@@ -924,8 +924,8 @@ func TestNodeExpireFlagsCommand(t *testing.T) {
 	}, integrationutil.ScaledTimeout(15*time.Second), 1*time.Second, "Waiting for future expiry to apply")
 
 	// Disable expiry entirely; the node should then report no expiry.
-	_, err = headscale.Execute([]string{
-		"headscale", "nodes", "expire",
+	_, err = orgscale.Execute([]string{
+		"orgscale", "nodes", "expire",
 		"--identifier", nodeID,
 		"--disable",
 		"--output", "json",
@@ -955,13 +955,13 @@ func TestNodeExpireFlagsCommand(t *testing.T) {
 func TestNodeCommandValidation(t *testing.T) {
 	IntegrationSkip(t)
 
-	scenario, headscale := setupCLIScenario(t, "cli-nodeval", []string{"user1"}, 0)
+	scenario, orgscale := setupCLIScenario(t, "cli-nodeval", []string{"user1"}, 0)
 	defer scenario.ShutdownAssertNoPanics(t)
 
 	regID := types.MustAuthID().String()
 
-	_, err := headscale.Execute([]string{
-		"headscale", "debug", "create-node",
+	_, err := orgscale.Execute([]string{
+		"orgscale", "debug", "create-node",
 		"--name", "valnode", "--user", "user1", "--key", regID, "--output", "json",
 	})
 	require.NoError(t, err)
@@ -969,8 +969,8 @@ func TestNodeCommandValidation(t *testing.T) {
 	var node clientv1.Node
 
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		err := executeAndUnmarshal(headscale,
-			[]string{"headscale", "auth", "register", "--user", "user1", "--auth-id", regID, "--output", "json"},
+		err := executeAndUnmarshal(orgscale,
+			[]string{"orgscale", "auth", "register", "--user", "user1", "--auth-id", regID, "--output", "json"},
 			&node,
 		)
 		assert.NoError(c, err)
@@ -1008,7 +1008,7 @@ func TestNodeCommandValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := headscale.Execute(append([]string{"headscale"}, tt.args...))
+			_, err := orgscale.Execute(append([]string{"orgscale"}, tt.args...))
 			if tt.wantErr == "" {
 				require.Error(t, err)
 
@@ -1020,7 +1020,7 @@ func TestNodeCommandValidation(t *testing.T) {
 	}
 }
 
-// TestNodeTagCommand exercises `headscale nodes tag` against a live node: it
+// TestNodeTagCommand exercises `orgscale nodes tag` against a live node: it
 // sets tags (converting a user-owned node into a tagged node) and validates the
 // error paths (no tags, invalid tag format).
 func TestNodeTagCommand(t *testing.T) {
@@ -1056,14 +1056,14 @@ func TestNodeTagCommand(t *testing.T) {
 		},
 	}
 
-	err = scenario.CreateHeadscaleEnv(
+	err = scenario.CreateOrgscaleEnv(
 		[]tsic.Option{},
 		hsic.WithTestName("cli-nodetag"),
 		hsic.WithACLPolicy(policy),
 	)
 	require.NoError(t, err)
 
-	headscale, err := scenario.Headscale()
+	orgscale, err := scenario.Orgscale()
 	require.NoError(t, err)
 
 	require.NoError(t, scenario.WaitForTailscaleSync())
@@ -1071,7 +1071,7 @@ func TestNodeTagCommand(t *testing.T) {
 	var nodeID string
 
 	assert.EventuallyWithT(t, func(ct *assert.CollectT) {
-		nodes, err := headscale.ListNodes()
+		nodes, err := orgscale.ListNodes()
 		assert.NoError(ct, err)
 		assert.Len(ct, nodes, 1)
 
@@ -1086,8 +1086,8 @@ func TestNodeTagCommand(t *testing.T) {
 	// Set two tags. The command response is round-tripped (transport check);
 	// the resulting tag state is asserted via the authoritative list read-back
 	// below rather than the immediate mutation response.
-	tagged := assertJSONRoundtrip[*clientv1.Node](t, headscale, []string{
-		"headscale", "nodes", "tag",
+	tagged := assertJSONRoundtrip[*clientv1.Node](t, orgscale, []string{
+		"orgscale", "nodes", "tag",
 		"--identifier", idStr,
 		"--tags", "tag:test1,tag:test2",
 		"--output", "json",
@@ -1096,7 +1096,7 @@ func TestNodeTagCommand(t *testing.T) {
 
 	// The node is now a tagged node, presented as the tagged-devices user.
 	assert.EventuallyWithT(t, func(ct *assert.CollectT) {
-		nodes, err := headscale.ListNodes()
+		nodes, err := orgscale.ListNodes()
 		assert.NoError(ct, err)
 		assert.Len(ct, nodes, 1)
 
@@ -1108,15 +1108,15 @@ func TestNodeTagCommand(t *testing.T) {
 
 	// Error: tagged nodes must keep at least one tag, so an empty tag set is
 	// rejected.
-	_, err = headscale.Execute([]string{
-		"headscale", "nodes", "tag",
+	_, err = orgscale.Execute([]string{
+		"orgscale", "nodes", "tag",
 		"--identifier", idStr,
 	})
 	require.ErrorContains(t, err, "cannot remove all tags")
 
 	// Error: malformed tag (missing the "tag:" prefix).
-	_, err = headscale.Execute([]string{
-		"headscale", "nodes", "tag",
+	_, err = orgscale.Execute([]string{
+		"orgscale", "nodes", "tag",
 		"--identifier", idStr,
 		"--tags", "not-a-valid-tag",
 	})
@@ -1138,13 +1138,13 @@ func TestNodeRouteCommands(t *testing.T) {
 	require.NoError(t, err)
 	defer scenario.ShutdownAssertNoPanics(t)
 
-	err = scenario.CreateHeadscaleEnv(
+	err = scenario.CreateOrgscaleEnv(
 		[]tsic.Option{tsic.WithAcceptRoutes()},
 		hsic.WithTestName("cli-noderoutes"),
 	)
 	require.NoError(t, err)
 
-	headscale, err := scenario.Headscale()
+	orgscale, err := scenario.Orgscale()
 	require.NoError(t, err)
 
 	allClients, err := scenario.ListTailscaleClients()
@@ -1167,8 +1167,8 @@ func TestNodeRouteCommands(t *testing.T) {
 	assert.EventuallyWithT(t, func(ct *assert.CollectT) {
 		var nodes []clientv1.Node
 
-		err := executeAndUnmarshal(headscale,
-			[]string{"headscale", "nodes", "list-routes", "--output", "json"},
+		err := executeAndUnmarshal(orgscale,
+			[]string{"orgscale", "nodes", "list-routes", "--output", "json"},
 			&nodes,
 		)
 		assert.NoError(ct, err)
@@ -1184,8 +1184,8 @@ func TestNodeRouteCommands(t *testing.T) {
 	idStr := nodeID
 
 	// Approve the route via the CLI.
-	approved := assertJSONRoundtrip[*clientv1.Node](t, headscale, []string{
-		"headscale", "nodes", "approve-routes",
+	approved := assertJSONRoundtrip[*clientv1.Node](t, orgscale, []string{
+		"orgscale", "nodes", "approve-routes",
 		"--identifier", idStr,
 		"--routes=" + route,
 		"--output", "json",
@@ -1197,8 +1197,8 @@ func TestNodeRouteCommands(t *testing.T) {
 	assert.EventuallyWithT(t, func(ct *assert.CollectT) {
 		var nodes []clientv1.Node
 
-		err := executeAndUnmarshal(headscale,
-			[]string{"headscale", "nodes", "list-routes", "--identifier", idStr, "--output", "json"},
+		err := executeAndUnmarshal(orgscale,
+			[]string{"orgscale", "nodes", "list-routes", "--identifier", idStr, "--output", "json"},
 			&nodes,
 		)
 		assert.NoError(ct, err)
@@ -1211,8 +1211,8 @@ func TestNodeRouteCommands(t *testing.T) {
 	}, integrationutil.ScaledTimeout(20*time.Second), 1*time.Second)
 
 	// Remove all approved routes by passing an empty --routes value.
-	cleared := assertJSONRoundtrip[*clientv1.Node](t, headscale, []string{
-		"headscale", "nodes", "approve-routes",
+	cleared := assertJSONRoundtrip[*clientv1.Node](t, orgscale, []string{
+		"orgscale", "nodes", "approve-routes",
 		"--identifier", idStr,
 		"--routes=",
 		"--output", "json",
@@ -1227,7 +1227,7 @@ func TestNodeRouteCommands(t *testing.T) {
 func TestNodeBackfillIPsCommand(t *testing.T) {
 	IntegrationSkip(t)
 
-	scenario, headscale := setupCLIScenario(t, "cli-backfillips", []string{"user1"}, 2)
+	scenario, orgscale := setupCLIScenario(t, "cli-backfillips", []string{"user1"}, 2)
 	defer scenario.ShutdownAssertNoPanics(t)
 
 	require.NoError(t, scenario.WaitForTailscaleSync())
@@ -1237,7 +1237,7 @@ func TestNodeBackfillIPsCommand(t *testing.T) {
 	assert.EventuallyWithT(t, func(ct *assert.CollectT) {
 		var err error
 
-		before, err = headscale.ListNodes()
+		before, err = orgscale.ListNodes()
 		assert.NoError(ct, err)
 		assert.Len(ct, before, 2)
 
@@ -1246,13 +1246,13 @@ func TestNodeBackfillIPsCommand(t *testing.T) {
 		}
 	}, integrationutil.ScaledTimeout(20*time.Second), 1*time.Second)
 
-	out, err := headscale.Execute([]string{"headscale", "nodes", "backfillips", "--force"})
+	out, err := orgscale.Execute([]string{"orgscale", "nodes", "backfillips", "--force"})
 	require.NoError(t, err)
 	assert.Contains(t, out, "backfilled")
 
 	// Nodes must still have their IP addresses afterwards.
 	assert.EventuallyWithT(t, func(ct *assert.CollectT) {
-		after, err := headscale.ListNodes()
+		after, err := orgscale.ListNodes()
 		assert.NoError(ct, err)
 		assert.Len(ct, after, 2)
 
@@ -1262,7 +1262,7 @@ func TestNodeBackfillIPsCommand(t *testing.T) {
 	}, integrationutil.ScaledTimeout(20*time.Second), 1*time.Second)
 }
 
-// TestNodeUpdateClientCommand verifies that `headscale nodes update-client`
+// TestNodeUpdateClientCommand verifies that `orgscale nodes update-client`
 // answers every client version as Tailscale does. The test clients have
 // auto-updates off, so Hostinfo.AllowsUpdate is false and each is "not found".
 func TestNodeUpdateClientCommand(t *testing.T) {
@@ -1278,13 +1278,13 @@ func TestNodeUpdateClientCommand(t *testing.T) {
 	require.NoError(t, err)
 	defer scenario.ShutdownAssertNoPanics(t)
 
-	err = scenario.CreateHeadscaleEnv([]tsic.Option{}, hsic.WithTestName("cli-nodeupdate"))
+	err = scenario.CreateOrgscaleEnv([]tsic.Option{}, hsic.WithTestName("cli-nodeupdate"))
 	require.NoError(t, err)
 
 	err = scenario.WaitForTailscaleSync()
 	require.NoError(t, err)
 
-	headscale, err := scenario.Headscale()
+	orgscale, err := scenario.Orgscale()
 	require.NoError(t, err)
 
 	allClients, err := scenario.ListTailscaleClients()
@@ -1293,7 +1293,7 @@ func TestNodeUpdateClientCommand(t *testing.T) {
 	var nodes []*clientv1.Node
 
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		nodes, err = headscale.ListNodes()
+		nodes, err = orgscale.ListNodes()
 		assert.NoError(c, err)
 		assert.Len(c, nodes, len(allClients))
 
@@ -1303,8 +1303,8 @@ func TestNodeUpdateClientCommand(t *testing.T) {
 	}, integrationutil.ScaledTimeout(30*time.Second), integrationutil.FastPoll, "Waiting for all nodes to be online")
 
 	for _, node := range nodes {
-		_, err := headscale.Execute([]string{
-			"headscale",
+		_, err := orgscale.Execute([]string{
+			"orgscale",
 			"nodes",
 			"update-client",
 			"--identifier",
@@ -1315,8 +1315,8 @@ func TestNodeUpdateClientCommand(t *testing.T) {
 	}
 
 	// Unknown nodes are rejected before anything is sent.
-	_, err = headscale.Execute([]string{
-		"headscale",
+	_, err = orgscale.Execute([]string{
+		"orgscale",
 		"nodes",
 		"update-client",
 		"--identifier",

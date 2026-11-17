@@ -19,13 +19,13 @@ func TestClientBaseURL(t *testing.T) {
 	}{
 		{
 			name:    "bare host defaults to https",
-			address: "headscale.example.com:50443",
-			want:    "https://headscale.example.com:50443",
+			address: "orgscale.example.com:50443",
+			want:    "https://orgscale.example.com:50443",
 		},
 		{
 			name:    "explicit https scheme is kept",
-			address: "https://headscale.example.com",
-			want:    "https://headscale.example.com",
+			address: "https://orgscale.example.com",
+			want:    "https://orgscale.example.com",
 		},
 		{
 			name:    "explicit http scheme is kept",
@@ -59,10 +59,10 @@ func TestCLIAPIKey(t *testing.T) {
 		want    string // the key a remote CLI sends
 		wantErr string
 	}{
-		{name: "remote literal", address: "headscale.example.com:443", apiKey: "literal", want: "literal"},
-		{name: "remote reads the file", address: "headscale.example.com:443", apiKey: "file:" + keyFile, want: "from-file"},
-		{name: "remote file missing", address: "headscale.example.com:443", apiKey: missing, wantErr: "cli.api_key: "},
-		{name: "remote without a key", address: "headscale.example.com:443", wantErr: errAPIKeyNotSet.Error()},
+		{name: "remote literal", address: "orgscale.example.com:443", apiKey: "literal", want: "literal"},
+		{name: "remote reads the file", address: "orgscale.example.com:443", apiKey: "file:" + keyFile, want: "from-file"},
+		{name: "remote file missing", address: "orgscale.example.com:443", apiKey: missing, wantErr: "cli.api_key: "},
+		{name: "remote without a key", address: "orgscale.example.com:443", wantErr: errAPIKeyNotSet.Error()},
 		{name: "socket never reads", apiKey: missing},
 	}
 
@@ -71,9 +71,9 @@ func TestCLIAPIKey(t *testing.T) {
 			cfgDir := t.TempDir()
 			cfgPath := filepath.Join(cfgDir, "config.yaml")
 			require.NoError(t, os.WriteFile(cfgPath,
-				[]byte("unix_socket: "+filepath.Join(cfgDir, "headscale.sock")+"\n"), 0o600))
-			t.Setenv("HEADSCALE_CLI_ADDRESS", tt.address)
-			t.Setenv("HEADSCALE_CLI_API_KEY", tt.apiKey)
+				[]byte("unix_socket: "+filepath.Join(cfgDir, "orgscale.sock")+"\n"), 0o600))
+			t.Setenv("ORGSCALE_CLI_ADDRESS", tt.address)
+			t.Setenv("ORGSCALE_CLI_API_KEY", tt.apiKey)
 			useLoaded(t, cfgPath)
 
 			if tt.address != "" && tt.wantErr == "" {
@@ -82,7 +82,7 @@ func TestCLIAPIKey(t *testing.T) {
 				assert.Equal(t, tt.want, got)
 			}
 
-			_, _, cancel, err := newHeadscaleCLIWithConfig()
+			_, _, cancel, err := newOrgscaleCLIWithConfig()
 			_, _, cancelV2, errV2 := newV2Client()
 
 			for _, err := range []error{err, errV2} {
@@ -107,7 +107,7 @@ func TestDialEmptySocket(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
 	defer cancel()
 
-	_, err := dialHeadscaleSocket(ctx, "")
+	_, err := dialOrgscaleSocket(ctx, "")
 	require.ErrorIs(t, err, errUnixSocketNotSet)
 }
 
@@ -129,5 +129,5 @@ func TestBypassDatabaseValidates(t *testing.T) {
 
 	_, err := bypassDatabase()
 	require.ErrorContains(t, err, "node.ephemeral.inactivity_timeout is below the minimum")
-	assert.NoFileExists(t, filepath.Join(dir, "headscale.db"))
+	assert.NoFileExists(t, filepath.Join(dir, "orgscale.db"))
 }

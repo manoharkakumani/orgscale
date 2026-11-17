@@ -19,11 +19,11 @@ func init() {
 
 var serveCmd = &cobra.Command{
 	Use:   "serve",
-	Short: "Launches the headscale server",
+	Short: "Launches the orgscale server",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		logNoConfigFile(loaded)
 
-		app, err := newHeadscaleServerWithConfig()
+		app, err := newOrgscaleServerWithConfig()
 		if err != nil {
 			if squibbleErr, ok := errors.AsType[squibble.ValidationError](err); ok {
 				fmt.Printf("SQLite schema failed to validate:\n")
@@ -100,7 +100,7 @@ func classifyServeError(err error) error {
 			"%w\n\nHint: binding to a privileged port (<1024) requires root or "+
 				"CAP_NET_BIND_SERVICE. The shipped systemd unit grants this capability; "+
 				"if running manually, use sudo or "+
-				"`setcap cap_net_bind_service=+ep ./headscale`",
+				"`setcap cap_net_bind_service=+ep ./orgscale`",
 			err)
 	}
 
