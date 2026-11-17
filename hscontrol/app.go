@@ -109,6 +109,12 @@ type Orgscale struct {
 	authProvider   AuthProvider
 	mapBatcher     *mapper.Batcher
 
+	// admin is the web admin console; nil unless admin.enabled and OIDC
+	// are configured.
+	admin *adminAuth
+	// googleSync pulls the Google Workspace directory when configured.
+	googleSync *googleSyncer
+
 	// One per long-poll session, held through its Disconnect cleanup, so
 	// shutdown can close state after waiting on it.
 	clientStreamsOpen sync.WaitGroup
@@ -278,6 +284,17 @@ func NewOrgscale(cfg *types.Config) (*Orgscale, error) {
 	}
 
 	app.authProvider = authProvider
+
+	app.googleSync = newGoogleSyncer(&app)
+
+	if cfg.Admin.Enabled {
+		provider, ok := authProvider.(*AuthProviderOIDC)
+		if !ok {
+			return nil, errors.New("admin.enabled requires a working OIDC provider (oidc.issuer)")
+		}
+
+		app.admin = newAdminAuth(&app, provider)
+	}
 
 	if cfg.DERP.Server.Enabled {
 		derpServerKey, err := readOrCreatePrivateKey(cfg.AbsPath(cfg.DERP.Server.PrivateKeyPath))
@@ -565,9 +582,32 @@ func (h *Orgscale) createRouter(apiV1Mux, apiV2Mux http.Handler) *chi.Mux {
 	// OpenAPI document and docs UI stay public. v1 is the orgscale-native admin
 	// API; v2 is Orgscale's v2 API, which ports some endpoints from Tailscale.
 	r.Route("/api", func(r chi.Router) {
+		// The admin console calls the APIs with its session; every change
+		// made through them is written to the audit log.
+		r.Use(h.auditAPIMiddleware)
+
+		if h.admin != nil {
+			r.Use(h.admin.APIMiddleware)
+		}
+
 		r.Handle("/v1/*", serveHumaMux(apiV1Mux))
 		r.Handle("/v2/*", serveHumaMux(apiV2Mux))
 	})
+
+	// SCIM provisioning from the identity provider. It answers 401 until a
+	// token is created in the admin console.
+	r.Route("/scim/v2", (&scimServer{h: h}).routes)
+
+	if h.admin != nil {
+		r.Get("/admin/auth/login", h.admin.LoginHandler)
+		r.Get(adminCallbackPath, h.admin.CallbackHandler)
+		r.Post("/admin/auth/logout", h.admin.LogoutHandler)
+		r.Route("/admin/api", h.admin.routes)
+		r.Get("/admin", func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, "/admin/", http.StatusMovedPermanently)
+		})
+		r.Get("/admin/*", adminConsoleHandler())
+	}
 	// Ping response endpoint: receives HEAD from clients responding
 	// to a [tailcfg.PingRequest]. The unguessable ping ID serves as authentication.
 	r.Head("/machine/ping-response", h.PingResponseHandler)
@@ -702,6 +742,7 @@ func (h *Orgscale) Serve(ctx context.Context) error {
 	// Start all scheduled tasks, e.g. expiring nodes, derp updates and
 	// records updates
 	go h.scheduledTasks(ctx)
+	go h.googleSync.Run(ctx)
 
 	//
 	//
