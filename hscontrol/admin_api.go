@@ -127,7 +127,23 @@ func (aa *adminAuth) auditReq(r *http.Request, action, target, detail string) {
 // handleMe returns the signed-in administrator and the session's CSRF token.
 // It needs only the session cookie: the console calls it first.
 func (aa *adminAuth) handleMe(w http.ResponseWriter, r *http.Request) {
-	sess, _ := aa.sessionFromRequest(r)
+	sess, key := aa.sessionFromRequest(r)
+
+	var role AdminRole
+
+	if sess != nil {
+		var ok bool
+
+		role, ok = aa.roleForIdentity(sess.roleEmail, sess.roleGroups)
+		if !ok {
+			aa.mu.Lock()
+			delete(aa.sessions, key)
+			aa.mu.Unlock()
+
+			sess = nil
+		}
+	}
+
 	if sess == nil {
 		adminJSON(w, http.StatusUnauthorized, map[string]any{
 			"signedIn": false,
@@ -142,7 +158,7 @@ func (aa *adminAuth) handleMe(w http.ResponseWriter, r *http.Request) {
 		"email":     sess.Email,
 		"name":      sess.Name,
 		"picture":   sess.Picture,
-		"role":      sess.Role,
+		"role":      role,
 		"csrfToken": sess.CSRF,
 		"expiresAt": sess.ExpiresAt,
 		"serverUrl": aa.h.cfg.ServerURL,

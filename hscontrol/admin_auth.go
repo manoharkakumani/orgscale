@@ -62,6 +62,13 @@ type adminSession struct {
 	Picture   string
 	Role      AdminRole
 	ExpiresAt time.Time
+
+	// roleEmail and roleGroups are what the role was decided from at
+	// sign-in: the verified email and the IdP groups. The role is decided
+	// again from them on every request, so a role taken away in the
+	// console ends the session at once.
+	roleEmail  string
+	roleGroups []string
 }
 
 // adminPendingLogin is a login sent to the identity provider and not back yet.
@@ -261,6 +268,9 @@ func (aa *adminAuth) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 		Picture:   claims.ProfilePictureURL,
 		Role:      role,
 		ExpiresAt: time.Now().Add(aa.h.cfg.Admin.SessionTimeout),
+
+		roleEmail:  aa.trustedEmail(&claims),
+		roleGroups: slices.Clone(claims.Groups),
 	}
 
 	aa.storeSession(hashToken(sessionToken), sess)
@@ -307,11 +317,20 @@ func (aa *adminAuth) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 // the console, then the viewer lists. Emails count only when verified, or
 // when oidc.email_verified_required is off.
 func (aa *adminAuth) roleFor(claims *types.OIDCClaims) (AdminRole, bool) {
-	email := ""
+	return aa.roleForIdentity(aa.trustedEmail(claims), claims.Groups)
+}
+
+// trustedEmail is the claim's email when it may decide a role: verified, or
+// with oidc.email_verified_required off.
+func (aa *adminAuth) trustedEmail(claims *types.OIDCClaims) string {
 	if claims.Email != "" && (!aa.oidc.cfg.EmailVerifiedRequired || bool(claims.EmailVerified)) {
-		email = strings.ToLower(claims.Email)
+		return strings.ToLower(claims.Email)
 	}
 
+	return ""
+}
+
+func (aa *adminAuth) roleForIdentity(email string, groups []string) (AdminRole, bool) {
 	list := func(key string, fromConfig []string) []string {
 		var v []string
 
@@ -323,13 +342,15 @@ func (aa *adminAuth) roleFor(claims *types.OIDCClaims) (AdminRole, bool) {
 		return append(slices.Clone(fromConfig), v...)
 	}
 
-	matches := func(users, groups []string) bool {
-		if email != "" && slices.ContainsFunc(users, func(u string) bool { return strings.EqualFold(u, email) }) {
+	// matches reports whether the person (email, groups) is in wantUsers
+	// or a member of one of wantGroups.
+	matches := func(wantUsers, wantGroups []string) bool {
+		if email != "" && slices.ContainsFunc(wantUsers, func(u string) bool { return strings.EqualFold(u, email) }) {
 			return true
 		}
 
-		return slices.ContainsFunc(claims.Groups, func(g string) bool {
-			return slices.ContainsFunc(groups, func(want string) bool { return strings.EqualFold(want, g) })
+		return slices.ContainsFunc(groups, func(g string) bool {
+			return slices.ContainsFunc(wantGroups, func(want string) bool { return strings.EqualFold(want, g) })
 		})
 	}
 
@@ -433,16 +454,33 @@ var errAdminCSRF = errors.New("missing or wrong " + adminCSRFHeader + " header")
 // authenticate checks a console request: a live session, the CSRF header,
 // and a role that allows the method.
 func (aa *adminAuth) authenticate(r *http.Request) (*adminSession, int, error) {
-	sess, _ := aa.sessionFromRequest(r)
+	sess, key := aa.sessionFromRequest(r)
 	if sess == nil {
 		return nil, http.StatusUnauthorized, errors.New("not signed in")
+	}
+
+	// Decide the role again: the admin and viewer lists may have changed
+	// since sign-in.
+	role, ok := aa.roleForIdentity(sess.roleEmail, sess.roleGroups)
+	if !ok {
+		aa.mu.Lock()
+		delete(aa.sessions, key)
+		aa.mu.Unlock()
+
+		return nil, http.StatusUnauthorized, errors.New("your console access was removed")
+	}
+
+	if role != sess.Role {
+		aa.mu.Lock()
+		sess.Role = role
+		aa.mu.Unlock()
 	}
 
 	if subtle.ConstantTimeCompare([]byte(r.Header.Get(adminCSRFHeader)), []byte(sess.CSRF)) != 1 {
 		return nil, http.StatusForbidden, errAdminCSRF
 	}
 
-	if sess.Role != AdminRoleAdmin && r.Method != http.MethodGet && r.Method != http.MethodHead {
+	if role != AdminRoleAdmin && r.Method != http.MethodGet && r.Method != http.MethodHead {
 		return nil, http.StatusForbidden, errors.New("your role is read-only")
 	}
 

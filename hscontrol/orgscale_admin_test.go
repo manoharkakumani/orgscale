@@ -502,3 +502,61 @@ func TestAdminConsoleServesIndexForClientRoutes(t *testing.T) {
 	resp.Body.Close()
 	assert.Equal(t, http.StatusNotFound, resp.StatusCode)
 }
+
+func TestAdminConsoleRoleRemovalEndsSession(t *testing.T) {
+	h := newAdminHarness(t)
+
+	boss := h.browser(t)
+	require.Equal(t, http.StatusOK, boss.login(t, &mockoidc.MockUser{Subject: "boss", Email: "boss@example.com", EmailVerified: true}))
+
+	require.Equal(t, http.StatusOK, boss.do(t, http.MethodPut, "/admin/api/settings/roles", map[string]any{
+		"adminUsers": []string{"second@example.com"}, "adminGroups": []string{},
+		"viewerUsers": []string{}, "viewerGroups": []string{},
+	}, nil))
+
+	second := h.browser(t)
+	require.Equal(t, http.StatusOK, second.login(t, &mockoidc.MockUser{Subject: "second", Email: "second@example.com", EmailVerified: true}))
+	require.Equal(t, http.StatusOK, second.do(t, http.MethodGet, "/admin/api/users", nil, nil))
+
+	// Downgrade to viewer: writes stop at once.
+	require.Equal(t, http.StatusOK, boss.do(t, http.MethodPut, "/admin/api/settings/roles", map[string]any{
+		"adminUsers": []string{}, "adminGroups": []string{},
+		"viewerUsers": []string{"second@example.com"}, "viewerGroups": []string{},
+	}, nil))
+
+	var me map[string]any
+	require.Equal(t, http.StatusOK, second.do(t, http.MethodGet, "/admin/api/me", nil, &me))
+	assert.Equal(t, "viewer", me["role"])
+	assert.Equal(t, http.StatusForbidden, second.do(t, http.MethodPost, "/api/v1/user", map[string]string{"name": "nope"}, nil))
+
+	// Remove entirely: the session ends.
+	require.Equal(t, http.StatusOK, boss.do(t, http.MethodPut, "/admin/api/settings/roles", map[string]any{
+		"adminUsers": []string{}, "adminGroups": []string{},
+		"viewerUsers": []string{}, "viewerGroups": []string{},
+	}, nil))
+	assert.Equal(t, http.StatusUnauthorized, second.do(t, http.MethodGet, "/admin/api/users", nil, nil))
+	assert.Equal(t, http.StatusUnauthorized, second.do(t, http.MethodGet, "/admin/api/me", nil, nil))
+
+	// The config-file admin is unaffected.
+	assert.Equal(t, http.StatusOK, boss.do(t, http.MethodGet, "/admin/api/users", nil, nil))
+}
+
+func TestAdminRoleGroupMatching(t *testing.T) {
+	h := newAdminHarness(t)
+	aa := h.app.admin
+
+	// The configuration makes members of "it-admins" admins.
+	role, ok := aa.roleForIdentity("someone@example.com", nil)
+	assert.False(t, ok, "no matching email or group: no access (got %q)", role)
+
+	role, ok = aa.roleForIdentity("someone@example.com", []string{"marketing"})
+	assert.False(t, ok, "a non-admin group grants nothing (got %q)", role)
+
+	role, ok = aa.roleForIdentity("", []string{"IT-Admins"})
+	assert.True(t, ok)
+	assert.Equal(t, AdminRoleAdmin, role)
+
+	role, ok = aa.roleForIdentity("BOSS@example.com", nil)
+	assert.True(t, ok)
+	assert.Equal(t, AdminRoleAdmin, role)
+}
