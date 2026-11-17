@@ -948,6 +948,44 @@ in
       };
     };
   };
+  admin = {
+    enabled = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = ''
+        Serves the web admin console at `/admin`. It requires `oidc.issuer`: admins sign in through the OIDC provider.
+      '';
+      example = true;
+    };
+    users = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = [ ];
+      description = ''
+        Email addresses always given the admin role. Use it to bootstrap the first admin; more admins can be added from the console.
+      '';
+      example = [
+        "alice@example.com"
+      ];
+    };
+    groups = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = [ ];
+      description = ''
+        OIDC groups, from the provider's `groups` claim, whose members are always given the admin role.
+      '';
+      example = [
+        "orgscale-admins"
+      ];
+    };
+    session_timeout = lib.mkOption {
+      type = t.duration;
+      default = "12h";
+      description = ''
+        How long an admin console sign-in lasts before the admin has to sign in again; at least 5m.
+      '';
+      example = "8h";
+    };
+  };
   logtail = {
     enabled = lib.mkOption {
       type = lib.types.bool;

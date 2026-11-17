@@ -1,0 +1,197 @@
+// Package managed merges the access rules orgscale manages from the admin
+// console into the policy an administrator writes.
+//
+// The administrator's policy is stored as written. Before it is compiled,
+// [Merge] adds:
+//
+//   - directory groups synced from the identity provider, as `group:<name>`,
+//     unless the policy defines a group of that name itself;
+//   - when device restriction is on, a rule letting every user reach their own
+//     devices, and one rule per assigned device letting its grantees reach it.
+//
+// Tailscale clients only see the peers the policy lets them talk to, so with
+// device restriction on a user sees their own devices and the devices
+// assigned to them, directly or through a group, and nothing else.
+package managed
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"maps"
+	"slices"
+
+	"github.com/tailscale/hujson"
+)
+
+// Rule lets Src reach Dst on every port.
+type Rule struct {
+	// Comment names what the rule is for, e.g. the device.
+	Comment string
+	// Src are policy aliases: user tokens ("alice@example.com") and groups
+	// ("group:engineering").
+	Src []string
+	// Dst are device addresses ("100.64.0.5").
+	Dst []string
+}
+
+// Policy is what orgscale adds to the administrator's policy.
+type Policy struct {
+	// RestrictDevices turns device restriction on: the baseline own-devices
+	// rule and Rules are added.
+	RestrictDevices bool
+	// Groups maps a group name, without "group:", to its members' user tokens.
+	Groups map[string][]string
+	// Rules are the device access rules.
+	Rules []Rule
+}
+
+// baselineRule lets every user reach their own devices.
+var baselineRule = map[string]any{
+	"action": "accept",
+	"src":    []string{"autogroup:member"},
+	"dst":    []string{"autogroup:self:*"},
+}
+
+// Merge returns raw with m added. An empty raw is the allow-all default; it
+// stays that way unless device restriction is on, so turning restriction off
+// and syncing groups never narrows access.
+func Merge(raw []byte, m Policy) ([]byte, error) {
+	if !m.RestrictDevices && (len(m.Groups) == 0 || len(bytes.TrimSpace(raw)) == 0) {
+		return raw, nil
+	}
+
+	doc := map[string]json.RawMessage{}
+
+	if len(bytes.TrimSpace(raw)) > 0 {
+		std, err := hujson.Standardize(bytes.Clone(raw))
+		if err != nil {
+			return nil, fmt.Errorf("parsing policy: %w", err)
+		}
+
+		err = json.Unmarshal(std, &doc)
+		if err != nil {
+			return nil, fmt.Errorf("parsing policy: %w", err)
+		}
+	}
+
+	if len(m.Groups) > 0 {
+		groups := map[string]json.RawMessage{}
+
+		if g, ok := doc["groups"]; ok {
+			err := json.Unmarshal(g, &groups)
+			if err != nil {
+				return nil, fmt.Errorf("parsing policy groups: %w", err)
+			}
+		}
+
+		for _, name := range slices.Sorted(maps.Keys(m.Groups)) {
+			key := "group:" + name
+			if _, defined := groups[key]; defined {
+				continue
+			}
+
+			members := m.Groups[name]
+			if members == nil {
+				members = []string{}
+			}
+
+			b, err := json.Marshal(members)
+			if err != nil {
+				return nil, err
+			}
+
+			groups[key] = b
+		}
+
+		b, err := json.Marshal(groups)
+		if err != nil {
+			return nil, err
+		}
+
+		doc["groups"] = b
+	}
+
+	if m.RestrictDevices {
+		var acls []json.RawMessage
+
+		if a, ok := doc["acls"]; ok {
+			err := json.Unmarshal(a, &acls)
+			if err != nil {
+				return nil, fmt.Errorf("parsing policy acls: %w", err)
+			}
+		}
+
+		b, err := json.Marshal(baselineRule)
+		if err != nil {
+			return nil, err
+		}
+
+		acls = append(acls, b)
+
+		for _, r := range m.Rules {
+			if len(r.Src) == 0 || len(r.Dst) == 0 {
+				continue
+			}
+
+			dst := make([]string, 0, len(r.Dst))
+			for _, d := range r.Dst {
+				dst = append(dst, d+":*")
+			}
+
+			b, err := json.Marshal(map[string]any{
+				"action": "accept",
+				"src":    r.Src,
+				"dst":    dst,
+			})
+			if err != nil {
+				return nil, err
+			}
+
+			acls = append(acls, b)
+		}
+
+		b, err = json.Marshal(acls)
+		if err != nil {
+			return nil, err
+		}
+
+		doc["acls"] = b
+	}
+
+	return json.Marshal(doc)
+}
+
+// AllowsEverything reports whether raw lets everyone reach everything: no
+// policy at all, or an ACL with source "*" and destination "*:*". Device
+// restriction cannot narrow such a policy, and the console warns about it.
+func AllowsEverything(raw []byte) bool {
+	if len(bytes.TrimSpace(raw)) == 0 {
+		return false // Merge replaces the allow-all default when restricting.
+	}
+
+	std, err := hujson.Standardize(bytes.Clone(raw))
+	if err != nil {
+		return false
+	}
+
+	var doc struct {
+		ACLs []struct {
+			Src []string `json:"src"`
+			Dst []string `json:"dst"`
+		} `json:"acls"`
+	}
+
+	err = json.Unmarshal(std, &doc)
+	if err != nil {
+		return false
+	}
+
+	for _, a := range doc.ACLs {
+		if slices.Contains(a.Src, "*") && slices.Contains(a.Dst, "*:*") {
+			return true
+		}
+	}
+
+	return false
+}

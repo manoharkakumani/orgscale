@@ -370,6 +370,16 @@ WHERE auth_key_id IN (
 				},
 				Rollback: func(db *gorm.DB) error { return nil },
 			},
+			{
+				// orgscale admin console: runtime settings, directory groups
+				// synced from the identity provider, user access state, device
+				// access grants and the audit log.
+				ID: "202611170000-orgscale-admin",
+				Migrate: func(tx *gorm.DB) error {
+					return tx.Transaction(ensureOrgscaleAdminTables)
+				},
+				Rollback: func(db *gorm.DB) error { return nil },
+			},
 		},
 	)
 
@@ -427,7 +437,7 @@ WHERE auth_key_id IN (
 			}
 		}
 
-		return nil
+		return ensureOrgscaleAdminTables(tx)
 	})
 
 	err = runMigrations(cfg.Database, dbConn, migrations)

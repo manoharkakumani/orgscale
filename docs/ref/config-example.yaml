@@ -399,6 +399,23 @@ oidc:
     # One of: `plain`, `S256`.
     method: S256
 
+# The web admin console served at `/admin`. Admins sign in through the OIDC
+# provider in `oidc`. Access rules and admins set here are a floor: more can be
+# added from the console itself.
+admin:
+  # Serves the web admin console at `/admin`. It requires `oidc.issuer`: admins
+  # sign in through the OIDC provider.
+  enabled: false
+  # Email addresses always given the admin role. Use it to bootstrap the first
+  # admin; more admins can be added from the console.
+  users: []
+  # OIDC groups, from the provider's `groups` claim, whose members are always
+  # given the admin role.
+  groups: []
+  # How long an admin console sign-in lasts before the admin has to sign in
+  # again; at least 5m.
+  session_timeout: 12h
+
 # Whether nodes send their logs to Tailscale.
 logtail:
   # Lets nodes send their logs to Tailscale Inc.; orgscale cannot point them at

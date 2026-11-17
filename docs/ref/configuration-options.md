@@ -3014,6 +3014,134 @@ How the code challenge is derived from the verifier. The verifier is sent as is 
     services.orgscale.settings.oidc.pkce.method = "plain";
     ```
 
+## `admin` { #admin data-toc-label="admin" }
+
+The web admin console served at `/admin`. Admins sign in through the OIDC provider in [`oidc`](#oidc). Access rules and admins set here are a floor: more can be added from the console itself.
+
+??? example "All `admin` keys and defaults"
+
+    ```yaml
+    admin:
+      enabled: false
+      users: []
+      groups: []
+      session_timeout: 12h
+    ```
+
+### `admin.enabled` { #admin.enabled data-toc-label="enabled" }
+
+- **Type:** [boolean](#type-boolean)
+- **Default:** `false`
+- **Env:** `ORGSCALE_ADMIN_ENABLED`
+
+Serves the web admin console at `/admin`. It requires [`oidc.issuer`](#oidc.issuer): admins sign in through the OIDC provider.
+
+=== "YAML"
+
+    ```yaml
+    admin:
+      enabled: true
+    ```
+
+=== "Environment"
+
+    ```shell
+    export ORGSCALE_ADMIN_ENABLED=true
+    ```
+
+=== "NixOS"
+
+    ```nix
+    services.orgscale.settings.admin.enabled = true;
+    ```
+
+### `admin.users` { #admin.users data-toc-label="users" }
+
+- **Type:** [list of strings](#type-list)
+- **Default:** `[]`
+- **Env:** `ORGSCALE_ADMIN_USERS` ([space-separated or JSON array](#env))
+
+Email addresses always given the admin role. Use it to bootstrap the first admin; more admins can be added from the console.
+
+=== "YAML"
+
+    ```yaml
+    admin:
+      users:
+        - alice@example.com
+    ```
+
+=== "Environment"
+
+    ```shell
+    export ORGSCALE_ADMIN_USERS='["alice@example.com"]'
+    ```
+
+=== "NixOS"
+
+    ```nix
+    services.orgscale.settings.admin.users = [
+      "alice@example.com"
+    ];
+    ```
+
+### `admin.groups` { #admin.groups data-toc-label="groups" }
+
+- **Type:** [list of strings](#type-list)
+- **Default:** `[]`
+- **Env:** `ORGSCALE_ADMIN_GROUPS` ([space-separated or JSON array](#env))
+
+OIDC groups, from the provider's `groups` claim, whose members are always given the admin role.
+
+=== "YAML"
+
+    ```yaml
+    admin:
+      groups:
+        - orgscale-admins
+    ```
+
+=== "Environment"
+
+    ```shell
+    export ORGSCALE_ADMIN_GROUPS='["orgscale-admins"]'
+    ```
+
+=== "NixOS"
+
+    ```nix
+    services.orgscale.settings.admin.groups = [
+      "orgscale-admins"
+    ];
+    ```
+
+### `admin.session_timeout` { #admin.session_timeout data-toc-label="session_timeout" }
+
+- **Type:** [duration](#type-duration)
+- **Default:** `12h`
+- **Env:** `ORGSCALE_ADMIN_SESSION_TIMEOUT`
+
+How long an admin console sign-in lasts before the admin has to sign in again; at least 5m.
+
+=== "YAML"
+
+    ```yaml
+    admin:
+      session_timeout: 8h
+    ```
+
+=== "Environment"
+
+    ```shell
+    export ORGSCALE_ADMIN_SESSION_TIMEOUT=8h
+    ```
+
+=== "NixOS"
+
+    ```nix
+    services.orgscale.settings.admin.session_timeout = "8h";
+    ```
+
 ## `logtail` { #logtail data-toc-label="logtail" }
 
 Whether nodes send their logs to Tailscale.

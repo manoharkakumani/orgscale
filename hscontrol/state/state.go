@@ -422,6 +422,12 @@ func NewState(cfg *types.Config) (*State, error) {
 		return nil, fmt.Errorf("loading policy: %w", err)
 	}
 
+	// Merge the groups and device rules managed from the admin console.
+	pol, err = withManagedPolicy(db, pol, users, nodes.ViewSlice())
+	if err != nil {
+		return nil, err
+	}
+
 	polMan, err := policy.NewPolicyManager(pol, users, nodes.ViewSlice())
 	if err != nil {
 		return nil, fmt.Errorf("initializing policy manager: %w", err)
@@ -582,6 +588,12 @@ func (s *State) reloadPolicyLocked() (bool, bool, error) {
 	pol, err := hsdb.PolicyBytes(s.db.DB, s.cfg)
 	if err != nil {
 		return false, false, fmt.Errorf("loading policy: %w", err)
+	}
+
+	// Merge the groups and device rules managed from the admin console.
+	pol, err = s.effectivePolicy(pol)
+	if err != nil {
+		return false, false, err
 	}
 
 	// nil means no policy is configured: nothing to install.
@@ -975,7 +987,20 @@ func (s *State) DeleteNode(node types.NodeView) ([]change.Change, error) {
 			fmt.Errorf("updating policy manager after node deletion: %w", err)
 	}
 
-	return append(changes, policyChange), nil
+	changes = append(changes, policyChange)
+
+	// Device rules name addresses. Drop the deleted node's rule now, before
+	// its freed address can go to another node.
+	if s.DeviceRestrictionEnabled() {
+		reload, err := s.ReloadPolicy()
+		if err != nil {
+			return changes, fmt.Errorf("recompiling device rules after node deletion: %w", err)
+		}
+
+		changes = append(changes, reload...)
+	}
+
+	return changes, nil
 }
 
 // Connect acquires a control session and returns the resulting changes
@@ -1885,7 +1910,14 @@ func (s *State) ValidatePolicy(pol []byte) error {
 		return fmt.Errorf("loading users: %w", err)
 	}
 
-	err = policy.ValidatePolicy(pol, users, s.ListNodes())
+	// Validate what would be compiled: pol with the managed groups and device
+	// rules, so references to directory groups resolve.
+	merged, err := withManagedPolicy(s.db, pol, users, s.ListNodes())
+	if err != nil {
+		return invalidPolicyError{err}
+	}
+
+	err = policy.ValidatePolicy(merged, users, s.ListNodes())
 	if err != nil {
 		return invalidPolicyError{err}
 	}

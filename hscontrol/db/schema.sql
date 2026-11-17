@@ -118,3 +118,53 @@ CREATE TABLE database_versions(
   version text NOT NULL,
   updated_at datetime
 );
+
+-- orgscale admin console tables (see hscontrol/db/orgscale_admin.go).
+CREATE TABLE settings(
+  key text PRIMARY KEY,
+  value text NOT NULL,
+  updated_at datetime,
+  updated_by text
+);
+CREATE TABLE directory_groups(
+  id integer PRIMARY KEY AUTOINCREMENT,
+  source text NOT NULL,
+  external_id text NOT NULL,
+  name text NOT NULL,
+  display_name text,
+  created_at datetime,
+  updated_at datetime
+);
+CREATE UNIQUE INDEX idx_directory_groups_source_external_id ON directory_groups(source, external_id);
+CREATE TABLE directory_group_members(
+  group_id integer NOT NULL,
+  user_id integer NOT NULL,
+  PRIMARY KEY(group_id, user_id),
+  CONSTRAINT fk_directory_group_members_group FOREIGN KEY(group_id) REFERENCES directory_groups(id) ON DELETE CASCADE,
+  CONSTRAINT fk_directory_group_members_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+CREATE INDEX idx_directory_group_members_user_id ON directory_group_members(user_id);
+CREATE TABLE user_access(
+  user_id integer PRIMARY KEY,
+  disabled_at datetime,
+  disabled_by text,
+  CONSTRAINT fk_user_access_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+CREATE TABLE audit_events(
+  id integer PRIMARY KEY AUTOINCREMENT,
+  created_at datetime NOT NULL,
+  actor text NOT NULL,
+  actor_kind text NOT NULL,
+  action text NOT NULL,
+  target text,
+  detail text
+);
+CREATE INDEX idx_audit_events_created_at ON audit_events(created_at);
+CREATE TABLE device_access(
+  node_id integer NOT NULL,
+  principal_kind text NOT NULL,
+  principal text NOT NULL,
+  created_at datetime,
+  PRIMARY KEY(node_id, principal_kind, principal),
+  CONSTRAINT fk_device_access_node FOREIGN KEY(node_id) REFERENCES nodes(id) ON DELETE CASCADE
+);

@@ -238,6 +238,11 @@ type Config struct { //nolint:recvcheck // MarshalJSON reads a value, so a Confi
 	// [OpenID Connect](https://headscale.net/stable/ref/oidc/).
 	OIDC OIDCConfig `koanf:"oidc"`
 
+	// Admin is the web admin console served at `/admin`. Admins sign in
+	// through the OIDC provider in `oidc`. Access rules and admins set
+	// here are a floor: more can be added from the console itself.
+	Admin AdminConfig `koanf:"admin"`
+
 	// LogTail is whether nodes send their logs to Tailscale.
 	LogTail LogTailConfig `koanf:"logtail"`
 
@@ -748,6 +753,25 @@ type OIDCConfig struct {
 	// authorization code from interception. See
 	// [Enable PKCE](https://headscale.net/stable/ref/oidc/#enable-pkce-recommended).
 	PKCE PKCEConfig `koanf:"pkce"`
+}
+
+// AdminConfig configures the web admin console.
+type AdminConfig struct {
+	// Enabled serves the web admin console at `/admin`. It requires
+	// `oidc.issuer`: admins sign in through the OIDC provider.
+	Enabled bool `koanf:"enabled"`
+
+	// Users are email addresses always given the admin role. Use it to
+	// bootstrap the first admin; more admins can be added from the console.
+	Users []string `example:"[\"alice@example.com\"]" koanf:"users"`
+
+	// Groups are OIDC groups, from the provider's `groups` claim, whose
+	// members are always given the admin role.
+	Groups []string `example:"[\"orgscale-admins\"]" koanf:"groups"`
+
+	// SessionTimeout is how long an admin console sign-in lasts before the
+	// admin has to sign in again; at least 5m.
+	SessionTimeout time.Duration `example:"\"8h\"" koanf:"session_timeout"`
 }
 
 // DERPConfig is the DERP map: the relay servers clients use when a direct
