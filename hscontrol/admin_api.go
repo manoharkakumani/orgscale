@@ -394,7 +394,7 @@ func (aa *adminAuth) handlePutLoginRules(w http.ResponseWriter, r *http.Request)
 			}
 		}
 
-		return aa.h.state.SetSettingJSON(key, list, sess.Email)
+		return aa.h.state.SetSettingJSON(key, list, sess.label())
 	}
 
 	for _, s := range []struct {
@@ -437,12 +437,12 @@ func (aa *adminAuth) handlePutRoles(w http.ResponseWriter, r *http.Request) {
 	adminUsers := normaliseList(req.AdminUsers, true)
 	adminGroups := normaliseList(req.AdminGroups, false)
 
-	cfgAdmin := slices.ContainsFunc(aa.h.cfg.Admin.Users, func(u string) bool { return strings.EqualFold(u, sess.Email) })
-	if !cfgAdmin && !slices.Contains(adminUsers, strings.ToLower(sess.Email)) {
+	cfgAdmin := slices.ContainsFunc(aa.h.cfg.Admin.Users, func(u string) bool { return strings.EqualFold(u, sess.roleEmail) })
+	if !cfgAdmin && !slices.Contains(adminUsers, strings.ToLower(sess.roleEmail)) {
 		var prev []string
 		_, _ = aa.h.state.GetSettingJSON(types.SettingAdminUsers, &prev)
 
-		if slices.ContainsFunc(prev, func(u string) bool { return strings.EqualFold(u, sess.Email) }) {
+		if slices.ContainsFunc(prev, func(u string) bool { return strings.EqualFold(u, sess.roleEmail) }) {
 			adminJSONError(w, http.StatusBadRequest,
 				"you cannot remove yourself from the admins; ask another admin to do it")
 
@@ -456,7 +456,7 @@ func (aa *adminAuth) handlePutRoles(w http.ResponseWriter, r *http.Request) {
 		types.SettingViewerUsers:  normaliseList(req.ViewerUsers, true),
 		types.SettingViewerGroups: normaliseList(req.ViewerGroups, false),
 	} {
-		err := aa.h.state.SetSettingJSON(key, v, sess.Email)
+		err := aa.h.state.SetSettingJSON(key, v, sess.label())
 		if err != nil {
 			adminJSONError(w, http.StatusInternalServerError, err.Error())
 
@@ -478,7 +478,7 @@ func (aa *adminAuth) handlePutDeviceRestriction(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	changes, err := aa.h.state.SetDeviceRestriction(req.Enabled, sessionFrom(r).Email)
+	changes, err := aa.h.state.SetDeviceRestriction(req.Enabled, sessionFrom(r).label())
 	if err != nil {
 		adminJSONError(w, http.StatusBadRequest, "the policy did not compile with device restriction: "+err.Error())
 
@@ -495,7 +495,7 @@ func (aa *adminAuth) handleCreateSCIMToken(w http.ResponseWriter, r *http.Reques
 	token := "oskey-scim-" + rands.HexString(48)
 	sum := sha256.Sum256([]byte(token))
 	now := time.Now().UTC().Format(time.RFC3339)
-	by := sessionFrom(r).Email
+	by := sessionFrom(r).label()
 
 	err := aa.h.state.SetSettingJSON(types.SettingSCIMTokenHash, hex.EncodeToString(sum[:]), by)
 	if err == nil {
@@ -556,7 +556,7 @@ func (aa *adminAuth) handlePutGoogleSync(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	err := aa.h.state.SetSettingJSON(types.SettingGoogleSync, req, sessionFrom(r).Email)
+	err := aa.h.state.SetSettingJSON(types.SettingGoogleSync, req, sessionFrom(r).label())
 	if err != nil {
 		adminJSONError(w, http.StatusInternalServerError, err.Error())
 
@@ -695,7 +695,7 @@ func (aa *adminAuth) setUserDisabled(w http.ResponseWriter, r *http.Request, dis
 		return
 	}
 
-	changes, err := aa.h.state.SetUserDisabled(uid, disabled, sess.Email)
+	changes, err := aa.h.state.SetUserDisabled(uid, disabled, sess.label())
 	aa.h.Change(changes...)
 
 	if err != nil {

@@ -69,12 +69,20 @@ type adminSession struct {
 	// console ends the session at once.
 	roleEmail  string
 	roleGroups []string
+
+	// subject is the provider's immutable identifier (issuer + sub).
+	subject string
 }
 
-// label names the session's person in the audit log: the email, or the
-// name or subject when the identity provider sends no email.
+// label names the session's person in the audit log from identifiers that
+// cannot be spoofed: the verified email, or else the provider's subject.
+// Display names and unverified emails are never used.
 func (s *adminSession) label() string {
-	return cmp.Or(s.Email, s.Name)
+	if s.roleEmail != "" {
+		return s.roleEmail
+	}
+
+	return "sub:" + s.subject
 }
 
 // adminPendingLogin is a login sent to the identity provider and not back yet.
@@ -243,7 +251,7 @@ func (aa *adminAuth) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 	role, ok := aa.roleFor(&claims)
 	if !ok {
 		aa.audit(types.AuditEvent{
-			Actor: cmp.Or(claims.Email, claims.Sub), ActorKind: types.AuditActorAdmin,
+			Actor: cmp.Or(aa.trustedEmail(&claims), "sub:"+claims.Identifier()), ActorKind: types.AuditActorAdmin,
 			Action: "admin.login.denied",
 		})
 		adminLoginError(w, http.StatusForbidden,
@@ -277,6 +285,7 @@ func (aa *adminAuth) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 
 		roleEmail:  aa.trustedEmail(&claims),
 		roleGroups: slices.Clone(claims.Groups),
+		subject:    claims.Identifier(),
 	}
 
 	aa.storeSession(hashToken(sessionToken), sess)
@@ -292,7 +301,7 @@ func (aa *adminAuth) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteStrictMode,
 	})
 
-	aa.audit(types.AuditEvent{Actor: sess.Email, ActorKind: types.AuditActorAdmin, Action: "admin.login", Detail: string(role)})
+	aa.audit(types.AuditEvent{Actor: sess.label(), ActorKind: types.AuditActorAdmin, Action: "admin.login", Detail: string(role)})
 
 	http.Redirect(w, r, "/admin/", http.StatusFound)
 }
@@ -311,7 +320,7 @@ func (aa *adminAuth) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 		delete(aa.sessions, key)
 		aa.mu.Unlock()
 
-		aa.audit(types.AuditEvent{Actor: sess.Email, ActorKind: types.AuditActorAdmin, Action: "admin.logout"})
+		aa.audit(types.AuditEvent{Actor: sess.label(), ActorKind: types.AuditActorAdmin, Action: "admin.logout"})
 	}
 
 	http.SetCookie(w, &http.Cookie{Name: adminSessionCookie, Path: "/", MaxAge: -1})
@@ -432,7 +441,7 @@ func (aa *adminAuth) endSessionsOf(email string) {
 	defer aa.mu.Unlock()
 
 	for k, s := range aa.sessions {
-		if strings.EqualFold(s.Email, email) {
+		if strings.EqualFold(s.roleEmail, email) || strings.EqualFold(s.Email, email) {
 			delete(aa.sessions, k)
 		}
 	}
