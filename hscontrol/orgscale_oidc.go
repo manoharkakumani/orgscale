@@ -3,6 +3,7 @@ package hscontrol
 import (
 	"errors"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/manoharkakumani/orgscale/hscontrol/state"
@@ -121,4 +122,55 @@ func (a *AuthProviderOIDC) afterOIDCLogin(user *types.User, claims *types.OIDCCl
 	}
 
 	return nil
+}
+
+// entraConsumerTenant is the tenant of personal Microsoft accounts.
+const entraConsumerTenant = "9188040d-6c67-4c5b-b112-36a304b66dad"
+
+// entraTenantIssuer reports whether iss is one organization's Microsoft
+// Entra ID tenant, as opposed to the multi-tenant endpoints that accept any
+// organization or personal accounts.
+func entraTenantIssuer(iss string) bool {
+	u, err := url.Parse(iss)
+	if err != nil {
+		return false
+	}
+
+	if u.Host != "login.microsoftonline.com" && u.Host != "sts.windows.net" {
+		return false
+	}
+
+	tenant, _, _ := strings.Cut(strings.TrimPrefix(u.Path, "/"), "/")
+	switch strings.ToLower(tenant) {
+	case "", "common", "organizations", "consumers", entraConsumerTenant:
+		return false
+	}
+
+	return true
+}
+
+// applyProviderEmail fills in a verified email for identity providers that
+// vouch for an address without saying so in email_verified.
+//
+// Microsoft Entra ID never sends email_verified, and its email claim can be
+// edited, so it must not be trusted (the "nOAuth" problem). A member's
+// sign-in name (UPN, preferred_username) is set only by the tenant's
+// administrators and uses one of the tenant's verified domains, so for a
+// single tenant it is used as the verified email. Guests (#EXT#) are not.
+func applyProviderEmail(claims *types.OIDCClaims) {
+	if claims.Email != "" && bool(claims.EmailVerified) {
+		return
+	}
+
+	if !entraTenantIssuer(claims.Iss) {
+		return
+	}
+
+	upn := strings.ToLower(strings.TrimSpace(claims.Username))
+	if !strings.Contains(upn, "@") || strings.Contains(upn, "#ext#") {
+		return
+	}
+
+	claims.Email = upn
+	claims.EmailVerified = true
 }

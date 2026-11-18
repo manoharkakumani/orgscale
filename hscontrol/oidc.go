@@ -367,6 +367,8 @@ func (a *AuthProviderOIDC) OIDCCallbackHandler(
 		}
 	}
 
+	applyProviderEmail(&claims)
+
 	// The user claims are now updated from the userinfo endpoint so we can verify the user
 	// against allowed emails, email domains, and groups.
 	err = doOIDCAuthorization(effectiveOIDCConfig(a.h.state, a.cfg), &claims)

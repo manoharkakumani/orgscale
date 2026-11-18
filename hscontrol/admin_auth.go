@@ -342,6 +342,8 @@ func (aa *adminAuth) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	applyProviderEmail(&claims)
+
 	role, ok := aa.roleFor(&claims)
 	if !ok {
 		aa.audit(types.AuditEvent{
