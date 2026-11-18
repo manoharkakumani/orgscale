@@ -1,57 +1,72 @@
-/* CSS Variables from Material for MkDocs */
+/* orgscale: same look as the admin console (macOS style). Variable names
+   are kept from the original design so the templates' inline styles work. */
 :root {
-  --md-default-fg-color: rgba(0, 0, 0, 0.87);
-  --md-default-fg-color--light: rgba(0, 0, 0, 0.54);
-  --md-default-fg-color--lighter: rgba(0, 0, 0, 0.32);
-  --md-default-fg-color--lightest: rgba(0, 0, 0, 0.07);
-  --md-code-fg-color: #36464e;
-  --md-code-bg-color: #f5f5f5;
-  --md-primary-fg-color: #4051b5;
-  --md-accent-fg-color: #526cfe;
+  --md-default-fg-color: #1d1d1f;
+  --md-default-fg-color--light: #6e6e73;
+  --md-default-fg-color--lighter: #a1a1a6;
+  --md-default-fg-color--lightest: rgba(0, 0, 0, 0.06);
+  --md-code-fg-color: #1d1d1f;
+  --md-code-bg-color: #f2f2f5;
+  --md-primary-fg-color: #0a6cff;
+  --md-accent-fg-color: #0060e6;
   --md-typeset-a-color: var(--md-primary-fg-color);
-  --md-text-font: "Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
-  --md-code-font: "Roboto Mono", "SF Mono", Monaco, "Cascadia Code", Consolas, "Courier New", monospace;
-  --hs-success: #059669;
-  --hs-success-bg: #d1fae5;
-  --hs-error: #dc2626;
-  --hs-error-bg: #fee2e2;
-  --hs-warning-text: #92400e;
-  --hs-warning-bg: #fef3c7;
-  --hs-warning-border: #f59e0b;
-  --hs-border: #e5e7eb;
-  --hs-bg: #ffffff;
-  --hs-focus-ring: #4051b5;
+  --md-text-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", system-ui, sans-serif;
+  --md-code-font: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  --hs-success: #1f9d4c;
+  --hs-success-bg: rgba(31, 157, 76, 0.1);
+  --hs-error: #e0352b;
+  --hs-error-bg: rgba(224, 53, 43, 0.08);
+  --hs-warning-text: #8a5300;
+  --hs-warning-bg: rgba(255, 159, 10, 0.12);
+  --hs-warning-border: #f0a020;
+  --hs-border: rgba(0, 0, 0, 0.1);
+  --hs-bg: #f5f5f7;
+  --hs-card: #ffffff;
+  --hs-focus-ring: rgba(10, 108, 255, 0.45);
+  color-scheme: light dark;
 }
 
-/* Dark mode */
 @media (prefers-color-scheme: dark) {
   :root {
-    --md-default-fg-color: rgba(255, 255, 255, 0.87);
-    --md-default-fg-color--light: rgba(255, 255, 255, 0.6);
-    --md-default-fg-color--lighter: rgba(255, 255, 255, 0.38);
+    --md-default-fg-color: #f5f5f7;
+    --md-default-fg-color--light: #a1a1a6;
+    --md-default-fg-color--lighter: #6e6e73;
     --md-default-fg-color--lightest: rgba(255, 255, 255, 0.07);
-    --md-code-fg-color: #c9d1d9;
-    --md-code-bg-color: #1e1e1e;
-    --md-primary-fg-color: #7b8fdb;
-    --md-accent-fg-color: #8fa4ff;
-    --md-typeset-a-color: var(--md-primary-fg-color);
-    --hs-success: #34d399;
-    --hs-success-bg: #064e3b;
-    --hs-error: #f87171;
-    --hs-error-bg: #450a0a;
-    --hs-warning-text: #fbbf24;
-    --hs-warning-bg: #451a03;
-    --hs-warning-border: #d97706;
-    --hs-border: #374151;
-    --hs-bg: #111827;
-    --hs-focus-ring: #7b8fdb;
+    --md-code-fg-color: #f5f5f7;
+    --md-code-bg-color: #323236;
+    --md-primary-fg-color: #3d8bff;
+    --md-accent-fg-color: #5c9dff;
+    --hs-success: #3fd07a;
+    --hs-success-bg: rgba(63, 208, 122, 0.12);
+    --hs-error: #ff6159;
+    --hs-error-bg: rgba(255, 97, 89, 0.12);
+    --hs-warning-text: #ffb340;
+    --hs-warning-bg: rgba(255, 179, 64, 0.12);
+    --hs-warning-border: #ffb340;
+    --hs-border: rgba(255, 255, 255, 0.1);
+    --hs-bg: #1c1c1e;
+    --hs-card: #2a2a2d;
   }
+}
+
+body {
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  background:
+    radial-gradient(1100px 520px at 15% -10%, rgba(10, 108, 255, 0.1), transparent 60%),
+    radial-gradient(800px 480px at 110% 110%, rgba(122, 79, 214, 0.08), transparent 60%),
+    var(--hs-bg) !important;
 }
 
 /* Base Typography - 1rem (16px) avoids iOS auto-zoom on inputs */
 .md-typeset {
-  font-size: 1rem;
-  line-height: 1.6;
+  background: var(--hs-card);
+  border-radius: 16px;
+  box-shadow: 0 0 0 0.5px var(--hs-border), 0 18px 60px rgba(0, 0, 0, 0.12);
+  padding: 36px 40px 28px;
+  box-sizing: border-box;
+  font-size: 15px;
+  line-height: 1.55;
   color: var(--md-default-fg-color);
   font-family: var(--md-text-font);
   overflow-wrap: break-word;
@@ -60,11 +75,11 @@
 
 /* Headings */
 .md-typeset h1 {
-  color: var(--md-default-fg-color--light);
-  font-size: 2em;
-  line-height: 1.3;
-  margin: 0 0 1.25em;
-  font-weight: 300;
+  color: var(--md-default-fg-color);
+  font-size: 1.6em;
+  line-height: 1.25;
+  margin: 0 0 0.6em;
+  font-weight: 700;
   letter-spacing: -0.01em;
 }
 
@@ -73,21 +88,21 @@
 }
 
 .md-typeset h2 {
-  font-size: 1.5625em;
-  line-height: 1.4;
-  margin: 2.4em 0 0.64em;
-  font-weight: 300;
+  font-size: 1.25em;
+  line-height: 1.35;
+  margin: 1.8em 0 0.5em;
+  font-weight: 650;
   letter-spacing: -0.01em;
-  color: var(--md-default-fg-color--light);
+  color: var(--md-default-fg-color);
 }
 
 .md-typeset h3 {
-  font-size: 1.25em;
-  line-height: 1.5;
-  margin: 2em 0 0.8em;
-  font-weight: 400;
+  font-size: 1.05em;
+  line-height: 1.45;
+  margin: 1.6em 0 0.5em;
+  font-weight: 600;
   letter-spacing: -0.01em;
-  color: var(--md-default-fg-color--light);
+  color: var(--md-default-fg-color);
 }
 
 /* Paragraphs and block elements */
@@ -118,7 +133,7 @@
 /* Links - underline for accessibility (don't rely on color alone) */
 .md-typeset a {
   color: var(--md-typeset-a-color);
-  text-decoration: underline;
+  text-decoration: none;
   text-decoration-thickness: 1px;
   text-underline-offset: 2px;
   word-break: break-word;
@@ -191,9 +206,10 @@ input:focus-visible {
   color: #ffffff;
   background-color: var(--md-primary-fg-color);
   border: none;
-  border-radius: 0.375rem;
+  border-radius: 8px;
   cursor: pointer;
-  min-height: 44px;
+  min-height: 40px;
+  box-shadow: 0 0.5px 1px rgba(0, 0, 0, 0.15), inset 0 0.5px 0 rgba(255, 255, 255, 0.2);
   transition:
     background-color 150ms ease-out,
     box-shadow 150ms ease-out;
@@ -211,16 +227,28 @@ input:focus-visible {
 /* Logo */
 .orgscale-logo {
   display: block;
-  width: 400px;
+  width: 170px;
   max-width: 100%;
   height: auto;
-  margin: 0 0 3rem 0;
+  margin: 0 0 1.75rem 0;
   padding: 0;
+  color: var(--md-default-fg-color);
 }
 
-@media (max-width: 768px) {
-  .orgscale-logo {
-    width: 200px;
+.md-typeset table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.md-typeset td,
+.md-typeset th {
+  border-bottom: 0.5px solid var(--hs-border) !important;
+}
+
+@media (max-width: 600px) {
+  .md-typeset {
+    padding: 24px 20px;
+    border-radius: 12px;
   }
 }
 

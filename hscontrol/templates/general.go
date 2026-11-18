@@ -19,14 +19,16 @@ func mdTypesetBody(children ...elem.Node) *elem.Element {
 				styles.FlexDirection:   "column",
 				styles.AlignItems:      "center",
 				styles.BackgroundColor: "var(--hs-bg)",
-				styles.Padding:         "3rem 1.5rem",
+				styles.Padding:         "4rem 1rem",
+				styles.Margin:          "0",
+				styles.BoxSizing:       "border-box",
 			}.ToInline(),
 			"translate": "no",
 		},
 		elem.Main(attrs.Props{
 			attrs.Class: "md-typeset",
 			attrs.Style: styles.Props{
-				styles.MaxWidth: "min(800px, 90vw)",
+				styles.MaxWidth: "min(620px, 100%)",
 				styles.Width:    "100%",
 			}.ToInline(),
 		}, children...),
@@ -102,12 +104,7 @@ func pageFooter() *elem.Element {
 				styles.LineHeight: lineHeightBase,
 			}.ToInline(),
 		},
-		elem.Text("Powered by "),
-		elem.A(attrs.Props{
-			attrs.Href:   "https://github.com/juanfont/headscale",
-			attrs.Rel:    "noreferrer noopener",
-			attrs.Target: "_blank",
-		}, elem.Text("Orgscale")),
+		elem.Text("orgscale · secure access for your organization"),
 	)
 }
 
@@ -151,17 +148,7 @@ func HtmlStructure(head, body *elem.Element) *elem.Element {
 				attrs.Rel:  "icon",
 				attrs.Href: "/favicon.ico",
 			}),
-			// Google Fonts for Roboto and Roboto Mono
-			elem.Link(attrs.Props{
-				attrs.Rel:     "preconnect",
-				attrs.Href:    "https://fonts.gstatic.com",
-				"crossorigin": "",
-			}),
-			elem.Link(attrs.Props{
-				attrs.Rel:  "stylesheet",
-				attrs.Href: "https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;700&display=swap",
-			}),
-			// Material for MkDocs CSS styles
+			// orgscale styles; system fonts, so no third-party requests.
 			elem.Style(attrs.Props{attrs.Type: "text/css"}, elem.Raw(assets.CSS)),
 			head,
 		),

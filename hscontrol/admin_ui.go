@@ -105,3 +105,27 @@ func (h *Orgscale) auditAPIMiddleware(next http.Handler) http.Handler {
 		})
 	})
 }
+
+// collapseSlashes redirects browser requests whose path has doubled slashes,
+// such as "//admin". Tailscale clients build the "Admin console" link from
+// the login server URL, so a server URL typed with a trailing slash gives
+// "https://vpn.example.com//admin".
+func collapseSlashes(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.Contains(r.URL.Path, "//") || (r.Method != http.MethodGet && r.Method != http.MethodHead) {
+			next.ServeHTTP(w, r)
+
+			return
+		}
+
+		p := r.URL.Path
+		for strings.Contains(p, "//") {
+			p = strings.ReplaceAll(p, "//", "/")
+		}
+
+		u := *r.URL
+		u.Path, u.RawPath = p, ""
+
+		http.Redirect(w, r, u.RequestURI(), http.StatusMovedPermanently)
+	})
+}

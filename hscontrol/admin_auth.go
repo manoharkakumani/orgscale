@@ -7,7 +7,6 @@ import (
 	"crypto/subtle"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"net/http"
 	"slices"
 	"strings"
@@ -18,6 +17,7 @@ import (
 	"github.com/hashicorp/golang-lru/v2/expirable"
 	apiv1 "github.com/manoharkakumani/orgscale/hscontrol/api/v1"
 	apiv2 "github.com/manoharkakumani/orgscale/hscontrol/api/v2"
+	"github.com/manoharkakumani/orgscale/hscontrol/templates"
 	"github.com/manoharkakumani/orgscale/hscontrol/types"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/oauth2"
@@ -560,13 +560,11 @@ func adminLoginError(w http.ResponseWriter, code int, msg string) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(code)
 
-	_, _ = fmt.Fprintf(w, `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>orgscale admin</title>
-<style>body{font-family:system-ui,sans-serif;max-width:32rem;margin:15vh auto;padding:0 1rem;color:#1f2937}a{color:#2563eb}</style></head>
-<body><h1>Sign-in failed</h1><p>%s</p><p><a href="/admin/">Back to the console</a></p></body></html>`, htmlEscape(msg))
-}
+	page := templates.AuthError(templates.AuthErrorResult{
+		Title:   "orgscale admin",
+		Heading: "No access to the admin console",
+		Message: msg,
+	})
 
-func htmlEscape(s string) string {
-	r := strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", `"`, "&quot;", "'", "&#39;")
-
-	return r.Replace(s)
+	_, _ = w.Write([]byte(page.Render()))
 }

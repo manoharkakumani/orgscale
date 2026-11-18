@@ -723,3 +723,30 @@ func TestAdminConsoleGroups(t *testing.T) {
 
 	require.Equal(t, http.StatusNoContent, boss.do(t, http.MethodDelete, "/admin/api/groups/"+id, nil, nil))
 }
+
+func TestAdminConsoleDoubleSlashAndNonAdmins(t *testing.T) {
+	h := newAdminHarness(t)
+
+	// The Tailscale client's "Admin console" link, built from a login
+	// server URL with a trailing slash.
+	c := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+
+	res, err := c.Get(h.srv.URL + "//admin")
+	require.NoError(t, err)
+	res.Body.Close()
+	assert.Equal(t, http.StatusMovedPermanently, res.StatusCode)
+	assert.Equal(t, "/admin", res.Header.Get("Location"))
+
+	res, err = c.Get(h.srv.URL + "//evil.example.com/x")
+	require.NoError(t, err)
+	res.Body.Close()
+	assert.Equal(t, "/evil.example.com/x", res.Header.Get("Location"), "never redirects off the server")
+
+	// Someone who signs in but is not an admin or viewer gets a clear
+	// refusal and no session.
+	b := h.browser(t)
+	assert.Equal(t, http.StatusForbidden, b.login(t, &mockoidc.MockUser{
+		Subject: "carol", Email: "carol@example.com", EmailVerified: true,
+	}))
+	assert.Equal(t, http.StatusUnauthorized, b.do(t, http.MethodGet, "/admin/api/me", nil, nil))
+}
