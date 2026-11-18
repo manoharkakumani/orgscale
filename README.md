@@ -71,7 +71,8 @@ iOS and Android. See [connecting devices](docs/orgscale/admin-console.md#connect
 **Please note that we do not support nor encourage the use of reverse proxies
 and container to run Orgscale.**
 
-Start with the [admin console guide](docs/orgscale/admin-console.md). Server
+Run it with Docker ([guide](docs/orgscale/docker.md)), then follow the
+[admin console guide](docs/orgscale/admin-console.md). Server
 settings not covered there work as in Headscale; the
 [configuration reference](docs/ref/configuration-options.md) lists them all.
 
