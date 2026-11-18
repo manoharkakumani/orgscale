@@ -191,6 +191,9 @@ CREATE TABLE access_rules(
   ports text NOT NULL DEFAULT '*',
   position integer NOT NULL DEFAULT 0,
   enabled numeric NOT NULL DEFAULT true,
+  kind text NOT NULL DEFAULT 'network',
+  ssh_users text,
+  ssh_check_period text,
   created_at datetime,
   updated_at datetime,
   updated_by text
@@ -203,3 +206,22 @@ CREATE TABLE access_rule_principals(
   PRIMARY KEY(rule_id, side, principal_kind, principal),
   CONSTRAINT fk_access_rule_principals_rule FOREIGN KEY(rule_id) REFERENCES access_rules(id) ON DELETE CASCADE
 );
+
+-- orgscale admin console sessions (see hscontrol/db/orgscale_access.go).
+CREATE TABLE admin_sessions(
+  id text PRIMARY KEY,
+  csrf text NOT NULL,
+  user_id integer,
+  email text,
+  name text,
+  picture text,
+  role_email text,
+  role_groups text,
+  subject text,
+  remote_addr text,
+  user_agent text,
+  created_at datetime,
+  last_seen_at datetime,
+  expires_at datetime NOT NULL
+);
+CREATE INDEX idx_admin_sessions_expires_at ON admin_sessions(expires_at);

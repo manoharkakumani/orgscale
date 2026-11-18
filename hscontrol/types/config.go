@@ -757,9 +757,16 @@ type OIDCConfig struct {
 
 // AdminConfig configures the web admin console.
 type AdminConfig struct {
-	// Enabled serves the web admin console at `/admin`. It requires
-	// `oidc.issuer`: admins sign in through the OIDC provider.
+	// Enabled serves the web admin console at `/admin`. Admins sign in
+	// through the OIDC provider. Without one, the console starts in setup
+	// mode: a one-time setup link is written to the log, and single sign-on
+	// is configured in the browser.
 	Enabled bool `koanf:"enabled"`
+
+	// AllowInsecureHTTP serves the console when `server_url` is plain
+	// `http://` on an address other than localhost. Sign-in cookies then
+	// travel unencrypted; use it only in a lab.
+	AllowInsecureHTTP bool `koanf:"allow_insecure_http"`
 
 	// Users are email addresses always given the admin role. Use it to
 	// bootstrap the first admin; more admins can be added from the console.

@@ -230,6 +230,8 @@ func (aa *adminAuth) principalLabeler() (func(kind, principal string) string, er
 			return cmp.Or(nodeLabel[p], "deleted device "+p)
 		case types.PrincipalEveryone:
 			return "Everyone"
+		case types.PrincipalSelf:
+			return "Their own devices"
 		}
 
 		return p
@@ -285,7 +287,7 @@ func (aa *adminAuth) parsePrincipals(in []adminPrincipal, allowed ...string) ([]
 			if _, ok := st.GetNodeByID(types.NodeID(id)); !ok {
 				return nil, fmt.Errorf("no device %s", p.Principal)
 			}
-		case types.PrincipalEveryone:
+		case types.PrincipalEveryone, types.PrincipalSelf:
 			p.Principal = ""
 		default:
 			return nil, fmt.Errorf("unknown kind %q", p.Kind)
@@ -640,15 +642,18 @@ func (aa *adminAuth) handleEnrollTag(w http.ResponseWriter, r *http.Request) {
 }
 
 type adminRule struct {
-	ID           uint64           `json:"id"`
-	Name         string           `json:"name"`
-	Protocol     string           `json:"protocol"`
-	Ports        string           `json:"ports"`
-	Enabled      bool             `json:"enabled"`
-	Sources      []adminPrincipal `json:"sources"`
-	Destinations []adminPrincipal `json:"destinations"`
-	UpdatedAt    time.Time        `json:"updatedAt"`
-	UpdatedBy    string           `json:"updatedBy"`
+	ID             uint64           `json:"id"`
+	Kind           string           `json:"kind"`
+	SSHUsers       []string         `json:"sshUsers"`
+	SSHCheckPeriod string           `json:"sshCheckPeriod"`
+	Name           string           `json:"name"`
+	Protocol       string           `json:"protocol"`
+	Ports          string           `json:"ports"`
+	Enabled        bool             `json:"enabled"`
+	Sources        []adminPrincipal `json:"sources"`
+	Destinations   []adminPrincipal `json:"destinations"`
+	UpdatedAt      time.Time        `json:"updatedAt"`
+	UpdatedBy      string           `json:"updatedBy"`
 }
 
 func (aa *adminAuth) handleListRules(w http.ResponseWriter, r *http.Request) {
@@ -677,8 +682,12 @@ func (aa *adminAuth) handleListRules(w http.ResponseWriter, r *http.Request) {
 
 	out := make([]adminRule, 0, len(rules))
 	for _, ru := range rules {
+		users := []string{}
+		_ = json.Unmarshal([]byte(ru.SSHUsers), &users)
+
 		out = append(out, adminRule{
-			ID: ru.ID, Name: ru.Name, Protocol: ru.Protocol, Ports: ru.Ports, Enabled: ru.Enabled,
+			ID: ru.ID, Kind: cmp.Or(ru.Kind, types.RuleKindNetwork), SSHUsers: nonNil(users), SSHCheckPeriod: ru.SSHCheckPeriod,
+			Name: ru.Name, Protocol: ru.Protocol, Ports: ru.Ports, Enabled: ru.Enabled,
 			Sources: conv(ru.Sources), Destinations: conv(ru.Destinations),
 			UpdatedAt: ru.UpdatedAt, UpdatedBy: ru.UpdatedBy,
 		})
@@ -717,6 +726,34 @@ func normalizePorts(s string) (string, error) {
 	return s, nil
 }
 
+var (
+	sshSourceKinds      = []string{types.PrincipalUser, types.PrincipalDirectoryGroup, types.PrincipalPolicyGroup, types.PrincipalEveryone}
+	sshDestinationKinds = []string{types.PrincipalTag, types.PrincipalSelf}
+	sshUserRE           = regexp.MustCompile(`^[a-z_][a-z0-9_.-]{0,31}$`)
+)
+
+// validSSHUsers checks the Linux accounts of an SSH rule.
+func validSSHUsers(in []string) ([]string, error) {
+	var out []string
+
+	for _, u := range in {
+		u = strings.TrimSpace(u)
+		if u != "autogroup:nonroot" && !sshUserRE.MatchString(u) {
+			return nil, fmt.Errorf("%q is not a Linux account name", u)
+		}
+
+		if !slices.Contains(out, u) {
+			out = append(out, u)
+		}
+	}
+
+	if len(out) == 0 {
+		return nil, errors.New("choose at least one account people may log in as")
+	}
+
+	return out, nil
+}
+
 var ruleKinds = []string{
 	types.PrincipalUser, types.PrincipalDirectoryGroup, types.PrincipalPolicyGroup,
 	types.PrincipalTag, types.PrincipalDevice, types.PrincipalEveryone,
@@ -737,12 +774,15 @@ func (aa *adminAuth) handleSaveRule(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Name         string           `json:"name"`
-		Protocol     string           `json:"protocol"`
-		Ports        string           `json:"ports"`
-		Enabled      bool             `json:"enabled"`
-		Sources      []adminPrincipal `json:"sources"`
-		Destinations []adminPrincipal `json:"destinations"`
+		Kind           string           `json:"kind"`
+		SSHUsers       []string         `json:"sshUsers"`
+		SSHCheckPeriod string           `json:"sshCheckPeriod"`
+		Name           string           `json:"name"`
+		Protocol       string           `json:"protocol"`
+		Ports          string           `json:"ports"`
+		Enabled        bool             `json:"enabled"`
+		Sources        []adminPrincipal `json:"sources"`
+		Destinations   []adminPrincipal `json:"destinations"`
 	}
 
 	if !decodeJSON(w, r, &req) {
@@ -779,14 +819,51 @@ func (aa *adminAuth) handleSaveRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	src, err := aa.parsePrincipals(req.Sources, ruleKinds...)
+	req.Kind = cmp.Or(req.Kind, types.RuleKindNetwork)
+
+	srcKinds, dstKinds := ruleKinds, ruleKinds
+	sshUsers := ""
+
+	switch req.Kind {
+	case types.RuleKindNetwork:
+		req.SSHUsers, req.SSHCheckPeriod = nil, ""
+	case types.RuleKindSSH:
+		srcKinds = sshSourceKinds
+		dstKinds = sshDestinationKinds
+		ports, req.Protocol = "22", "tcp"
+
+		users, err := validSSHUsers(req.SSHUsers)
+		if err != nil {
+			adminJSONError(w, http.StatusBadRequest, err.Error())
+
+			return
+		}
+
+		b, _ := json.Marshal(users)
+		sshUsers = string(b)
+
+		if req.SSHCheckPeriod != "" {
+			d, err := time.ParseDuration(req.SSHCheckPeriod)
+			if err != nil || d < time.Minute || d > 168*time.Hour {
+				adminJSONError(w, http.StatusBadRequest, "the sign-in interval must be between 1 minute and 7 days")
+
+				return
+			}
+		}
+	default:
+		adminJSONError(w, http.StatusBadRequest, "unknown rule type")
+
+		return
+	}
+
+	src, err := aa.parsePrincipals(req.Sources, srcKinds...)
 	if err != nil {
 		adminJSONError(w, http.StatusBadRequest, "who: "+err.Error())
 
 		return
 	}
 
-	dst, err := aa.parsePrincipals(req.Destinations, ruleKinds...)
+	dst, err := aa.parsePrincipals(req.Destinations, dstKinds...)
 	if err != nil {
 		adminJSONError(w, http.StatusBadRequest, "can reach: "+err.Error())
 
@@ -808,7 +885,7 @@ func (aa *adminAuth) handleSaveRule(w http.ResponseWriter, r *http.Request) {
 	}
 
 	newID, changes, err := aa.h.state.SaveAccessRule(types.AccessRule{
-		ID: id, Name: req.Name, Protocol: req.Protocol, Ports: ports, Enabled: req.Enabled,
+		ID: id, Kind: req.Kind, SSHUsers: sshUsers, SSHCheckPeriod: req.SSHCheckPeriod, Name: req.Name, Protocol: req.Protocol, Ports: ports, Enabled: req.Enabled,
 		UpdatedBy: by, Sources: conv(src), Destinations: conv(dst),
 	})
 	aa.h.Change(changes...)
@@ -830,7 +907,15 @@ func (aa *adminAuth) handleSaveRule(w http.ResponseWriter, r *http.Request) {
 		action = "rule.create"
 	}
 
-	aa.auditReq(r, action, req.Name, aa.describeRule(src, dst, req.Protocol, ports, req.Enabled))
+	detail := aa.describeRule(src, dst, req.Protocol, ports, req.Enabled)
+	if req.Kind == types.RuleKindSSH {
+		detail = "SSH as " + strings.Join(req.SSHUsers, ", ") + ": " + detail
+		if req.SSHCheckPeriod != "" {
+			detail += ", sign in again every " + req.SSHCheckPeriod
+		}
+	}
+
+	aa.auditReq(r, action, req.Name, detail)
 	adminJSON(w, http.StatusOK, map[string]uint64{"id": newID})
 }
 

@@ -11,6 +11,15 @@ const (
 	// PrincipalEveryone is every user's devices (autogroup:member). Its
 	// Principal is empty.
 	PrincipalEveryone = "everyone"
+	// PrincipalSelf is each person's own devices (autogroup:self), as an SSH
+	// destination. Its Principal is empty.
+	PrincipalSelf = "self"
+)
+
+// Access rule kinds.
+const (
+	RuleKindNetwork = "network"
+	RuleKindSSH     = "ssh"
 )
 
 // Sides of an access rule.
@@ -48,11 +57,19 @@ func (ServerTagAccess) TableName() string { return "server_tag_access" }
 // Rules are built in the console's rule editor; nobody writes policy JSON.
 type AccessRule struct {
 	ID       uint64 `gorm:"column:id;primaryKey"`
+	Kind     string `gorm:"column:kind"` // RuleKindNetwork or RuleKindSSH
 	Name     string `gorm:"column:name"`
 	Protocol string `gorm:"column:protocol"` // "" (any), "tcp", "udp" or "icmp"
 	Ports    string `gorm:"column:ports"`    // "*" or "22,443,8000-8100"
 	Position int    `gorm:"column:position"`
 	Enabled  bool   `gorm:"column:enabled"`
+
+	// SSHUsers is a JSON array of the Linux accounts an SSH rule allows,
+	// e.g. ["ubuntu","autogroup:nonroot"].
+	SSHUsers string `gorm:"column:ssh_users"`
+	// SSHCheckPeriod, when set (e.g. "12h"), makes an SSH rule ask people to
+	// sign in again through single sign-on at that interval.
+	SSHCheckPeriod string `gorm:"column:ssh_check_period"`
 
 	CreatedAt time.Time `gorm:"column:created_at"`
 	UpdatedAt time.Time `gorm:"column:updated_at"`

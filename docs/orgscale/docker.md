@@ -55,6 +55,17 @@ Then open `https://vpn.example.com/admin/` and sign in with SSO. Everything
 else (who can sign in, admins, SCIM, Google sync, servers, access) is set up
 in the console.
 
+## Without any SSO settings
+
+The `ORGSCALE_OIDC_*` and `ORGSCALE_ADMIN_USERS` lines are optional. Leave
+them out and orgscale starts in setup mode: `docker compose logs orgscale`
+shows a one-time setup link where single sign-on is configured in the
+browser. If it expired:
+
+```bash
+docker compose exec orgscale orgscale admin setup-link
+```
+
 ## HTTPS
 
 Run orgscale behind HTTPS. Either let orgscale get a Let's Encrypt

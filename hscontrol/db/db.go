@@ -389,6 +389,22 @@ WHERE auth_key_id IN (
 				},
 				Rollback: func(db *gorm.DB) error { return nil },
 			},
+			{
+				// orgscale: admin console sessions, kept across restarts.
+				ID: "202611180100-orgscale-admin-sessions",
+				Migrate: func(tx *gorm.DB) error {
+					return tx.Transaction(ensureOrgscaleSessionsTable)
+				},
+				Rollback: func(db *gorm.DB) error { return nil },
+			},
+			{
+				// orgscale: SSH rules in the access rule editor.
+				ID: "202611180200-orgscale-ssh-rules",
+				Migrate: func(tx *gorm.DB) error {
+					return tx.Transaction(ensureSSHRuleColumns)
+				},
+				Rollback: func(db *gorm.DB) error { return nil },
+			},
 		},
 	)
 
@@ -451,7 +467,12 @@ WHERE auth_key_id IN (
 			return err
 		}
 
-		return ensureOrgscaleAccessTables(tx)
+		err = ensureOrgscaleAccessTables(tx)
+		if err != nil {
+			return err
+		}
+
+		return ensureOrgscaleSessionsTable(tx)
 	})
 
 	err = runMigrations(cfg.Database, dbConn, migrations)

@@ -118,10 +118,6 @@ func managedPolicy(db *hsdb.HSDatabase, users []types.User, nodes views.Slice[ty
 		m.Tags = append(m.Tags, t.Name)
 	}
 
-	if !m.RestrictDevices {
-		return m, nil
-	}
-
 	nodeIPs := make(map[string][]string, nodes.Len())
 	for _, n := range nodes.All() {
 		nodeIPs[strconv.FormatUint(uint64(n.ID()), 10)] = n.IPsAsString()
@@ -155,6 +151,8 @@ func managedPolicy(db *hsdb.HSDatabase, users []types.User, nodes views.Slice[ty
 			return nodeIPs[principal]
 		case types.PrincipalEveryone:
 			return []string{"autogroup:member"}
+		case types.PrincipalSelf:
+			return []string{"autogroup:self"}
 		}
 
 		return nil
@@ -170,6 +168,43 @@ func managedPolicy(db *hsdb.HSDatabase, users []types.User, nodes views.Slice[ty
 		slices.Sort(out)
 
 		return slices.Compact(out)
+	}
+
+	rules, err := hsdb.Read(db.DB, hsdb.ListAccessRules)
+	if err != nil {
+		return m, err
+	}
+
+	// SSH rules apply with or without device restriction.
+	for _, r := range rules {
+		if !r.Enabled || r.Kind != types.RuleKindSSH {
+			continue
+		}
+
+		var users []string
+		_ = json.Unmarshal([]byte(r.SSHUsers), &users)
+
+		side := func(ps []types.RulePrincipal) []string {
+			return resolveAll(func(yield func(string, string)) {
+				for _, p := range ps {
+					yield(p.Kind, p.Principal)
+				}
+			})
+		}
+
+		src, dst := side(r.Sources), side(r.Destinations)
+		m.SSH = append(m.SSH, managed.SSHRule{Comment: r.Name, Src: src, Dst: dst, Users: users, CheckPeriod: r.SSHCheckPeriod})
+
+		// SSH needs port 22 open between them when devices are restricted;
+		// a person's own devices are open to them already.
+		netDst := slices.DeleteFunc(slices.Clone(dst), func(d string) bool { return d == "autogroup:self" })
+		if m.RestrictDevices && len(netDst) > 0 {
+			m.Rules = append(m.Rules, managed.Rule{Comment: r.Name + " (SSH)", Src: src, Dst: netDst, Ports: "22", Proto: "tcp"})
+		}
+	}
+
+	if !m.RestrictDevices {
+		return m, nil
 	}
 
 	grants, err := db.ListDeviceAccess()
@@ -228,13 +263,8 @@ func managedPolicy(db *hsdb.HSDatabase, users []types.User, nodes views.Slice[ty
 		})
 	}
 
-	rules, err := hsdb.Read(db.DB, hsdb.ListAccessRules)
-	if err != nil {
-		return m, err
-	}
-
 	for _, r := range rules {
-		if !r.Enabled {
+		if !r.Enabled || r.Kind == types.RuleKindSSH {
 			continue
 		}
 

@@ -115,6 +115,13 @@ type Orgscale struct {
 	// googleSync pulls the Google Workspace directory when configured.
 	googleSync *googleSyncer
 
+	// adminInsecure is set when the console is enabled but not served
+	// because server_url is plain HTTP.
+	adminInsecure bool
+
+	// scimFailures limits failed SCIM authentications per client.
+	scimFailures *ipLimiter
+
 	// One per long-poll session, held through its Disconnect cleanup, so
 	// shutdown can close state after waiting on it.
 	clientStreamsOpen sync.WaitGroup
@@ -258,10 +265,25 @@ func NewOrgscale(cfg *types.Config) (*Orgscale, error) {
 	})
 	app.ephemeralGC = ephemeralGC
 
-	var authProvider AuthProvider
+	authSw := &authSwitch{web: NewAuthProviderWeb(cfg.ServerURL)}
 
-	authProvider = NewAuthProviderWeb(cfg.ServerURL)
-	if cfg.OIDC.Issuer != "" {
+	// Single sign-on comes from the configuration file, or else from the
+	// admin console's setup.
+	oidcCfg := &cfg.OIDC
+
+	var stored types.StoredOIDC
+	if cfg.OIDC.Issuer == "" {
+		ok, err := app.state.GetSettingJSON(types.SettingSSOOIDC, &stored)
+		if err != nil {
+			log.Warn().Err(err).Msg("reading single sign-on settings from the database")
+		}
+
+		if ok && stored.Issuer != "" {
+			oidcCfg, oidcClientSecret = storedOIDCConfig(cfg.OIDC, stored), stored.ClientSecret
+		}
+	}
+
+	if oidcCfg.Issuer != "" {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
@@ -269,7 +291,7 @@ func NewOrgscale(cfg *types.Config) (*Orgscale, error) {
 			ctx,
 			&app,
 			cfg.ServerURL,
-			&cfg.OIDC,
+			oidcCfg,
 			oidcClientSecret,
 		)
 		if err != nil {
@@ -279,21 +301,24 @@ func NewOrgscale(cfg *types.Config) (*Orgscale, error) {
 				log.Warn().Err(err).Msg("failed to set up OIDC provider, falling back to CLI based authentication")
 			}
 		} else {
-			authProvider = oidcProvider
+			authSw.oidc.Store(oidcProvider)
 		}
 	}
 
-	app.authProvider = authProvider
+	app.authProvider = authSw
 
 	app.googleSync = newGoogleSyncer(&app)
+	app.scimFailures = newIPLimiter(20, time.Minute)
 
 	if cfg.Admin.Enabled {
-		provider, ok := authProvider.(*AuthProviderOIDC)
-		if !ok {
-			return nil, errors.New("admin.enabled requires a working OIDC provider (oidc.issuer)")
-		}
+		if consoleTransportOK(cfg) {
+			app.admin = newAdminAuth(&app)
+		} else {
+			app.adminInsecure = true
 
-		app.admin = newAdminAuth(&app, provider)
+			log.Error().Str("server_url", cfg.ServerURL).Msg(
+				"the admin console is off: it needs an https:// server_url. For a lab only, set admin.allow_insecure_http")
+		}
 	}
 
 	if cfg.DERP.Server.Enabled {
@@ -543,6 +568,7 @@ func (h *Orgscale) createRouter(apiV1Mux, apiV2Mux http.Handler) *chi.Mux {
 	r.Use(middleware.RequestLogger(&zerologRequestLogger{}))
 	r.Use(middleware.Recoverer)
 	r.Use(securityHeaders)
+	r.Use(h.hsts)
 	r.Use(collapseSlashes)
 
 	// TS2021 accepts both the native client's HTTP POST upgrade and the
@@ -559,11 +585,11 @@ func (h *Orgscale) createRouter(apiV1Mux, apiV2Mux http.Handler) *chi.Mux {
 	r.Get("/register/{auth_id}", h.authProvider.RegisterHandler)
 	r.Get("/auth/{auth_id}", h.authProvider.AuthHandler)
 
-	if provider, ok := h.authProvider.(*AuthProviderOIDC); ok {
-		r.Get("/oidc/callback", provider.OIDCCallbackHandler)
-		r.Get("/register/confirm/{auth_id}", provider.RegisterConfirmGetHandler)
-		r.Post("/register/confirm/{auth_id}", provider.RegisterConfirmHandler)
-	}
+	// Single sign-on can be configured while the server runs, so these
+	// routes always exist and answer 404 until it is.
+	r.Get("/oidc/callback", h.oidcHandler(func(p *AuthProviderOIDC) http.HandlerFunc { return p.OIDCCallbackHandler }))
+	r.Get("/register/confirm/{auth_id}", h.oidcHandler(func(p *AuthProviderOIDC) http.HandlerFunc { return p.RegisterConfirmGetHandler }))
+	r.Post("/register/confirm/{auth_id}", h.oidcHandler(func(p *AuthProviderOIDC) http.HandlerFunc { return p.RegisterConfirmHandler }))
 
 	r.Get("/apple", h.AppleConfigMessage)
 	r.Get("/apple/{platform}", h.ApplePlatformConfig)
@@ -599,9 +625,15 @@ func (h *Orgscale) createRouter(apiV1Mux, apiV2Mux http.Handler) *chi.Mux {
 	// token is created in the admin console.
 	r.Route("/scim/v2", (&scimServer{h: h}).routes)
 
+	if h.adminInsecure {
+		r.Get("/admin", insecureConsoleHandler)
+		r.Get("/admin/*", insecureConsoleHandler)
+	}
+
 	if h.admin != nil {
-		r.Get("/admin/auth/login", h.admin.LoginHandler)
-		r.Get(adminCallbackPath, h.admin.CallbackHandler)
+		r.With(h.admin.loginLimit.middleware).Get("/admin/auth/login", h.admin.LoginHandler)
+		r.With(h.admin.loginLimit.middleware).Get(adminCallbackPath, h.admin.CallbackHandler)
+		r.Route("/admin/setup/api", h.admin.setupRoutes)
 		r.Post("/admin/auth/logout", h.admin.LogoutHandler)
 		r.Route("/admin/api", h.admin.routes)
 		r.Get("/admin", func(w http.ResponseWriter, r *http.Request) {
@@ -745,6 +777,10 @@ func (h *Orgscale) Serve(ctx context.Context) error {
 	go h.scheduledTasks(ctx)
 	go h.googleSync.Run(ctx)
 
+	if h.admin != nil {
+		h.admin.announceSetup()
+	}
+
 	//
 	//
 	// Set up LOCAL listeners
@@ -799,6 +835,12 @@ func (h *Orgscale) Serve(ctx context.Context) error {
 	socketHandler := http.NewServeMux()
 	socketHandler.Handle("/api/v2/", apiv2.WithLocalTrust(humaV2Mux))
 	socketHandler.Handle("/", apiv1.WithLocalTrust(humaMux))
+
+	// A new setup link, for `orgscale admin setup-link`: only on the socket,
+	// so only someone with access to the server can make one.
+	if h.admin != nil {
+		socketHandler.HandleFunc("/orgscale/setup-link", h.admin.SetupLinkHandler)
+	}
 
 	socketServer := &http.Server{
 		Handler:     socketHandler,
@@ -1084,7 +1126,7 @@ func (h *Orgscale) Serve(ctx context.Context) error {
 				socketListener.Close()
 
 				// The OIDC state cache runs its own TTL sweeper goroutine.
-				if p, ok := h.authProvider.(*AuthProviderOIDC); ok {
+				if p := h.oidcProvider(); p != nil {
 					p.authCache.Close()
 				}
 

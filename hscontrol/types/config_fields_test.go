@@ -131,6 +131,7 @@ func TestConfigFields(t *testing.T) {
 		"oidc.pkce.enabled",
 		"oidc.pkce.method",
 		"admin.enabled",
+		"admin.allow_insecure_http",
 		"admin.users",
 		"admin.groups",
 		"admin.session_timeout",

@@ -29,7 +29,49 @@ const (
 	SettingGoogleSync = "google.sync"
 	// SettingGoogleSyncStatus is GoogleSyncStatus.
 	SettingGoogleSyncStatus = "google.sync_status"
+	// SettingSSOOIDC is StoredOIDC: single sign-on set up in the console.
+	// The configuration file's oidc.issuer, when set, takes precedence.
+	SettingSSOOIDC = "sso.oidc"
+	// SettingSetupToken is SetupToken: the pending one-time setup link.
+	SettingSetupToken = "setup.token"
 )
+
+// StoredOIDC is single sign-on configured from the admin console.
+type StoredOIDC struct {
+	Issuer       string   `json:"issuer"`
+	ClientID     string   `json:"clientId"`
+	ClientSecret string   `json:"clientSecret"`
+	Scope        []string `json:"scope,omitempty"`
+	UpdatedBy    string   `json:"updatedBy,omitempty"`
+}
+
+// SetupToken is a one-time setup link, stored as the SHA-256 of its token.
+type SetupToken struct {
+	Hash      string    `json:"hash"`
+	ExpiresAt time.Time `json:"expiresAt"`
+}
+
+// AdminSessionRecord is a console session kept in the database, so sessions
+// survive a restart. ID is the SHA-256 of the session cookie's value.
+type AdminSessionRecord struct {
+	ID         string    `gorm:"column:id;primaryKey"`
+	CSRF       string    `gorm:"column:csrf"`
+	UserID     uint      `gorm:"column:user_id"`
+	Email      string    `gorm:"column:email"`
+	Name       string    `gorm:"column:name"`
+	Picture    string    `gorm:"column:picture"`
+	RoleEmail  string    `gorm:"column:role_email"`
+	RoleGroups string    `gorm:"column:role_groups"` // JSON array
+	Subject    string    `gorm:"column:subject"`
+	RemoteAddr string    `gorm:"column:remote_addr"`
+	UserAgent  string    `gorm:"column:user_agent"`
+	CreatedAt  time.Time `gorm:"column:created_at"`
+	LastSeenAt time.Time `gorm:"column:last_seen_at"`
+	ExpiresAt  time.Time `gorm:"column:expires_at"`
+}
+
+// TableName pins the gorm table name.
+func (AdminSessionRecord) TableName() string { return "admin_sessions" }
 
 // Setting is one row of the settings table.
 type Setting struct {

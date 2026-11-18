@@ -42,6 +42,19 @@ type Rule struct {
 	Proto string
 }
 
+// SSHRule lets Src open Tailscale SSH sessions to Dst as Users.
+type SSHRule struct {
+	Comment string
+	// Src are user tokens, groups and "autogroup:member".
+	Src []string
+	// Dst are tags and "autogroup:self".
+	Dst []string
+	// Users are Linux accounts, or "autogroup:nonroot".
+	Users []string
+	// CheckPeriod, when set, makes people sign in again at that interval.
+	CheckPeriod string
+}
+
 // Policy is what orgscale adds to the administrator's policy.
 type Policy struct {
 	// RestrictDevices turns device restriction on: the baseline own-devices
@@ -55,6 +68,9 @@ type Policy struct {
 	Tags []string
 	// Rules are the device, tag and rule-editor access rules.
 	Rules []Rule
+	// SSH are the SSH rules. They apply whether or not devices are
+	// restricted; Rules carry the matching port 22 access when they are.
+	SSH []SSHRule
 }
 
 // baselineRule lets every user reach their own devices.
@@ -68,7 +84,7 @@ var baselineRule = map[string]any{
 // stays that way unless device restriction is on, so turning restriction off
 // and syncing groups never narrows access.
 func Merge(raw []byte, m Policy) ([]byte, error) {
-	if !m.RestrictDevices && len(m.Tags) == 0 && (len(m.Groups) == 0 || len(bytes.TrimSpace(raw)) == 0) {
+	if !m.RestrictDevices && len(m.Tags) == 0 && len(m.SSH) == 0 && (len(m.Groups) == 0 || len(bytes.TrimSpace(raw)) == 0) {
 		return raw, nil
 	}
 
@@ -220,6 +236,52 @@ func Merge(raw []byte, m Policy) ([]byte, error) {
 		}
 
 		doc["acls"] = b
+	}
+
+	if len(m.SSH) > 0 {
+		var ssh []json.RawMessage
+
+		if a, ok := doc["ssh"]; ok {
+			err := json.Unmarshal(a, &ssh)
+			if err != nil {
+				return nil, fmt.Errorf("parsing policy ssh: %w", err)
+			}
+		}
+
+		for _, r := range m.SSH {
+			r.Src = slices.DeleteFunc(slices.Clone(r.Src), undefined)
+			r.Dst = slices.DeleteFunc(slices.Clone(r.Dst), undefined)
+
+			if len(r.Src) == 0 || len(r.Dst) == 0 || len(r.Users) == 0 {
+				continue
+			}
+
+			rule := map[string]any{
+				"action": "accept",
+				"src":    r.Src,
+				"dst":    r.Dst,
+				"users":  r.Users,
+			}
+
+			if r.CheckPeriod != "" {
+				rule["action"] = "check"
+				rule["checkPeriod"] = r.CheckPeriod
+			}
+
+			b, err := json.Marshal(rule)
+			if err != nil {
+				return nil, err
+			}
+
+			ssh = append(ssh, b)
+		}
+
+		b, err := json.Marshal(ssh)
+		if err != nil {
+			return nil, err
+		}
+
+		doc["ssh"] = b
 	}
 
 	return json.Marshal(doc)

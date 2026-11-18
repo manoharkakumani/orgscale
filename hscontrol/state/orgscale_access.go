@@ -2,6 +2,7 @@ package state
 
 import (
 	"errors"
+	"time"
 
 	hsdb "github.com/manoharkakumani/orgscale/hscontrol/db"
 	"github.com/manoharkakumani/orgscale/hscontrol/types"
@@ -160,4 +161,24 @@ func (s *State) ReorderAccessRules(ids []uint64) ([]change.Change, error) {
 	}
 
 	return s.ReloadPolicy()
+}
+
+// ListAdminSessions returns the console sessions that have not expired.
+func (s *State) ListAdminSessions() ([]types.AdminSessionRecord, error) {
+	return hsdb.Read(s.db.DB, hsdb.ListAdminSessions)
+}
+
+// SaveAdminSession stores a console session.
+func (s *State) SaveAdminSession(rec types.AdminSessionRecord) error {
+	return s.db.Write(func(tx *gorm.DB) error { return hsdb.SaveAdminSession(tx, rec) })
+}
+
+// TouchAdminSession records that a console session was used.
+func (s *State) TouchAdminSession(id string, at time.Time) error {
+	return s.db.Write(func(tx *gorm.DB) error { return hsdb.TouchAdminSession(tx, id, at) })
+}
+
+// DeleteAdminSessions ends console sessions, and removes expired ones.
+func (s *State) DeleteAdminSessions(ids ...string) error {
+	return s.db.Write(func(tx *gorm.DB) error { return hsdb.DeleteAdminSessions(tx, ids...) })
 }

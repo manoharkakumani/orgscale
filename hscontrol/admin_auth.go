@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
-	"github.com/hashicorp/golang-lru/v2/expirable"
 	apiv1 "github.com/manoharkakumani/orgscale/hscontrol/api/v1"
 	apiv2 "github.com/manoharkakumani/orgscale/hscontrol/api/v2"
 	"github.com/manoharkakumani/orgscale/hscontrol/templates"
@@ -72,6 +71,12 @@ type adminSession struct {
 
 	// subject is the provider's immutable identifier (issuer + sub).
 	subject string
+
+	remoteAddr    string
+	userAgent     string
+	createdAt     time.Time
+	lastSeen      time.Time
+	persistedSeen time.Time
 }
 
 // label names the session's person in the audit log from identifiers that
@@ -87,32 +92,107 @@ func (s *adminSession) label() string {
 
 // adminPendingLogin is a login sent to the identity provider and not back yet.
 type adminPendingLogin struct {
-	Nonce    string
-	Verifier string
+	Nonce     string
+	Verifier  string
+	ExpiresAt time.Time
+}
+
+// pendingLogins holds logins in flight, bounded in number and age. It has no
+// background goroutine: expired entries are dropped as new ones arrive.
+type pendingLogins struct {
+	mu sync.Mutex
+	m  map[string]adminPendingLogin
+}
+
+func (p *pendingLogins) Add(state string, l adminPendingLogin) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	now := time.Now()
+	l.ExpiresAt = now.Add(adminPendingLoginTTL)
+
+	for k, v := range p.m {
+		if now.After(v.ExpiresAt) {
+			delete(p.m, k)
+		}
+	}
+
+	if len(p.m) >= adminPendingLogins {
+		var oldest string
+		for k, v := range p.m {
+			if oldest == "" || v.ExpiresAt.Before(p.m[oldest].ExpiresAt) {
+				oldest = k
+			}
+		}
+
+		delete(p.m, oldest)
+	}
+
+	p.m[state] = l
+}
+
+// Take returns and removes the login for state, if it has not expired.
+func (p *pendingLogins) Take(state string) (adminPendingLogin, bool) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	l, ok := p.m[state]
+	delete(p.m, state)
+
+	return l, ok && time.Now().Before(l.ExpiresAt)
 }
 
 type adminAuth struct {
-	h      *Orgscale
-	oidc   *AuthProviderOIDC
-	oauth2 oauth2.Config
+	h *Orgscale
 
-	pending *expirable.LRU[string, adminPendingLogin]
+	pending *pendingLogins
 
-	mu       sync.Mutex
-	sessions map[string]*adminSession // by SHA-256 of the cookie token
+	// loginLimit and setupLimit slow down guessing and floods per client.
+	loginLimit *ipLimiter
+	setupLimit *ipLimiter
+
+	mu            sync.Mutex
+	sessions      map[string]*adminSession // by SHA-256 of the cookie token
+	setupSessions map[string]*setupSession // by SHA-256 of the cookie token
 }
 
-func newAdminAuth(h *Orgscale, provider *AuthProviderOIDC) *adminAuth {
-	cfg := *provider.oauth2Config
-	cfg.RedirectURL = strings.TrimSuffix(h.cfg.ServerURL, "/") + adminCallbackPath
-
-	return &adminAuth{
-		h:        h,
-		oidc:     provider,
-		oauth2:   cfg,
-		pending:  expirable.NewLRU[string, adminPendingLogin](adminPendingLogins, nil, adminPendingLoginTTL),
-		sessions: make(map[string]*adminSession),
+// newAdminAuth starts the console's sign-in, with the sessions stored in the
+// database. The identity provider is looked up on each sign-in, so it can be
+// configured later from the setup page.
+func newAdminAuth(h *Orgscale) *adminAuth {
+	aa := &adminAuth{
+		h:             h,
+		pending:       &pendingLogins{m: make(map[string]adminPendingLogin)},
+		loginLimit:    newIPLimiter(30, time.Minute),
+		setupLimit:    newIPLimiter(10, 10*time.Minute),
+		sessions:      make(map[string]*adminSession),
+		setupSessions: make(map[string]*setupSession),
 	}
+
+	rows, err := h.state.ListAdminSessions()
+	if err != nil {
+		log.Warn().Err(err).Msg("admin console: loading sessions; everyone signs in again")
+	}
+
+	for _, rec := range rows {
+		aa.sessions[rec.ID] = sessionFromRecord(rec)
+	}
+
+	return aa
+}
+
+// provider returns the identity provider and the OAuth2 settings for the
+// console's own redirect URL, or nil before single sign-on is configured.
+func (aa *adminAuth) provider() (*AuthProviderOIDC, *oauth2.Config) {
+	p := aa.h.oidcProvider()
+	if p == nil {
+		return nil, nil
+	}
+
+	c := *p.oauth2Config
+	c.RedirectURL = strings.TrimSuffix(aa.h.cfg.ServerURL, "/") + adminCallbackPath
+
+	return p, &c
 }
 
 func hashToken(token string) string {
@@ -127,13 +207,21 @@ func (aa *adminAuth) secureCookies(r *http.Request) bool {
 
 // LoginHandler sends the browser to the identity provider.
 func (aa *adminAuth) LoginHandler(w http.ResponseWriter, r *http.Request) {
+	prov, oauthCfg := aa.provider()
+	if prov == nil {
+		// Not set up yet: the console shows how to finish setup.
+		http.Redirect(w, r, "/admin/", http.StatusFound)
+
+		return
+	}
+
 	state := rands.HexString(64)
 	nonce := rands.HexString(64)
 
 	opts := []oauth2.AuthCodeOption{oidc.Nonce(nonce)}
 	pending := adminPendingLogin{Nonce: nonce}
 
-	pkce := aa.oidc.cfg.PKCE
+	pkce := prov.cfg.PKCE
 	if pkce.Enabled {
 		pending.Verifier = oauth2.GenerateVerifier()
 
@@ -147,7 +235,7 @@ func (aa *adminAuth) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	for k, v := range aa.oidc.cfg.ExtraParams {
+	for k, v := range prov.cfg.ExtraParams {
 		opts = append(opts, oauth2.SetAuthURLParam(k, v))
 	}
 
@@ -165,12 +253,19 @@ func (aa *adminAuth) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteLaxMode,
 	})
 
-	http.Redirect(w, r, aa.oauth2.AuthCodeURL(state, opts...), http.StatusFound)
+	http.Redirect(w, r, oauthCfg.AuthCodeURL(state, opts...), http.StatusFound)
 }
 
 // CallbackHandler completes a login and starts a session.
 func (aa *adminAuth) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+
+	prov, oauthCfg := aa.provider()
+	if prov == nil {
+		adminLoginError(w, http.StatusServiceUnavailable, "Single sign-on is not set up yet.")
+
+		return
+	}
 
 	state := r.URL.Query().Get("state")
 	code := r.URL.Query().Get("code")
@@ -182,8 +277,7 @@ func (aa *adminAuth) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pending, ok := aa.pending.Get(state)
-	aa.pending.Remove(state)
+	pending, ok := aa.pending.Take(state)
 
 	if !ok {
 		adminLoginError(w, http.StatusGone, "The sign-in took too long. Start again from the console.")
@@ -204,7 +298,7 @@ func (aa *adminAuth) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 		exchangeOpts = append(exchangeOpts, oauth2.VerifierOption(pending.Verifier))
 	}
 
-	token, err := aa.oauth2.Exchange(ctx, code, exchangeOpts...)
+	token, err := oauthCfg.Exchange(ctx, code, exchangeOpts...)
 	if err != nil {
 		log.Warn().Err(err).Msg("admin console: exchanging code")
 		adminLoginError(w, http.StatusForbidden, "The identity provider rejected the sign-in.")
@@ -212,7 +306,7 @@ func (aa *adminAuth) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idToken, err := aa.oidc.extractIDToken(ctx, token)
+	idToken, err := prov.extractIDToken(ctx, token)
 	if err != nil {
 		log.Warn().Err(err).Msg("admin console: verifying ID token")
 		adminLoginError(w, http.StatusForbidden, "The identity provider's token could not be verified.")
@@ -235,7 +329,7 @@ func (aa *adminAuth) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userinfo, err := aa.oidc.oidcProvider.UserInfo(ctx, oauth2.StaticTokenSource(token))
+	userinfo, err := prov.oidcProvider.UserInfo(ctx, oauth2.StaticTokenSource(token))
 	if err == nil {
 		if ui, ok := userInfoForSubject(userinfo, claims.Sub); ok {
 			claims.Email, claims.EmailVerified = mergeEmailClaims(&claims, &ui)
@@ -273,8 +367,14 @@ func (aa *adminAuth) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	now := time.Now()
 	sessionToken := rands.HexString(adminSessionTokenSize * 2)
 	sess := &adminSession{
+		remoteAddr: clientIP(r),
+		userAgent:  truncateString(r.UserAgent(), 200),
+		createdAt:  now,
+		lastSeen:   now,
+
 		CSRF:      rands.HexString(64),
 		UserID:    userID,
 		Email:     claims.Email,
@@ -303,6 +403,10 @@ func (aa *adminAuth) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 
 	aa.audit(types.AuditEvent{Actor: sess.label(), ActorKind: types.AuditActorAdmin, Action: "admin.login", Detail: string(role)})
 
+	if role == AdminRoleAdmin {
+		aa.finishSetup()
+	}
+
 	http.Redirect(w, r, "/admin/", http.StatusFound)
 }
 
@@ -316,9 +420,7 @@ func (aa *adminAuth) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		aa.mu.Lock()
-		delete(aa.sessions, key)
-		aa.mu.Unlock()
+		aa.dropSessions(key)
 
 		aa.audit(types.AuditEvent{Actor: sess.label(), ActorKind: types.AuditActorAdmin, Action: "admin.logout"})
 	}
@@ -382,13 +484,15 @@ func (aa *adminAuth) roleForIdentity(email string, groups []string) (AdminRole, 
 }
 
 func (aa *adminAuth) storeSession(key string, s *adminSession) {
+	var drop []string
+
 	aa.mu.Lock()
-	defer aa.mu.Unlock()
 
 	now := time.Now()
 	for k, v := range aa.sessions {
 		if now.After(v.ExpiresAt) {
 			delete(aa.sessions, k)
+			drop = append(drop, k)
 		}
 	}
 
@@ -403,9 +507,43 @@ func (aa *adminAuth) storeSession(key string, s *adminSession) {
 		}
 
 		delete(aa.sessions, oldest)
+		drop = append(drop, oldest)
 	}
 
 	aa.sessions[key] = s
+	rec := sessionRecord(key, s)
+	aa.mu.Unlock()
+
+	err := aa.h.state.SaveAdminSession(rec)
+	if err != nil {
+		log.Warn().Err(err).Msg("admin console: storing session; it ends on restart")
+	}
+
+	if len(drop) > 0 {
+		_ = aa.h.state.DeleteAdminSessions(drop...)
+	}
+}
+
+// dropSessions ends sessions by key.
+func (aa *adminAuth) dropSessions(keys ...string) {
+	aa.mu.Lock()
+	for _, k := range keys {
+		delete(aa.sessions, k)
+	}
+	aa.mu.Unlock()
+
+	err := aa.h.state.DeleteAdminSessions(keys...)
+	if err != nil {
+		log.Warn().Err(err).Msg("admin console: deleting sessions")
+	}
+}
+
+func truncateString(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+
+	return s[:n]
 }
 
 // sessionFromRequest returns the live session named by the request's cookie.
@@ -418,15 +556,15 @@ func (aa *adminAuth) sessionFromRequest(r *http.Request) (*adminSession, string)
 	key := hashToken(c.Value)
 
 	aa.mu.Lock()
-	defer aa.mu.Unlock()
-
 	s, ok := aa.sessions[key]
+	aa.mu.Unlock()
+
 	if !ok {
 		return nil, ""
 	}
 
 	if time.Now().After(s.ExpiresAt) {
-		delete(aa.sessions, key)
+		aa.dropSessions(key)
 
 		return nil, ""
 	}
@@ -437,13 +575,18 @@ func (aa *adminAuth) sessionFromRequest(r *http.Request) (*adminSession, string)
 // endSessionsOf ends every session of the person with email, as when they
 // lose their admin role.
 func (aa *adminAuth) endSessionsOf(email string) {
-	aa.mu.Lock()
-	defer aa.mu.Unlock()
+	var drop []string
 
+	aa.mu.Lock()
 	for k, s := range aa.sessions {
 		if strings.EqualFold(s.roleEmail, email) || strings.EqualFold(s.Email, email) {
-			delete(aa.sessions, k)
+			drop = append(drop, k)
 		}
+	}
+	aa.mu.Unlock()
+
+	if len(drop) > 0 {
+		aa.dropSessions(drop...)
 	}
 }
 
@@ -479,17 +622,26 @@ func (aa *adminAuth) authenticate(r *http.Request) (*adminSession, int, error) {
 	// since sign-in.
 	role, ok := aa.roleForIdentity(sess.roleEmail, sess.roleGroups)
 	if !ok {
-		aa.mu.Lock()
-		delete(aa.sessions, key)
-		aa.mu.Unlock()
+		aa.dropSessions(key)
 
 		return nil, http.StatusUnauthorized, errors.New("your console access was removed")
 	}
 
-	if role != sess.Role {
-		aa.mu.Lock()
-		sess.Role = role
-		aa.mu.Unlock()
+	now := time.Now()
+	persist := false
+
+	aa.mu.Lock()
+	sess.Role = role
+	sess.lastSeen = now
+
+	if now.Sub(sess.persistedSeen) > 5*time.Minute {
+		sess.persistedSeen = now
+		persist = true
+	}
+	aa.mu.Unlock()
+
+	if persist {
+		_ = aa.h.state.TouchAdminSession(key, now.UTC())
 	}
 
 	if subtle.ConstantTimeCompare([]byte(r.Header.Get(adminCSRFHeader)), []byte(sess.CSRF)) != 1 {

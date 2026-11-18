@@ -951,9 +951,17 @@ in
   admin = {
     enabled = lib.mkOption {
       type = lib.types.bool;
+      default = true;
+      description = ''
+        Serves the web admin console at `/admin`. Admins sign in through the OIDC provider. Without one, the console starts in setup mode: a one-time setup link is written to the log, and single sign-on is configured in the browser.
+      '';
+      example = false;
+    };
+    allow_insecure_http = lib.mkOption {
+      type = lib.types.bool;
       default = false;
       description = ''
-        Serves the web admin console at `/admin`. It requires `oidc.issuer`: admins sign in through the OIDC provider.
+        Serves the console when `server_url` is plain `http://` on an address other than localhost. Sign-in cookies then travel unencrypted; use it only in a lab.
       '';
       example = true;
     };

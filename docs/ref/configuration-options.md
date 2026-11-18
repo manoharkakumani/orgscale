@@ -3022,7 +3022,8 @@ The web admin console served at `/admin`. Admins sign in through the OIDC provid
 
     ```yaml
     admin:
-      enabled: false
+      enabled: true
+      allow_insecure_http: false
       users: []
       groups: []
       session_timeout: 12h
@@ -3031,28 +3032,55 @@ The web admin console served at `/admin`. Admins sign in through the OIDC provid
 ### `admin.enabled` { #admin.enabled data-toc-label="enabled" }
 
 - **Type:** [boolean](#type-boolean)
-- **Default:** `false`
+- **Default:** `true`
 - **Env:** `ORGSCALE_ADMIN_ENABLED`
 
-Serves the web admin console at `/admin`. It requires [`oidc.issuer`](#oidc.issuer): admins sign in through the OIDC provider.
+Serves the web admin console at `/admin`. Admins sign in through the OIDC provider. Without one, the console starts in setup mode: a one-time setup link is written to the log, and single sign-on is configured in the browser.
 
 === "YAML"
 
     ```yaml
     admin:
-      enabled: true
+      enabled: false
     ```
 
 === "Environment"
 
     ```shell
-    export ORGSCALE_ADMIN_ENABLED=true
+    export ORGSCALE_ADMIN_ENABLED=false
     ```
 
 === "NixOS"
 
     ```nix
-    services.orgscale.settings.admin.enabled = true;
+    services.orgscale.settings.admin.enabled = false;
+    ```
+
+### `admin.allow_insecure_http` { #admin.allow_insecure_http data-toc-label="allow_insecure_http" }
+
+- **Type:** [boolean](#type-boolean)
+- **Default:** `false`
+- **Env:** `ORGSCALE_ADMIN_ALLOW_INSECURE_HTTP`
+
+Serves the console when [`server_url`](#server_url) is plain `http://` on an address other than localhost. Sign-in cookies then travel unencrypted; use it only in a lab.
+
+=== "YAML"
+
+    ```yaml
+    admin:
+      allow_insecure_http: true
+    ```
+
+=== "Environment"
+
+    ```shell
+    export ORGSCALE_ADMIN_ALLOW_INSECURE_HTTP=true
+    ```
+
+=== "NixOS"
+
+    ```nix
+    services.orgscale.settings.admin.allow_insecure_http = true;
     ```
 
 ### `admin.users` { #admin.users data-toc-label="users" }

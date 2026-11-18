@@ -359,3 +359,68 @@ func TestOrgscaleServersTalkPeopleIsolated(t *testing.T) {
 	waitPeers(t, alicePhone, "alice-laptop")
 	waitPeers(t, db2, "db-1", "web-1")
 }
+
+// TestOrgscaleSSHRules checks that an SSH rule from the console reaches the
+// server as Tailscale SSH policy, and opens port 22 under access control.
+func TestOrgscaleSSHRules(t *testing.T) {
+	t.Parallel()
+
+	srv := servertest.NewServer(t)
+	st := srv.State()
+
+	alice := srv.CreateUser(t, "alice")
+	bob := srv.CreateUser(t, "bob")
+
+	changes, err := st.SaveServerTag(types.ServerTag{Name: "tag:prod"}, nil)
+	require.NoError(t, err)
+	srv.App.Change(changes...)
+
+	exp := time.Now().Add(time.Hour)
+	key, err := st.CreatePreAuthKey(nil, true, false, &exp, []string{"tag:prod"})
+	require.NoError(t, err)
+
+	aliceLaptop := servertest.NewClient(t, srv, "alice-laptop", servertest.WithUser(alice))
+	bobLaptop := servertest.NewClient(t, srv, "bob-laptop", servertest.WithUser(bob))
+	prod := servertest.NewClient(t, srv, "prod-1", servertest.WithAuthKey(key.Key))
+
+	changes, err = st.SetDeviceRestriction(true, "test")
+	require.NoError(t, err)
+	srv.App.Change(changes...)
+
+	waitPeers(t, aliceLaptop)
+
+	_, changes, err = st.SaveAccessRule(types.AccessRule{
+		Kind: types.RuleKindSSH, Name: "Alice SSH to prod", Enabled: true,
+		SSHUsers: `["ubuntu","root"]`, SSHCheckPeriod: "12h",
+		Sources:      []types.RulePrincipal{{Kind: types.PrincipalUser, Principal: strconv.FormatUint(uint64(alice.ID), 10)}},
+		Destinations: []types.RulePrincipal{{Kind: types.PrincipalTag, Principal: "tag:prod"}},
+	})
+	require.NoError(t, err)
+	srv.App.Change(changes...)
+
+	// Port 22 is opened for alice only, so only she sees the server.
+	waitPeers(t, aliceLaptop, "prod-1")
+	waitPeers(t, bobLaptop)
+
+	// The server receives an SSH policy letting alice in as ubuntu or root,
+	// after signing in again (check mode).
+	prod.WaitForCondition(t, "ssh policy", 15*time.Second, func(nm *netmap.NetworkMap) bool {
+		if nm.SSHPolicy == nil {
+			return false
+		}
+
+		for _, r := range nm.SSHPolicy.Rules {
+			if r.SSHUsers["ubuntu"] != "" && r.SSHUsers["root"] != "" && len(r.Principals) > 0 {
+				return true
+			}
+		}
+
+		return false
+	})
+
+	pol, err := st.EffectivePolicy()
+	require.NoError(t, err)
+	require.Contains(t, string(pol), `"action":"check"`)
+	require.Contains(t, string(pol), `"checkPeriod":"12h"`)
+	require.Contains(t, string(pol), `"tag:prod:22"`)
+}

@@ -76,7 +76,7 @@ func Default() types.Config {
 			EmailVerifiedRequired:      true,
 			PKCE:                       types.PKCEConfig{Method: types.PKCEMethodS256},
 		},
-		Admin:    types.AdminConfig{SessionTimeout: 12 * time.Hour},
+		Admin:    types.AdminConfig{Enabled: true, SessionTimeout: 12 * time.Hour},
 		Taildrop: types.TaildropConfig{Enabled: true},
 		CLI:      types.CLIConfig{Timeout: 5 * time.Second},
 		Tuning: types.Tuning{

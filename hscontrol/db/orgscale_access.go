@@ -35,6 +35,9 @@ CREATE TABLE access_rules(
   ports text NOT NULL DEFAULT '*',
   position integer NOT NULL DEFAULT 0,
   enabled numeric NOT NULL DEFAULT true,
+  kind text NOT NULL DEFAULT 'network',
+  ssh_users text,
+  ssh_check_period text,
   created_at datetime,
   updated_at datetime,
   updated_by text
@@ -71,6 +74,9 @@ CREATE TABLE access_rules(
   ports text NOT NULL DEFAULT '*',
   position integer NOT NULL DEFAULT 0,
   enabled boolean NOT NULL DEFAULT true,
+  kind text NOT NULL DEFAULT 'network',
+  ssh_users text,
+  ssh_check_period text,
   created_at timestamptz,
   updated_at timestamptz,
   updated_by text
@@ -84,6 +90,134 @@ CREATE TABLE access_rule_principals(
   CONSTRAINT fk_access_rule_principals_rule FOREIGN KEY(rule_id) REFERENCES access_rules(id) ON DELETE CASCADE
 );
 `
+
+const orgscaleSessionsDDLSQLite = `
+CREATE TABLE admin_sessions(
+  id text PRIMARY KEY,
+  csrf text NOT NULL,
+  user_id integer,
+  email text,
+  name text,
+  picture text,
+  role_email text,
+  role_groups text,
+  subject text,
+  remote_addr text,
+  user_agent text,
+  created_at datetime,
+  last_seen_at datetime,
+  expires_at datetime NOT NULL
+);
+CREATE INDEX idx_admin_sessions_expires_at ON admin_sessions(expires_at);
+`
+
+const orgscaleSessionsDDLPostgres = `
+CREATE TABLE admin_sessions(
+  id text PRIMARY KEY,
+  csrf text NOT NULL,
+  user_id bigint,
+  email text,
+  name text,
+  picture text,
+  role_email text,
+  role_groups text,
+  subject text,
+  remote_addr text,
+  user_agent text,
+  created_at timestamptz,
+  last_seen_at timestamptz,
+  expires_at timestamptz NOT NULL
+);
+CREATE INDEX idx_admin_sessions_expires_at ON admin_sessions(expires_at);
+`
+
+// ensureSSHRuleColumns adds the SSH columns to access_rules made before SSH
+// rules existed.
+func ensureSSHRuleColumns(tx *gorm.DB) error {
+	cols := []struct{ name, ddl string }{
+		{"kind", "ALTER TABLE access_rules ADD COLUMN kind text NOT NULL DEFAULT 'network'"},
+		{"ssh_users", "ALTER TABLE access_rules ADD COLUMN ssh_users text"},
+		{"ssh_check_period", "ALTER TABLE access_rules ADD COLUMN ssh_check_period text"},
+	}
+
+	for _, c := range cols {
+		if tx.Migrator().HasColumn(&types.AccessRule{}, c.name) {
+			continue
+		}
+
+		err := tx.Exec(c.ddl).Error
+		if err != nil {
+			return fmt.Errorf("adding access_rules.%s: %w", c.name, err)
+		}
+	}
+
+	return nil
+}
+
+// ensureOrgscaleSessionsTable creates the console session table unless it
+// exists. It runs from InitSchema and as a migration.
+func ensureOrgscaleSessionsTable(tx *gorm.DB) error {
+	if tx.Migrator().HasTable("admin_sessions") {
+		return nil
+	}
+
+	ddl := orgscaleSessionsDDLSQLite
+	if tx.Name() != "sqlite" {
+		ddl = orgscaleSessionsDDLPostgres
+	}
+
+	for stmt := range strings.SplitSeq(ddl, ";") {
+		if strings.TrimSpace(stmt) == "" {
+			continue
+		}
+
+		err := tx.Exec(stmt).Error
+		if err != nil {
+			return fmt.Errorf("creating admin_sessions: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// ListAdminSessions returns the console sessions that have not expired.
+func ListAdminSessions(rx *gorm.DB) ([]types.AdminSessionRecord, error) {
+	var rows []types.AdminSessionRecord
+
+	err := rx.Where("expires_at > ?", time.Now().UTC()).Order("created_at").Find(&rows).Error
+	if err != nil {
+		return nil, fmt.Errorf("listing admin sessions: %w", err)
+	}
+
+	return rows, nil
+}
+
+// SaveAdminSession stores a console session, replacing one with the same ID.
+func SaveAdminSession(tx *gorm.DB, s types.AdminSessionRecord) error {
+	err := tx.Where("id = ?", s.ID).Delete(&types.AdminSessionRecord{}).Error
+	if err != nil {
+		return err
+	}
+
+	return tx.Create(&s).Error
+}
+
+// TouchAdminSession records that a session was used.
+func TouchAdminSession(tx *gorm.DB, id string, at time.Time) error {
+	return tx.Model(&types.AdminSessionRecord{}).Where("id = ?", id).Update("last_seen_at", at).Error
+}
+
+// DeleteAdminSessions removes sessions by ID, and every expired session.
+func DeleteAdminSessions(tx *gorm.DB, ids ...string) error {
+	if len(ids) > 0 {
+		err := tx.Where("id IN ?", ids).Delete(&types.AdminSessionRecord{}).Error
+		if err != nil {
+			return err
+		}
+	}
+
+	return tx.Where("expires_at <= ?", time.Now().UTC()).Delete(&types.AdminSessionRecord{}).Error
+}
 
 // ensureOrgscaleAccessTables creates the server tag and access rule tables
 // unless they exist. It runs from InitSchema and as a migration.
@@ -272,6 +406,7 @@ func SaveAccessRule(tx *gorm.DB, rule types.AccessRule) (uint64, error) {
 		res := tx.Model(&types.AccessRule{}).Where("id = ?", rule.ID).Updates(map[string]any{
 			"name": rule.Name, "protocol": rule.Protocol, "ports": rule.Ports,
 			"enabled": rule.Enabled, "updated_at": now, "updated_by": rule.UpdatedBy,
+			"ssh_users": rule.SSHUsers, "ssh_check_period": rule.SSHCheckPeriod,
 		})
 		if res.Error != nil {
 			return 0, fmt.Errorf("updating access rule: %w", res.Error)

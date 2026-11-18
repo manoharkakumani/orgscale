@@ -403,9 +403,14 @@ oidc:
 # provider in `oidc`. Access rules and admins set here are a floor: more can be
 # added from the console itself.
 admin:
-  # Serves the web admin console at `/admin`. It requires `oidc.issuer`: admins
-  # sign in through the OIDC provider.
-  enabled: false
+  # Serves the web admin console at `/admin`. Admins sign in through the OIDC
+  # provider. Without one, the console starts in setup mode: a one-time setup
+  # link is written to the log, and single sign-on is configured in the browser.
+  enabled: true
+  # Serves the console when `server_url` is plain `http://` on an address other
+  # than localhost. Sign-in cookies then travel unencrypted; use it only in a
+  # lab.
+  allow_insecure_http: false
   # Email addresses always given the admin role. Use it to bootstrap the first
   # admin; more admins can be added from the console.
   users: []

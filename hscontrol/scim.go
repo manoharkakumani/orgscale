@@ -68,6 +68,15 @@ func (s *scimServer) routes(r chi.Router) {
 
 func (s *scimServer) auth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// A client that keeps presenting wrong tokens is slowed down, so a
+		// token cannot be guessed and floods do not reach the database.
+		limit := s.h.scimFailures
+		if limit != nil && limit.blocked(clientIP(r)) {
+			tooManyRequests(w, limit.window)
+
+			return
+		}
+
 		var want string
 
 		ok, err := s.h.state.GetSettingJSON(types.SettingSCIMTokenHash, &want)
@@ -81,6 +90,10 @@ func (s *scimServer) auth(next http.Handler) http.Handler {
 		sum := sha256.Sum256([]byte(strings.TrimSpace(token)))
 
 		if !found || subtle.ConstantTimeCompare([]byte(hex.EncodeToString(sum[:])), []byte(want)) != 1 {
+			if limit != nil {
+				limit.note(clientIP(r))
+			}
+
 			scimError(w, http.StatusUnauthorized, "invalid SCIM token")
 
 			return

@@ -42,6 +42,10 @@ func (aa *adminAuth) routes(r chi.Router) {
 		r.Put("/settings/login-rules", aa.handlePutLoginRules)
 		r.Put("/settings/roles", aa.handlePutRoles)
 		r.Put("/settings/device-restriction", aa.handlePutDeviceRestriction)
+		r.Get("/settings/sso", aa.handleGetSSO)
+		r.Put("/settings/sso", aa.handlePutSSO)
+		r.Get("/sessions", aa.handleListSessions)
+		r.Delete("/sessions/{id}", aa.handleEndSession)
 		r.Post("/settings/scim-token", aa.handleCreateSCIMToken)
 		r.Delete("/settings/scim-token", aa.handleDeleteSCIMToken)
 		r.Put("/settings/google-sync", aa.handlePutGoogleSync)
@@ -138,9 +142,7 @@ func (aa *adminAuth) handleMe(w http.ResponseWriter, r *http.Request) {
 
 		role, ok = aa.roleForIdentity(sess.roleEmail, sess.roleGroups)
 		if !ok {
-			aa.mu.Lock()
-			delete(aa.sessions, key)
-			aa.mu.Unlock()
+			aa.dropSessions(key)
 
 			sess = nil
 		}
@@ -148,8 +150,9 @@ func (aa *adminAuth) handleMe(w http.ResponseWriter, r *http.Request) {
 
 	if sess == nil {
 		adminJSON(w, http.StatusUnauthorized, map[string]any{
-			"signedIn": false,
-			"loginUrl": "/admin/auth/login",
+			"signedIn":      false,
+			"loginUrl":      "/admin/auth/login",
+			"setupRequired": aa.h.oidcProvider() == nil,
 		})
 
 		return
@@ -233,12 +236,12 @@ func (aa *adminAuth) handleOverview(w http.ResponseWriter, r *http.Request) {
 	restrict := st.DeviceRestrictionEnabled()
 	if restrict && managed.AllowsEverything(raw) {
 		warnings = append(warnings,
-			"Device restriction is on, but the policy has a rule letting everyone reach everything (src \"*\", dst \"*:*\"), so users still see every device. Remove that rule in Access policy.")
+			"Access control is on, but the policy file has a rule letting everyone reach everything (src \"*\", dst \"*:*\"), so people still see every device. Remove it under Access → Advanced: policy file.")
 	}
 
 	if !restrict {
 		warnings = append(warnings,
-			"Device restriction is off: every user sees every device. Turn it on in Settings to show users only their own and assigned devices.")
+			"Access control is off: everyone sees and reaches every device. Turn it on in Access so people only reach their own devices and what they have been given.")
 	}
 
 	var scimSince string
@@ -260,8 +263,8 @@ func (aa *adminAuth) handleOverview(w http.ResponseWriter, r *http.Request) {
 		"assignedDevices":   len(assigned),
 		"groups":            len(groups),
 		"deviceRestriction": restrict,
-		"ssoConfigured":     aa.h.cfg.OIDC.Issuer != "",
-		"ssoIssuer":         aa.h.cfg.OIDC.Issuer,
+		"ssoConfigured":     aa.h.oidcProvider() != nil,
+		"ssoIssuer":         aa.ssoState().Issuer,
 		"scimEnabled":       scimSince != "",
 		"googleSync":        google.Enabled,
 		"googleSyncStatus":  googleStatus,
@@ -321,11 +324,15 @@ func (aa *adminAuth) handleGetSettings(w http.ResponseWriter, r *http.Request) {
 	var googleStatus types.GoogleSyncStatus
 	_, _ = st.GetSettingJSON(types.SettingGoogleSyncStatus, &googleStatus)
 
+	sso := aa.ssoState()
+
 	adminJSON(w, http.StatusOK, map[string]any{
 		"sso": map[string]any{
-			"issuer":         oidc.Issuer,
-			"clientId":       oidc.ClientID,
-			"redirectUrls":   []string{oidcCallbackURL(aa.h.cfg.ServerURL), aa.oauth2.RedirectURL},
+			"issuer":         sso.Issuer,
+			"clientId":       sso.ClientID,
+			"fromConfig":     sso.FromConfig,
+			"scope":          sso.Scope,
+			"redirectUrls":   sso.RedirectURLs,
 			"allowedDomains": aa.loginRule(types.SettingSSOAllowedDomains, oidc.AllowedDomains),
 			"allowedUsers":   aa.loginRule(types.SettingSSOAllowedUsers, oidc.AllowedUsers),
 			"allowedGroups":  aa.loginRule(types.SettingSSOAllowedGroups, oidc.AllowedGroups),

@@ -65,7 +65,7 @@ func newAdminHarness(t *testing.T) *adminHarness {
 	t.Cleanup(provider.authCache.Close)
 
 	app.authProvider = provider
-	app.admin = newAdminAuth(app, provider)
+	app.admin = newAdminAuth(app)
 	router = app.HTTPHandler()
 
 	return &adminHarness{app: app, idp: idp, srv: srv}
@@ -749,4 +749,58 @@ func TestAdminConsoleDoubleSlashAndNonAdmins(t *testing.T) {
 		Subject: "carol", Email: "carol@example.com", EmailVerified: true,
 	}))
 	assert.Equal(t, http.StatusUnauthorized, b.do(t, http.MethodGet, "/admin/api/me", nil, nil))
+}
+
+// TestAdminConsoleRuleEditAndSSH sends rules exactly as the console's rule
+// editor does, including editing an existing rule.
+func TestAdminConsoleRuleEditAndSSH(t *testing.T) {
+	h := newAdminHarness(t)
+
+	boss := h.browser(t)
+	require.Equal(t, http.StatusOK, boss.login(t, &mockoidc.MockUser{Subject: "boss", Email: "boss@example.com", EmailVerified: true}))
+
+	require.Equal(t, http.StatusNoContent, boss.do(t, http.MethodPut, "/admin/api/tags/tag:prod", map[string]any{"access": []any{}}, nil))
+
+	body := func(kind string, users []string, period string) map[string]any {
+		return map[string]any{
+			"kind": kind, "name": "rule", "enabled": true, "protocol": "", "ports": "*",
+			"sshUsers": users, "sshCheckPeriod": period,
+			"sources":      []map[string]string{{"kind": "everyone", "principal": ""}},
+			"destinations": []map[string]string{{"kind": "tag", "principal": "tag:prod"}},
+		}
+	}
+
+	var created map[string]uint64
+	require.Equal(t, http.StatusOK, boss.do(t, http.MethodPost, "/admin/api/rules", body("network", []string{}, ""), &created))
+
+	// Editing sends the same shape back.
+	id := strconv.FormatUint(created["id"], 10)
+	b := body("network", []string{}, "")
+	b["enabled"] = false
+	require.Equal(t, http.StatusOK, boss.do(t, http.MethodPut, "/admin/api/rules/"+id, b, nil))
+
+	// SSH rules: accounts and the interval are checked; servers only by tag
+	// or "their own devices".
+	assert.Equal(t, http.StatusBadRequest, boss.do(t, http.MethodPost, "/admin/api/rules", body("ssh", []string{}, ""), nil))
+	assert.Equal(t, http.StatusBadRequest, boss.do(t, http.MethodPost, "/admin/api/rules", body("ssh", []string{"Bad User"}, ""), nil))
+	assert.Equal(t, http.StatusBadRequest, boss.do(t, http.MethodPost, "/admin/api/rules", body("ssh", []string{"ubuntu"}, "999h"), nil))
+
+	bad := body("ssh", []string{"ubuntu"}, "")
+	bad["destinations"] = []map[string]string{{"kind": "everyone", "principal": ""}}
+	assert.Equal(t, http.StatusBadRequest, boss.do(t, http.MethodPost, "/admin/api/rules", bad, nil))
+
+	require.Equal(t, http.StatusOK, boss.do(t, http.MethodPost, "/admin/api/rules", body("ssh", []string{"ubuntu", "autogroup:nonroot"}, "12h"), nil))
+
+	var rules []adminRule
+	require.Equal(t, http.StatusOK, boss.do(t, http.MethodGet, "/admin/api/rules", nil, &rules))
+	require.Len(t, rules, 2)
+	assert.Equal(t, "network", rules[0].Kind)
+	assert.False(t, rules[0].Enabled)
+	assert.Equal(t, "ssh", rules[1].Kind)
+	assert.Equal(t, []string{"ubuntu", "autogroup:nonroot"}, rules[1].SSHUsers)
+	assert.Equal(t, "12h", rules[1].SSHCheckPeriod)
+
+	pol, err := h.app.state.EffectivePolicy()
+	require.NoError(t, err)
+	assert.Contains(t, string(pol), `"ssh":[`)
 }

@@ -20,40 +20,75 @@ browser at `https://<your server>/admin/`.
 | **Roles** | Admins change everything; viewers have read-only access. Set by email or IdP group. |
 | **Audit log** | Every change from the console, the API (with the API key prefix), SCIM and directory sync, with who made it. |
 
-## Configuration
+## First-time setup
 
-The console needs OIDC. Minimal configuration:
+The console is on by default. A new installation has no identity provider,
+so orgscale starts in **setup mode** and writes a one-time link to its log:
+
+```
+  orgscale is not set up yet. To finish setup, open
+
+      https://vpn.example.com/admin/setup#oskey-setup-…
+
+  within 30 minutes. The link works once.
+```
+
+Open it and:
+
+1. pick your identity provider (Google Workspace, Microsoft Entra ID, Okta or
+   any OpenID Connect provider) and follow the steps shown to create the app,
+   registering the two redirect URLs it lists;
+2. paste the client ID and secret;
+3. enter your own work email as the first administrator;
+4. **Connect and sign in**. orgscale checks the provider, switches to it
+   without a restart, and sends you to sign in. Only the email you entered is
+   let in. When you are signed in, setup closes: the link and the setup page
+   stop working.
+
+The link expired or was lost? On the server run `orgscale admin setup-link`
+(with Docker: `docker compose exec orgscale orgscale admin setup-link`). It
+only works over the server's local socket, so it needs shell access to the
+server. The same command recovers access if nobody can sign in any more,
+for example after the identity provider changed.
+
+There is no built-in admin account or password: every administrator signs in
+through your identity provider, with its MFA and offboarding.
+
+### Configuring single sign-on in a file instead
+
+Single sign-on can also be set in the configuration file or environment, as
+in Headscale. The file then wins and the console shows it read-only:
 
 ```yaml
 server_url: https://vpn.example.com
 
 oidc:
-  issuer: https://accounts.google.com          # your IdP's issuer URL
+  issuer: https://accounts.google.com
   client_id: <client id>
   client_secret: file:/run/secrets/oidc_secret
   scope: ["openid", "profile", "email", "groups"]  # "groups" if your IdP supports it
 
 policy:
-  mode: database   # lets the console edit the access policy
+  mode: database   # lets the console edit access
 
 admin:
-  enabled: true
   users: ["you@example.com"]   # first admin(s); add more from the console
   # groups: ["it-admins"]      # or: everyone in these IdP groups is an admin
   # session_timeout: 12h
 ```
 
-Register **two redirect URLs** with your identity provider (also shown in
-**Settings → Single sign-on**):
+Register the redirect URLs `https://vpn.example.com/oidc/callback` (devices)
+and `https://vpn.example.com/admin/auth/callback` (console).
 
-- `https://vpn.example.com/oidc/callback` for devices,
-- `https://vpn.example.com/admin/auth/callback` for the console.
+Sign-in rules, admins and viewers saved in the console are added to the
+file's; sign-in rules saved in the console replace the file's rules.
 
-Then open `https://vpn.example.com/admin/` and sign in.
+### HTTPS
 
-Anything set in the configuration file (`oidc.allowed_*`, `admin.users`,
-`admin.groups`) still applies. Sign-in rules saved in the console replace the
-file's rules; admin and viewer lists from the console are added to the file's.
+The console is only served when `server_url` is `https://`, or on localhost.
+On plain HTTP elsewhere it shows how to fix it instead. For a lab only,
+`admin.allow_insecure_http: true` (`ORGSCALE_ADMIN_ALLOW_INSECURE_HTTP=true`)
+overrides this.
 
 ## Access
 
@@ -78,8 +113,13 @@ default).
    server joins as the tag, owned by no person.
 
 A machine already added with someone's account (a shared box, a VM set up
-with an admin's login) can be turned into a server: select it on **Devices**
-and choose **Move to tag**. It stops belonging to that person.
+with an admin's login) can be turned into a server: open it on **Devices**
+and use **Turn into a server**, or select several and choose **Turn into
+servers**. It stops belonging to that person.
+
+Tags can be typed anywhere a tag is asked for (Add server, a device's tags,
+auth keys); a new name is created on the spot. A new tag's servers are
+reachable by nobody until you choose who on **Servers → Edit access**.
 
 ### Rules
 
@@ -93,6 +133,26 @@ web, Remote Desktop, PostgreSQL, MySQL, ping, or custom ports). Examples:
 | Support uses one kiosk | group Support | device `kiosk-1` | Everything |
 
 Rules can be paused and resumed. Every change is in the audit log.
+
+### SSH without keys
+
+orgscale uses Tailscale SSH: nobody creates, copies or rotates SSH keys.
+
+1. Enroll servers with SSH on: **Add server** has *Allow SSH through
+   Tailscale* (adds `--ssh`). On a server already enrolled run
+   `sudo tailscale set --ssh`.
+2. **Access → New SSH rule**: choose *who* (people, groups or everyone),
+   *which servers* (tags, or *their own devices*), *as which Linux accounts*
+   (`ubuntu`, `root`, … or *any non-root account*) and, optionally, *re-confirm
+   with single sign-on* every 1 hour to 7 days.
+3. People run plain `ssh ubuntu@db-1`. Tailscale checks who they are against
+   the rule; with re-confirmation on, their browser asks them to sign in
+   first.
+
+Only people in an SSH rule can SSH in, even if they may reach the server
+otherwise. Under access control an SSH rule also opens port 22 to those
+servers for those people. Removing someone in your identity provider ends
+their SSH access with everything else.
 
 ### Advanced: policy file
 
@@ -180,7 +240,12 @@ Impersonate a super admin, so the sync sees the whole directory.
 - Console sessions are server-side; the browser holds an `HttpOnly`,
   `SameSite=Strict` cookie, and every API call also needs the session's CSRF
   token. The console is served with a strict Content-Security-Policy.
-- Console sessions live in memory: restarting orgscale signs admins out.
+- Console sessions are stored in the database (only a hash of the cookie),
+  so they survive restarts. **Settings → Console access** lists them; sign
+  out any session, or all your other ones.
+- Sign-in and setup are rate-limited per client address; a client that keeps
+  sending wrong SCIM tokens is blocked for a minute.
+- Over HTTPS the server sends `Strict-Transport-Security`.
 - A console role is checked again on every request: removing someone from
   the admin or viewer lists takes effect immediately.
 - Console roles by email, and the takeover of provisioned users, only trust
@@ -205,4 +270,5 @@ make admin-ui      # from the repository root: build into hscontrol/adminui/dist
 The built files are committed so `go build` works without Node.js.
 
 The console follows the system's light or dark appearance; the switch in the
-top bar overrides it per browser.
+top bar overrides it per browser. It works on phones and tablets: the menu
+slides in, tables become cards and dialogs open as sheets.
