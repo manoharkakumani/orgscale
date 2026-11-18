@@ -559,6 +559,9 @@ function Entra({ s, onChanged }: { s: Settings; onChanged: () => void }) {
           <li>
             <b>Add a permission → Microsoft Graph → Application permissions</b>, and add: {graphPermissions.map((p) => <code key={p} style={{ marginRight: 4 }}>{p}</code>)}
           </li>
+          <li>
+            Check the <b>Type</b> column says <b>Application</b>. <b>Delegated</b> permissions (the ones sign-in uses, like <code>openid</code> and <code>User.Read</code>) do not work for sync.
+          </li>
           <li>Click <b>Grant admin consent</b> for your organization.</li>
           <li>Turn sync on here and click <b>Sync now</b>.</li>
         </ol>

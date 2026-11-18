@@ -227,7 +227,7 @@ func (g *graph) get(ctx context.Context, u string, out any) error {
 
 			msg := cmp.Or(ge.Error.Message, resp.Status)
 			if resp.StatusCode == http.StatusForbidden || ge.Error.Code == "Authorization_RequestDenied" {
-				msg += " (grant the app registration the Microsoft Graph application permissions User.Read.All, Group.Read.All, GroupMember.Read.All and Organization.Read.All, with admin consent)"
+				msg += " (grant the app registration the Microsoft Graph application permissions User.Read.All, Group.Read.All, GroupMember.Read.All and Organization.Read.All, of type Application rather than Delegated, with admin consent)"
 			}
 
 			return fmt.Errorf("Microsoft Graph: %s", msg)
