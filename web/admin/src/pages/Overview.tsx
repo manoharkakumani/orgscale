@@ -65,8 +65,8 @@ export default function OverviewPage() {
       <section className="card">
         <h2>Setup</h2>
         <ol className="steps">
-          <Step done={data.ssoConfigured} title="Single sign-on" to="/settings">
-            {data.ssoConfigured ? `Users sign in through ${data.ssoIssuer}.` : "Set oidc.issuer in the configuration file."}
+          <Step done={data.ssoConfigured} title="Single sign-on" to="/settings?section=sso">
+            {data.ssoConfigured ? `People sign in through ${data.ssoIssuer}.` : "Connect your identity provider in Settings → Single sign-on."}
           </Step>
           <Step done={directory} title="Automatic user sync" to="/settings?section=directory">
             {data.scimEnabled

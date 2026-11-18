@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { NavLink, Navigate, Route, Routes } from "react-router-dom";
-import { ApiError, get, post, setCSRFToken, type Me } from "./api";
+import { NavLink, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { ApiError, post, setCSRFToken, type Me } from "./api";
 import { Badge, Button, Icon, Spinner, ThemeSwitch } from "./components/ui";
 import OverviewPage from "./pages/Overview";
 import UsersPage from "./pages/Users";
@@ -10,6 +10,7 @@ import AccessPage from "./pages/Access";
 import ServersPage from "./pages/Servers";
 import KeysPage from "./pages/Keys";
 import SettingsPage from "./pages/Settings";
+import SetupPage from "./pages/Setup";
 import AuditPage from "./pages/Audit";
 
 const MeCtx = createContext<Me | null>(null);
@@ -51,7 +52,12 @@ const nav: { group: string; items: { to: string; label: string; icon: string; en
   },
 ];
 
-function SignIn({ error }: { error?: string }) {
+function pageTitle(path: string): string {
+  for (const g of nav) for (const n of g.items) if (n.to !== "/" && path.startsWith(n.to)) return n.label;
+  return "Overview";
+}
+
+function SignIn({ error, setupRequired }: { error?: string; setupRequired?: boolean }) {
   return (
     <div className="signin">
       <div className="signin-card">
@@ -59,27 +65,85 @@ function SignIn({ error }: { error?: string }) {
           <span className="logo" aria-hidden />
           orgscale
         </div>
-        <p className="muted">Sign in with your organization's single sign-on to manage users, devices and access.</p>
-        {error && <div className="callout callout-error">{error}</div>}
-        <a className="btn btn-primary btn-block" href="/admin/auth/login">
-          Sign in with SSO
-        </a>
+        {setupRequired ? (
+          <>
+            <p className="muted">orgscale isn't set up yet. Open the setup link from the server's log, or make a new one on the server:</p>
+            <pre className="codeblock">orgscale admin setup-link</pre>
+          </>
+        ) : (
+          <>
+            <p className="muted">Sign in with your organization's single sign-on to manage users, devices and access.</p>
+            {error && <div className="callout callout-error">{error}</div>}
+            <a className="btn btn-primary btn-block" href="/admin/auth/login">
+              Sign in with SSO
+            </a>
+          </>
+        )}
       </div>
     </div>
   );
 }
 
 export default function App() {
+  const location = useLocation();
+  if (location.pathname === "/setup") return <SetupPage />;
+  return <Console />;
+}
+
+function Console() {
   const [me, setMe] = useState<Me | null | undefined>(undefined);
   const [error, setError] = useState("");
+  const [setupRequired, setSetupRequired] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const location = useLocation();
+
+  const [scrolled, setScrolled] = useState(false);
+
+  // Close the phone menu after navigating.
+  useEffect(() => setMenuOpen(false), [location.pathname]);
+
+  // The top bar shows the page name once the large title scrolls away.
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 56);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [location.pathname]);
+
+  // On phones table rows stack; each cell is labelled with its column.
+  useEffect(() => {
+    const label = () => {
+      document.querySelectorAll(".table-wrap table").forEach((table) => {
+        const heads = [...table.querySelectorAll("thead th")].map((th) => th.textContent?.trim() ?? "");
+        table.querySelectorAll("tbody tr").forEach((tr) => {
+          [...tr.children].forEach((td, i) => {
+            if (heads[i] && !td.hasAttribute("data-label")) td.setAttribute("data-label", heads[i]);
+          });
+        });
+      });
+    };
+    label();
+    const main = document.querySelector(".content");
+    if (!main) return;
+    const obs = new MutationObserver(label);
+    obs.observe(main, { childList: true, subtree: true });
+    return () => obs.disconnect();
+  });
 
   const load = async () => {
     try {
-      const m = await get<Me>("/admin/api/me");
-      setCSRFToken(m.csrfToken);
-      setMe(m);
+      const res = await fetch("/admin/api/me", { credentials: "same-origin" });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setSetupRequired(!!body.setupRequired);
+        if (res.status !== 401) throw new ApiError(res.status, body.error || res.statusText);
+        setMe(null);
+        return;
+      }
+      setCSRFToken(body.csrfToken);
+      setMe(body as Me);
     } catch (e) {
-      if (!(e instanceof ApiError && e.status === 401)) setError(e instanceof Error ? e.message : String(e));
+      setError(e instanceof Error ? e.message : String(e));
       setMe(null);
     }
   };
@@ -92,7 +156,7 @@ export default function App() {
   }, []);
 
   if (me === undefined) return <Spinner />;
-  if (me === null) return <SignIn error={error} />;
+  if (me === null) return <SignIn error={error} setupRequired={setupRequired} />;
 
   const signOut = async () => {
     try {
@@ -104,8 +168,9 @@ export default function App() {
 
   return (
     <MeCtx.Provider value={me}>
-      <div className="shell">
-        <aside className="sidebar">
+      <div className={`shell ${menuOpen ? "menu-open" : ""} ${scrolled ? "scrolled" : ""}`}>
+        <div className="menu-scrim" onClick={() => setMenuOpen(false)} />
+        <aside className="sidebar" aria-label="Navigation">
           <div className="brand">
             <span className="logo" aria-hidden />
             orgscale
@@ -123,13 +188,37 @@ export default function App() {
               </div>
             ))}
           </nav>
+          <div className="sidebar-account">
+            <div className="cell-user">
+              {me.picture ? <img className="avatar" src={me.picture} alt="" referrerPolicy="no-referrer" /> : <span className="avatar avatar-fallback">{(me.name || me.email).slice(0, 1).toUpperCase()}</span>}
+              <div className="cell-stack grow">
+                <span className="ellipsis">{me.name || me.email}</span>
+                <span className="muted small ellipsis">{me.role === "admin" ? "Admin" : "Read-only"}</span>
+              </div>
+            </div>
+            <div className="row-between">
+              <ThemeSwitch />
+              <Button variant="ghost" onClick={signOut}>
+                Sign out
+              </Button>
+            </div>
+          </div>
           <div className="sidebar-foot muted" title={me.version}>
             orgscale {me.version.split("-")[0]}
           </div>
         </aside>
         <div className="main">
           <header className="topbar">
+            <button className="menu-btn" aria-label="Open menu" onClick={() => setMenuOpen(true)}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden>
+                <path d="M4 7h16M4 12h16M4 17h16" />
+              </svg>
+            </button>
             <div className="muted topbar-server">{me.serverUrl}</div>
+            <div className="topbar-title">{pageTitle(location.pathname)}</div>
+            <button className="topbar-avatar" aria-label="Account" onClick={() => setMenuOpen(true)}>
+              {me.picture ? <img className="avatar" src={me.picture} alt="" referrerPolicy="no-referrer" /> : <span className="avatar avatar-fallback">{(me.name || me.email).slice(0, 1).toUpperCase()}</span>}
+            </button>
             <div className="topbar-user">
               <ThemeSwitch />
               {me.picture ? <img className="avatar" src={me.picture} alt="" referrerPolicy="no-referrer" /> : <span className="avatar avatar-fallback">{(me.name || me.email).slice(0, 1).toUpperCase()}</span>}

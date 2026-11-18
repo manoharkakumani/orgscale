@@ -19,7 +19,25 @@ const describe: Record<string, string> = {
   "device.access.update": "Changed device access",
   "settings.login_rules.update": "Changed sign-in rules",
   "settings.roles.update": "Changed console access",
-  "settings.device_restriction.update": "Changed device visibility",
+  "settings.device_restriction.update": "Changed access control",
+  "settings.sso.update": "Changed single sign-on",
+  "admin.sessions.end": "Signed out sessions",
+  "setup.link_created": "Made a setup link",
+  "setup.link_rejected": "Used an invalid setup link",
+  "setup.started": "Opened setup",
+  "setup.sso": "Set up single sign-on",
+  "setup.finished": "Finished setup",
+  "tag.save": "Saved server tag",
+  "tag.delete": "Deleted server tag",
+  "tag.enroll_key": "Made a server install key",
+  "rule.create": "Added access rule",
+  "rule.update": "Changed access rule",
+  "rule.delete": "Deleted access rule",
+  "group.create": "Created group",
+  "group.update": "Changed group",
+  "group.delete": "Deleted group",
+  "device.bulk_tags": "Turned devices into servers",
+  "device.bulk_access": "Shared devices",
   "scim.token.create": "Created SCIM token",
   "scim.token.delete": "Turned off SCIM",
   "scim.user.create": "Provisioned user",
@@ -35,6 +53,12 @@ const describe: Record<string, string> = {
   "api.delete": "API: delete",
   "api.patch": "API: update",
 };
+
+// detailText makes stored details readable, e.g. a switch's true/false.
+function detailText(e: AuditEvent): string {
+  if (e.action === "settings.device_restriction.update") return e.detail === "true" ? "Turned on" : "Turned off";
+  return e.detail || "";
+}
 
 export default function AuditPage() {
   const toast = useToast();
@@ -97,7 +121,7 @@ export default function AuditPage() {
                   </td>
                   <td>{describe[e.action] ?? e.action}</td>
                   <td className="mono small">{e.target || "—"}</td>
-                  <td className="small muted">{e.detail || "—"}</td>
+                  <td className="small muted">{detailText(e)}</td>
                 </tr>
               ))}
             </tbody>

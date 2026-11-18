@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { del, get, post, put, type GoogleSyncSettings, type GoogleSyncStatus, type ListSetting, type Settings } from "../api";
+import { del, get, post, put, type AdminSessionInfo, type GoogleSyncSettings, type GoogleSyncStatus, type ListSetting, type Settings, type SSOState } from "../api";
+import { SSOFields, initialForm, issuerFor } from "../components/sso";
 import { useCanEdit } from "../App";
 import { Badge, Button, ChipInput, Confirm, CopyText, ErrorBox, Group, Icon, Modal, PRow, PageHeader, Spinner, Toggle, dateTime, timeAgo, useAsync, useToast } from "../components/ui";
 
@@ -346,6 +347,141 @@ function Google({ s, onChanged }: { s: Settings; onChanged: () => void }) {
   );
 }
 
+// ---------- single sign-on ----------
+
+function SSOEditor() {
+  const canEdit = useCanEdit();
+  const toast = useToast();
+  const { data, error, loading, reload } = useAsync(() => get<SSOState>("/admin/api/settings/sso"));
+  const [form, setForm] = useState(initialForm());
+  const [editing, setEditing] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  if (loading && !data) return <Spinner />;
+  if (error) return <ErrorBox error={error} onRetry={reload} />;
+  if (!data) return null;
+
+  if (!editing) {
+    return (
+      <>
+        <Group>
+          <PRow label="Identity provider" sub={data.fromConfig ? "Set in the configuration file (oidc.*)." : undefined}>
+            <span className="mono ellipsis">{data.issuer || "not set up"}</span>
+          </PRow>
+          <PRow label="Client ID">
+            <span className="mono ellipsis">{data.clientId || "—"}</span>
+          </PRow>
+        </Group>
+        <Group title="Redirect URLs" note="Registered with your identity provider: the first for devices, the second for this console.">
+          {data.redirectUrls.map((u, i) => (
+            <PRow key={u} label={i === 0 ? "Devices" : "Admin console"} block>
+              <CopyText value={u} />
+            </PRow>
+          ))}
+        </Group>
+        {canEdit && !data.fromConfig && (
+          <div className="savebar">
+            <Button
+              onClick={() => {
+                setForm(initialForm(data));
+                setEditing(true);
+              }}
+            >
+              Change identity provider
+            </Button>
+          </div>
+        )}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <div className="callout callout-warn">Changing the provider signs people in through the new one from now on. Make sure your own account works there, or you can lock yourself out.</div>
+      <SSOFields state={data} form={form} onChange={setForm} />
+      <div className="savebar">
+        <Button variant="ghost" onClick={() => setEditing(false)}>
+          Cancel
+        </Button>
+        <Button
+          variant="primary"
+          busy={busy}
+          disabled={!issuerFor(form) || !form.clientId.trim()}
+          onClick={async () => {
+            setBusy(true);
+            try {
+              await put("/admin/api/settings/sso", { issuer: issuerFor(form), clientId: form.clientId, clientSecret: form.clientSecret });
+              toast.ok("Single sign-on updated");
+              setEditing(false);
+              void reload();
+            } catch (e) {
+              toast.error(e);
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          Check and save
+        </Button>
+      </div>
+    </>
+  );
+}
+
+// ---------- console sessions ----------
+
+function browserName(ua: string): string {
+  const b = /Edg\//.test(ua) ? "Edge" : /Chrome\//.test(ua) ? "Chrome" : /Firefox\//.test(ua) ? "Firefox" : /Safari\//.test(ua) ? "Safari" : "Browser";
+  const os = /iPhone|iPad/.test(ua) ? "iOS" : /Android/.test(ua) ? "Android" : /Mac OS X/.test(ua) ? "macOS" : /Windows/.test(ua) ? "Windows" : /Linux/.test(ua) ? "Linux" : "";
+  return os ? `${b} on ${os}` : b;
+}
+
+function Sessions() {
+  const canEdit = useCanEdit();
+  const toast = useToast();
+  const { data, reload } = useAsync(() => get<AdminSessionInfo[]>("/admin/api/sessions"));
+  const others = (data ?? []).filter((s) => !s.current).length;
+
+  const end = async (id: string, msg: string) => {
+    try {
+      await del(`/admin/api/sessions/${id}`);
+      toast.ok(msg);
+      void reload();
+    } catch (e) {
+      toast.error(e);
+    }
+  };
+
+  return (
+    <>
+      <Group title="Signed-in sessions" note="Sessions last until they expire or someone signs them out, also across server restarts.">
+        {(data ?? []).map((s) => (
+          <PRow
+            key={s.id}
+            label={
+              <>
+                {s.email} {s.current && <Badge tone="green">This browser</Badge>}
+              </>
+            }
+            sub={`${browserName(s.userAgent)} · ${s.remoteAddr || "unknown address"} · active ${timeAgo(s.lastSeenAt)} · signed in ${timeAgo(s.createdAt)}`}
+          >
+            {canEdit && !s.current && (
+              <Button variant="ghost" className="text-danger" onClick={() => void end(s.id, "Session signed out")}>
+                Sign out
+              </Button>
+            )}
+          </PRow>
+        ))}
+      </Group>
+      {canEdit && others > 0 && (
+        <div className="savebar">
+          <Button onClick={() => void end("others", "Signed out of your other sessions")}>Sign out my other sessions</Button>
+        </div>
+      )}
+    </>
+  );
+}
+
 // ---------- page ----------
 
 const sections = [
@@ -412,30 +548,14 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {current === "sso" &&
-            (data.sso.issuer ? (
-              <>
-                <Group>
-                  <PRow label="Identity provider">
-                    <span className="mono ellipsis">{data.sso.issuer}</span>
-                  </PRow>
-                  <PRow label="Client ID">
-                    <span className="mono ellipsis">{data.sso.clientId}</span>
-                  </PRow>
-                </Group>
-                <Group title="Redirect URLs" note="Register both with your identity provider: the first for devices, the second for this console. The provider, client ID and secret are set in the configuration file (oidc.*).">
-                  {data.sso.redirectUrls.map((u) => (
-                    <PRow key={u} label={u.endsWith("/admin/auth/callback") ? "Console" : "Devices"} block>
-                      <CopyText value={u} />
-                    </PRow>
-                  ))}
-                </Group>
-              </>
-            ) : (
-              <div className="callout callout-warn">No identity provider is configured. Set oidc.issuer, oidc.client_id and oidc.client_secret in the configuration file.</div>
-            ))}
+          {current === "sso" && <SSOEditor />}
           {current === "signin" && <LoginRules key={JSON.stringify(data.sso)} s={data} onSaved={setData} />}
-          {current === "console" && <Roles key={JSON.stringify(data.roles)} s={data} onSaved={setData} />}
+          {current === "console" && (
+            <>
+              <Roles key={JSON.stringify(data.roles)} s={data} onSaved={setData} />
+              <Sessions />
+            </>
+          )}
           {current === "directory" && <SCIM s={data} onChanged={reload} />}
           {current === "google" && <Google key={JSON.stringify(data.googleSync.settings)} s={data} onChanged={reload} />}
         </div>

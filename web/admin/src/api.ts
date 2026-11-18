@@ -106,7 +106,7 @@ export interface AdminUser {
   lastSeen?: string;
 }
 
-export type PrincipalKind = "user" | "directory_group" | "policy_group" | "tag" | "device" | "everyone";
+export type PrincipalKind = "user" | "directory_group" | "policy_group" | "tag" | "device" | "everyone" | "self";
 
 export interface Principal {
   kind: PrincipalKind;
@@ -131,6 +131,9 @@ export interface ServerTag {
 
 export interface AccessRule {
   id: number;
+  kind: "network" | "ssh";
+  sshUsers: string[];
+  sshCheckPeriod: string;
   name: string;
   protocol: "" | "tcp" | "udp" | "icmp";
   ports: string;
@@ -268,4 +271,27 @@ export interface ApiKey {
   expiration: string | null;
   createdAt: string | null;
   lastSeen: string | null;
+}
+
+export interface SSOState {
+  serverUrl: string;
+  redirectUrls: string[];
+  configured: boolean;
+  fromConfig: boolean;
+  issuer: string;
+  clientId: string;
+  hasSecret: boolean;
+  scope: string[];
+}
+
+export interface AdminSessionInfo {
+  id: string;
+  email: string;
+  name: string;
+  createdAt: string;
+  lastSeenAt: string;
+  expiresAt: string;
+  remoteAddr: string;
+  userAgent: string;
+  current: boolean;
 }

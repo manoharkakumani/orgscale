@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { del, get, post, type AdminUser } from "../api";
 import { useCanEdit, useMe } from "../App";
-import { Badge, Button, Confirm, Empty, ErrorBox, Field, Modal, PageHeader, SearchBox, Spinner, timeAgo, useAsync, useToast } from "../components/ui";
+import { MList, MRow } from "../components/mlist";
+import { Badge, Button, Confirm, Empty, ErrorBox, Field, Group, Modal, PRow, PageHeader, SearchBox, Spinner, timeAgo, useAsync, useToast } from "../components/ui";
 
 const providerLabel: Record<string, string> = {
   oidc: "SSO",
@@ -67,10 +68,13 @@ export default function UsersPage() {
   const toast = useToast();
   const { data, error, loading, reload } = useAsync(() => get<AdminUser[]>("/admin/api/users"));
   const [q, setQ] = useState("");
+  const [openId, setOpenId] = useState<number | null>(null);
+  const isSelf = (u: AdminUser) => !!u.email && u.email.toLowerCase() === me.email.toLowerCase();
   const [status, setStatus] = useState<"all" | "active" | "disabled">("all");
   const [confirm, setConfirm] = useState<{ kind: "disable" | "remove"; user: AdminUser } | null>(null);
   const [adding, setAdding] = useState(false);
 
+  const open = data?.find((u) => u.id === openId);
   const rows = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return (data ?? [])
@@ -114,7 +118,21 @@ export default function UsersPage() {
       ) : rows.length === 0 ? (
         <Empty title={q ? "No users match" : "No users yet"}>Users appear here after they sign in with SSO or are provisioned.</Empty>
       ) : (
-        <div className="table-wrap card">
+        <>
+        <MList>
+          {rows.map((u) => (
+            <MRow
+              key={u.id}
+              muted={u.disabled}
+              onClick={() => setOpenId(u.id)}
+              lead={u.picture ? <img className="avatar" src={u.picture} alt="" referrerPolicy="no-referrer" /> : <span className="avatar avatar-fallback">{(u.displayName || u.email || u.name).slice(0, 1).toUpperCase()}</span>}
+              title={u.displayName || u.name}
+              sub={[u.email || u.name, `${u.devices} device${u.devices === 1 ? "" : "s"}`].join(" · ")}
+              trail={u.disabled ? <Badge tone="red">Disabled</Badge> : undefined}
+            />
+          ))}
+        </MList>
+        <div className="table-wrap card desktop-only">
           <table>
             <thead>
               <tr>
@@ -174,6 +192,42 @@ export default function UsersPage() {
             </tbody>
           </table>
         </div>
+        </>
+      )}
+
+      {open && (
+        <Modal title={open.displayName || open.name} onClose={() => setOpenId(null)}>
+          <div className="cell-user" style={{ marginBottom: 14 }}>
+            {open.picture ? <img className="avatar" src={open.picture} alt="" referrerPolicy="no-referrer" /> : <span className="avatar avatar-fallback">{(open.displayName || open.email || open.name).slice(0, 1).toUpperCase()}</span>}
+            <div className="cell-stack">
+              <span>{open.email || open.name}</span>
+              <span className="muted small">{providerLabel[open.provider] ?? open.provider}</span>
+            </div>
+          </div>
+          <Group>
+            <PRow label="Status">{open.disabled ? <Badge tone="red">Disabled</Badge> : <Badge tone="green">Active</Badge>}</PRow>
+            <PRow label="Devices">{open.devices}</PRow>
+            <PRow label="Last seen">{timeAgo(open.lastSeen)}</PRow>
+            <PRow label="Groups" block>
+              <div className="chip-row">{open.groups.length ? open.groups.map((g) => <span key={g} className="chip chip-static">{g}</span>) : <span className="muted">None</span>}</div>
+            </PRow>
+          </Group>
+          {canEdit && (
+            <div className="sheet-actions">
+              {open.disabled ? (
+                <Button onClick={() => { setOpenId(null); void enable(open); }}>Enable</Button>
+              ) : (
+                <Button disabled={isSelf(open)} onClick={() => { setOpenId(null); setConfirm({ kind: "disable", user: open }); }}>
+                  Disable
+                </Button>
+              )}
+              <Button variant="danger" disabled={isSelf(open)} onClick={() => { setOpenId(null); setConfirm({ kind: "remove", user: open }); }}>
+                Remove from organization
+              </Button>
+              {isSelf(open) && <p className="muted small">You can't disable or remove yourself.</p>}
+            </div>
+          )}
+        </Modal>
       )}
 
       {confirm?.kind === "disable" && (

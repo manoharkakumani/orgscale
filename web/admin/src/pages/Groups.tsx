@@ -2,6 +2,7 @@ import { Fragment, useMemo, useState } from "react";
 import { del, get, post, put, type AdminGroup, type Principal } from "../api";
 import { useCanEdit } from "../App";
 import { PrincipalPicker } from "../components/principals";
+import { IconTile, MList, MRow } from "../components/mlist";
 import { Badge, Button, Confirm, Empty, ErrorBox, Field, Icon, Modal, PageHeader, SearchBox, Spinner, useAsync, useToast } from "../components/ui";
 
 const sourceInfo: Record<AdminGroup["source"], { label: string; tone: "blue" | "green" | "violet" | "amber" | "teal" }> = {
@@ -71,6 +72,7 @@ export default function GroupsPage() {
   const [open, setOpen] = useState<string | null>(null);
   const [editing, setEditing] = useState<AdminGroup | "new" | null>(null);
   const [deleting, setDeleting] = useState<AdminGroup | null>(null);
+  const [sheet, setSheet] = useState<AdminGroup | null>(null);
 
   const rows = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -99,7 +101,26 @@ export default function GroupsPage() {
       ) : rows.length === 0 ? (
         <Empty title={q ? "No groups match" : "No groups yet"}>Create a group here, or connect SCIM or Google Workspace in Settings to bring in your identity provider's groups.</Empty>
       ) : (
-        <div className="table-wrap card">
+        <>
+        <MList>
+          {rows.map((g) => {
+            const info = sourceInfo[g.source] ?? sourceInfo.policy;
+            return (
+              <MRow
+                key={`${g.source}:${g.id ?? g.name}`}
+                onClick={() => setSheet(g)}
+                lead={
+                  <IconTile tone={g.source === "console" ? "teal" : g.source === "scim" ? "green" : g.source === "google" ? "blue" : g.source === "oidc" ? "violet" : "orange"}>
+                    <Icon name="users" />
+                  </IconTile>
+                }
+                title={g.source === "policy" ? `group:${g.name}` : g.displayName}
+                sub={`${info.label} · ${g.members.length} member${g.members.length === 1 ? "" : "s"}`}
+              />
+            );
+          })}
+        </MList>
+        <div className="table-wrap card desktop-only">
           <table>
             <thead>
               <tr>
@@ -152,6 +173,23 @@ export default function GroupsPage() {
             </tbody>
           </table>
         </div>
+        </>
+      )}
+      {sheet && (
+        <Modal title={sheet.source === "policy" ? `group:${sheet.name}` : sheet.displayName} onClose={() => setSheet(null)}>
+          <p className="muted">
+            {(sourceInfo[sheet.source] ?? sourceInfo.policy).label} · used in rules as <code>group:{sheet.name}</code>
+          </p>
+          <div className="group-title">Members</div>
+          <div className="chip-row">{sheet.members.length ? sheet.members.map((m) => <span key={m} className="chip chip-static">{m}</span>) : <span className="muted">No members.</span>}</div>
+          {sheet.source !== "console" && sheet.source !== "policy" && <p className="muted small mt">Membership comes from your identity provider; change it there.</p>}
+          {canEdit && sheet.source === "console" && (
+            <div className="sheet-actions">
+              <Button onClick={() => { setEditing(sheet); setSheet(null); }}>Edit group</Button>
+              <Button variant="danger" onClick={() => { setDeleting(sheet); setSheet(null); }}>Delete group</Button>
+            </div>
+          )}
+        </Modal>
       )}
       {editing && <GroupEditor group={editing === "new" ? undefined : editing} onClose={() => setEditing(null)} onSaved={() => void reload()} />}
       {deleting && (

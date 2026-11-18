@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { del, get, post, put, type EnrollKey, type Principal, type ServerTag } from "../api";
 import { useCanEdit } from "../App";
 import { PrincipalList, PrincipalPicker, type Option } from "../components/principals";
-import { Badge, Button, CodeBlock, Confirm, Empty, ErrorBox, Field, Icon, Modal, PageHeader, Segmented, Spinner, dateTime, useAsync, useToast } from "../components/ui";
+import { Badge, Button, CodeBlock, Confirm, Empty, ErrorBox, Field, Icon, Modal, PRow, PageHeader, Segmented, Spinner, Toggle, dateTime, useAsync, useToast } from "../components/ui";
 
 const granteeKinds = ["everyone", "directory_group", "policy_group", "user", "tag"] as const;
 
@@ -78,24 +78,25 @@ function TagEditor({ tag, onClose, onSaved }: { tag?: ServerTag; onClose: () => 
 
 type Platform = "linux" | "docker" | "windows" | "macos";
 
-function commands(platform: Platform, k: EnrollKey): string {
+function commands(platform: Platform, k: EnrollKey, ssh: boolean): string {
   const url = k.serverUrl;
+  const sshFlag = ssh ? " --ssh" : "";
   switch (platform) {
     case "linux":
-      return `curl -fsSL https://tailscale.com/install.sh | sh\nsudo tailscale up --login-server=${url} --auth-key=${k.key}`;
+      return `curl -fsSL https://tailscale.com/install.sh | sh\nsudo tailscale up --login-server=${url} --auth-key=${k.key}${sshFlag}`;
     case "docker":
       return [
         "docker run -d --name=tailscale --restart=unless-stopped \\",
         "  --cap-add=NET_ADMIN --device=/dev/net/tun \\",
         ...(k.ephemeral ? [] : ["  -v tailscale-state:/var/lib/tailscale -e TS_STATE_DIR=/var/lib/tailscale \\"]),
         `  -e TS_AUTHKEY=${k.key} \\`,
-        `  -e TS_EXTRA_ARGS=--login-server=${url} \\`,
+        `  -e TS_EXTRA_ARGS="--login-server=${url}${sshFlag}" \\`,
         "  tailscale/tailscale:stable",
       ].join("\n");
     case "windows":
       return `# Install Tailscale from https://tailscale.com/download/windows, then in an admin PowerShell:\n& "C:\\Program Files\\Tailscale\\tailscale.exe" up --login-server=${url} --auth-key=${k.key} --unattended`;
     case "macos":
-      return `brew install tailscale\nsudo brew services start tailscale\nsudo tailscale up --login-server=${url} --auth-key=${k.key}`;
+      return `brew install tailscale\nsudo brew services start tailscale\nsudo tailscale up --login-server=${url} --auth-key=${k.key}${sshFlag}`;
   }
 }
 
@@ -115,13 +116,19 @@ const validity = [
   { hours: 24 * 360, label: "360 days" },
 ];
 
-function AddServer({ tags, initialTag, onClose, onChanged, onNewTag }: { tags: ServerTag[]; initialTag?: string; onClose: () => void; onChanged: () => void; onNewTag: () => void }) {
+function AddServer({ tags, initialTag, onClose, onChanged }: { tags: ServerTag[]; initialTag?: string; onClose: () => void; onChanged: () => void }) {
   const toast = useToast();
   const [tag, setTag] = useState(initialTag ?? tags[0]?.name ?? "");
+  // A new tag can be named right here; it is created with the install key.
+  const [newTag, setNewTag] = useState(tags.length ? "" : "servers");
+  const [isNew, setIsNew] = useState(tags.length === 0);
+  const [created, setCreated] = useState(false);
+  const target = isNew ? `tag:${slug(newTag)}` : tag;
   const [kind, setKind] = useState<(typeof kinds)[number]["id"]>("one");
   const [hours, setHours] = useState(24);
   const [key, setKey] = useState<EnrollKey | null>(null);
   const [platform, setPlatform] = useState<Platform>("linux");
+  const [ssh, setSSH] = useState(true);
   const [busy, setBusy] = useState(false);
   const [joined, setJoined] = useState<string[]>([]);
   const before = tags.find((t) => t.name === tag)?.devices.map((d) => d.id) ?? [];
@@ -151,7 +158,12 @@ function AddServer({ tags, initialTag, onClose, onChanged, onNewTag }: { tags: S
     const k = kinds.find((x) => x.id === kind)!;
     setBusy(true);
     try {
-      setKey(await post<EnrollKey>(`/admin/api/tags/${encodeURIComponent(tag)}/enroll`, { reusable: k.reusable, ephemeral: k.ephemeral, expiresInHours: hours }));
+      if (isNew) {
+        await put(`/admin/api/tags/${encodeURIComponent(target)}`, { description: "", access: [] });
+        setCreated(true);
+        onChanged();
+      }
+      setKey(await post<EnrollKey>(`/admin/api/tags/${encodeURIComponent(target)}/enroll`, { reusable: k.reusable, ephemeral: k.ephemeral, expiresInHours: hours }));
     } catch (e) {
       toast.error(e);
     } finally {
@@ -174,7 +186,7 @@ function AddServer({ tags, initialTag, onClose, onChanged, onNewTag }: { tags: S
             <Button variant="ghost" onClick={onClose}>
               Cancel
             </Button>
-            <Button variant="primary" busy={busy} disabled={!tag} onClick={create}>
+            <Button variant="primary" busy={busy} disabled={isNew ? !slug(newTag) : !tag} onClick={create}>
               Create install command
             </Button>
           </>
@@ -187,24 +199,34 @@ function AddServer({ tags, initialTag, onClose, onChanged, onNewTag }: { tags: S
       </div>
       {!key ? (
         <>
-          <Field label="Tag" hint="The server belongs to this tag, not to a person, and gets the tag's access list.">
-            {tags.length ? (
-              <div className="choice-grid">
-                {tags.map((t) => (
-                  <button key={t.name} type="button" className={`choice ${tag === t.name ? "active" : ""}`} onClick={() => setTag(t.name)}>
-                    <b>{t.name}</b>
-                    <span className="muted small">{t.description || `${t.devices.length} server${t.devices.length === 1 ? "" : "s"}`}</span>
-                  </button>
-                ))}
-                <button type="button" className="choice" onClick={onNewTag}>
-                  <b>+ New tag</b>
-                  <span className="muted small">Create a tag first</span>
+          <Field label="Group of servers (tag)" hint={isNew ? undefined : "The server belongs to this tag, not to a person. The tag's access list decides who can reach it."}>
+            <div className="choice-grid">
+              {tags.map((t) => (
+                <button
+                  key={t.name}
+                  type="button"
+                  className={`choice ${!isNew && tag === t.name ? "active" : ""}`}
+                  onClick={() => {
+                    setIsNew(false);
+                    setTag(t.name);
+                  }}
+                >
+                  <b>{t.name}</b>
+                  <span className="muted small">{t.description || `${t.devices.length} server${t.devices.length === 1 ? "" : "s"}`}</span>
                 </button>
+              ))}
+              <button type="button" className={`choice ${isNew ? "active" : ""}`} onClick={() => setIsNew(true)}>
+                <b>+ New</b>
+                <span className="muted small">Name a new group</span>
+              </button>
+            </div>
+            {isNew && (
+              <div className="mt">
+                <input value={newTag} autoFocus placeholder="e.g. databases, web, build-agents" onChange={(e) => setNewTag(e.target.value)} />
+                <div className="field-hint">
+                  Saved as <code>tag:{slug(newTag) || "…"}</code>. Servers in it belong to the tag, not a person; you choose who can reach them afterwards.
+                </div>
               </div>
-            ) : (
-              <Button onClick={onNewTag}>
-                <Icon name="plus" /> Create a tag first
-              </Button>
             )}
           </Field>
           <Field label="What are you adding?">
@@ -218,12 +240,18 @@ function AddServer({ tags, initialTag, onClose, onChanged, onNewTag }: { tags: S
             </div>
           </Field>
           <Field label="Install command valid for" hint="Servers that already joined keep working after this.">
-            <Segmented value={String(hours)} options={validity.map((v) => ({ value: String(v.hours), label: v.label }))} onChange={(v) => setHours(Number(v))} />
+            <select value={String(hours)} onChange={(e) => setHours(Number(e.target.value))} style={{ maxWidth: 220 }}>
+              {validity.map((v) => (
+                <option key={v.hours} value={v.hours}>
+                  {v.label}
+                </option>
+              ))}
+            </select>
           </Field>
         </>
       ) : (
         <>
-          <div className="row-between" style={{ marginTop: 0, marginBottom: 12 }}>
+          <div style={{ marginBottom: 12 }}>
             <Segmented
               value={platform}
               options={[
@@ -234,13 +262,20 @@ function AddServer({ tags, initialTag, onClose, onChanged, onNewTag }: { tags: S
               ]}
               onChange={setPlatform}
             />
-            <span className="muted small">
+            <div className="muted small mt-xs">
               {key.reusable ? "Reusable" : "Single use"}
               {key.ephemeral && ", ephemeral"} · valid until {dateTime(key.expiration)}
-            </span>
+            </div>
           </div>
           <p>Run this on the server{key.reusable ? "s" : ""}. It installs Tailscale and joins the network as <b>{key.tag}</b>:</p>
-          <CodeBlock code={commands(platform, key)} />
+          <CodeBlock code={commands(platform, key, ssh && platform !== "windows")} />
+          {platform !== "windows" && (
+            <div className="group mt">
+              <PRow label="Allow SSH through Tailscale" sub="Who may SSH in, and as which account, is set with SSH rules on Access. No SSH keys needed.">
+                <Toggle checked={ssh} onChange={setSSH} label="Allow SSH through Tailscale" hideLabel />
+              </PRow>
+            </div>
+          )}
           <div className={`callout mt ${joined.length ? "callout-ok" : "callout-info"}`}>
             {joined.length ? (
               <span>
@@ -252,6 +287,13 @@ function AddServer({ tags, initialTag, onClose, onChanged, onNewTag }: { tags: S
               </span>
             )}
           </div>
+          {created && (
+            <div className="callout callout-warn">
+              <span>
+                Nobody can reach <b>{key.tag}</b> yet. Close this and use <b>Edit access</b> on its card to choose who can.
+              </span>
+            </div>
+          )}
           <p className="muted small">The key is shown only now. Treat it like a password.</p>
         </>
       )}
@@ -319,7 +361,8 @@ export default function ServersPage() {
   const toast = useToast();
   const { data, error, loading, reload } = useAsync(() => get<ServerTag[]>("/admin/api/tags"));
   const [editing, setEditing] = useState<ServerTag | "new" | null>(null);
-  const [adding, setAdding] = useState<{ tag?: string } | null>(null);
+  const [params, setParams] = useSearchParams();
+  const [adding, setAdding] = useState<{ tag?: string } | null>(params.get("add") ? {} : null);
   const [deleting, setDeleting] = useState<ServerTag | null>(null);
 
   if (loading && !data) return <Spinner />;
@@ -332,7 +375,7 @@ export default function ServersPage() {
         title="Servers"
         description={
           <>
-            Servers, VMs and containers join with an install command instead of a person's sign-in. Each belongs to a tag, and the tag decides who can reach it. To turn a machine someone already added into a server, select it on <Link to="/devices">Devices</Link> and choose <b>Move to tag</b>.
+            Servers, VMs and containers join with an install command instead of a person's sign-in. Each belongs to a tag, and the tag decides who can reach it. A machine someone already set up with their own account can be turned into a server from its page on <Link to="/devices">Devices</Link>.
           </>
         }
         actions={
@@ -376,7 +419,7 @@ export default function ServersPage() {
           }}
         />
       )}
-      {adding && !editing && <AddServer tags={tags} initialTag={adding.tag} onClose={() => setAdding(null)} onChanged={() => void reload()} onNewTag={() => setEditing("new")} />}
+      {adding && !editing && <AddServer tags={tags} initialTag={adding.tag} onClose={() => { setAdding(null); if (params.get("add")) setParams({}); }} onChanged={() => void reload()} />}
       {deleting && (
         <Confirm
           title={`Delete ${deleting.name}?`}

@@ -163,14 +163,16 @@ export function PageHeader({ title, description, actions }: { title: string; des
   );
 }
 
-export function Toggle({ checked, onChange, disabled, label }: { checked: boolean; onChange: (v: boolean) => void; disabled?: boolean; label: string }) {
+// Toggle is a switch. With hideLabel the label is only announced to screen
+// readers, for switches whose meaning is clear from the row they sit in.
+export function Toggle({ checked, onChange, disabled, label, hideLabel }: { checked: boolean; onChange: (v: boolean) => void; disabled?: boolean; label: string; hideLabel?: boolean }) {
   return (
     <label className={`toggle ${disabled ? "is-disabled" : ""}`}>
-      <input type="checkbox" role="switch" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
+      <input type="checkbox" role="switch" aria-label={label} checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
       <span className="toggle-track" aria-hidden>
         <span className="toggle-thumb" />
       </span>
-      <span>{label}</span>
+      {label && !hideLabel && <span>{label}</span>}
     </label>
   );
 }
@@ -274,6 +276,7 @@ export function ChipInput({
   disabled,
   suggestions,
   validate,
+  normalize,
 }: {
   values: string[];
   onChange: (v: string[]) => void;
@@ -281,6 +284,7 @@ export function ChipInput({
   disabled?: boolean;
   suggestions?: string[];
   validate?: (v: string) => string | null;
+  normalize?: (v: string) => string;
 }) {
   const [text, setText] = useState("");
   const [err, setErr] = useState("");
@@ -292,7 +296,8 @@ export function ChipInput({
       .map((s) => s.trim())
       .filter(Boolean);
     const next = [...values];
-    for (const p of parts) {
+    for (const raw of parts) {
+      const p = normalize ? normalize(raw) : raw;
       const problem = validate?.(p);
       if (problem) {
         setErr(problem);

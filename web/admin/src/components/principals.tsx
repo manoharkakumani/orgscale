@@ -14,10 +14,11 @@ const icons: Record<PrincipalKind, string> = {
   tag: "tag",
   device: "devices",
   everyone: "everyone",
+  self: "user",
 };
 
 const sections: { kinds: PrincipalKind[]; title: string }[] = [
-  { kinds: ["everyone"], title: "Everyone" },
+  { kinds: ["everyone", "self"], title: "Everyone" },
   { kinds: ["directory_group", "policy_group"], title: "Groups" },
   { kinds: ["user"], title: "People" },
   { kinds: ["tag"], title: "Servers (by tag)" },
@@ -37,6 +38,7 @@ export function useDirectory(kinds: PrincipalKind[]) {
     const out: Option[] = [];
     const add = (o: Omit<Option, "key">) => out.push({ ...o, key: keyOf(o) });
     if (need("everyone")) add({ kind: "everyone", principal: "", label: "Everyone", sub: "every person's devices" });
+    if (need("self")) add({ kind: "self", principal: "", label: "Their own devices", sub: "each person's own machines" });
     for (const g of groups.data ?? []) {
       const n = `${g.members.length} member${g.members.length === 1 ? "" : "s"}`;
       if (g.source === "policy" && need("policy_group")) add({ kind: "policy_group", principal: g.name, label: g.displayName || `group:${g.name}`, sub: `policy group · ${n}` });
@@ -62,7 +64,7 @@ export function PrincipalChip({ p, onRemove }: { p: Principal; onRemove?: () => 
   return (
     <span className={`chip ${onRemove ? "" : "chip-static"}`}>
       <Icon name={icons[p.kind]} />
-      <span className="ellipsis">{p.kind === "everyone" ? "Everyone" : p.label || p.principal}</span>
+      <span className="ellipsis">{p.kind === "everyone" ? "Everyone" : p.kind === "self" ? "Their own devices" : p.label || p.principal}</span>
       {onRemove && (
         <button type="button" aria-label={`Remove ${p.label}`} onClick={onRemove}>
           ×

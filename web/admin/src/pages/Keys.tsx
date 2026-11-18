@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { get, post, type AdminUser, type ApiKey, type PreAuthKey, type ServerTag } from "../api";
+import { ensureTags, newTagsHint, normalizeTag, validTag } from "../components/tags";
 import { useCanEdit } from "../App";
 import { Badge, Button, ChipInput, CopyText, Empty, ErrorBox, Field, Modal, PageHeader, Spinner, dateTime, timeAgo, useAsync, useToast } from "../components/ui";
 
@@ -50,6 +51,7 @@ function NewAuthKey({ onClose, onDone }: { onClose: () => void; onDone: () => vo
             onClick={async () => {
               setBusy(true);
               try {
+                await ensureTags(tags, (serverTags.data ?? []).map((t) => t.name));
                 const res = await post<{ preAuthKey: PreAuthKey }>("/api/v1/preauthkey", {
                   user: owner === "tags" ? undefined : owner,
                   reusable,
@@ -85,7 +87,8 @@ function NewAuthKey({ onClose, onDone }: { onClose: () => void; onDone: () => vo
         </select>
       </Field>
       <Field label="Tags">
-        <ChipInput values={tags} onChange={setTags} placeholder={serverTags.data?.[0]?.name ?? "tag:server"} suggestions={(serverTags.data ?? []).map((t) => t.name)} validate={(v) => ((serverTags.data ?? []).some((t) => t.name === v) ? null : `${v} is not a tag yet; create it on the Servers page`)} />
+        <ChipInput values={tags} onChange={setTags} placeholder={serverTags.data?.[0]?.name ?? "tag:server"} suggestions={(serverTags.data ?? []).map((t) => t.name)} normalize={normalizeTag} validate={validTag} />
+        {newTagsHint(tags, (serverTags.data ?? []).map((t) => t.name)) && <div className="field-hint">{newTagsHint(tags, (serverTags.data ?? []).map((t) => t.name))}</div>}
       </Field>
       <div className="check-row">
         <label>
