@@ -87,6 +87,7 @@ export interface Overview {
   scimEnabled: boolean;
   googleSync: boolean;
   googleSyncStatus: GoogleSyncStatus;
+  entraSync: boolean;
   warnings: string[] | null;
 }
 
@@ -179,7 +180,7 @@ export interface AdminGroup {
   id?: number;
   name: string;
   displayName: string;
-  source: "oidc" | "scim" | "google" | "policy" | "console";
+  source: "oidc" | "scim" | "google" | "policy" | "console" | "entra";
   members: string[];
   memberIds: number[];
 }
@@ -196,6 +197,20 @@ export interface GoogleSyncSettings {
   customer: string;
   serviceAccountJson?: string;
   intervalMinutes: number;
+}
+
+export interface EntraSyncSettings {
+  enabled: boolean;
+  intervalMinutes: number;
+  tenantId?: string;
+  clientId?: string;
+  clientSecret?: string;
+}
+
+export interface EntraSyncStatus extends GoogleSyncStatus {
+  unchanged: boolean;
+  lastFull: string;
+  requests: number;
 }
 
 export interface GoogleSyncStatus {
@@ -226,6 +241,15 @@ export interface Settings {
   deviceRestriction: boolean;
   scim: { enabled: boolean; createdAt: string; baseUrl: string };
   googleSync: { settings: GoogleSyncSettings; hasServiceAccount: boolean; status: GoogleSyncStatus };
+  entraSync: {
+    settings: EntraSyncSettings;
+    hasSecret: boolean;
+    status: EntraSyncStatus;
+    usesSSOApp: boolean;
+    tenantId: string;
+    clientId: string;
+    ready: boolean;
+  };
 }
 
 export interface PolicyInfo {

@@ -9,6 +9,7 @@ const sourceInfo: Record<AdminGroup["source"], { label: string; tone: "blue" | "
   console: { label: "Made here", tone: "teal" },
   scim: { label: "SCIM", tone: "green" },
   google: { label: "Google", tone: "blue" },
+  entra: { label: "Microsoft Entra", tone: "blue" },
   oidc: { label: "SSO login", tone: "violet" },
   policy: { label: "Policy file", tone: "amber" },
 };

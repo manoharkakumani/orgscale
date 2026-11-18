@@ -29,6 +29,13 @@ const (
 	SettingGoogleSync = "google.sync"
 	// SettingGoogleSyncStatus is GoogleSyncStatus.
 	SettingGoogleSyncStatus = "google.sync_status"
+	// SettingEntraSync is EntraSyncSettings.
+	SettingEntraSync = "entra.sync"
+	// SettingEntraSyncStatus is EntraSyncStatus.
+	SettingEntraSyncStatus = "entra.sync_status"
+	// SettingEntraSyncState is EntraSyncState: where the last delta query
+	// left off.
+	SettingEntraSyncState = "entra.sync_state"
 	// SettingSSOOIDC is StoredOIDC: single sign-on set up in the console.
 	// The configuration file's oidc.issuer, when set, takes precedence.
 	SettingSSOOIDC = "sso.oidc"
@@ -89,6 +96,8 @@ const (
 	DirectorySourceOIDC   = "oidc"
 	DirectorySourceSCIM   = "scim"
 	DirectorySourceGoogle = "google"
+	// DirectorySourceEntra is a group read from Microsoft Entra ID.
+	DirectorySourceEntra = "entra"
 	// DirectorySourceConsole is a group made in the admin console.
 	DirectorySourceConsole = "console"
 )
@@ -175,6 +184,34 @@ type GoogleSyncStatus struct {
 	Groups   int       `json:"groups"`
 	Disabled int       `json:"disabled"`
 	Created  int       `json:"created"`
+}
+
+// EntraSyncSettings configures reading users and groups from Microsoft Entra
+// ID through Microsoft Graph. Empty TenantID, ClientID and ClientSecret use
+// the single sign-on app registration.
+type EntraSyncSettings struct {
+	Enabled         bool   `json:"enabled"`
+	IntervalMinutes int    `json:"intervalMinutes"`
+	TenantID        string `json:"tenantId,omitempty"`
+	ClientID        string `json:"clientId,omitempty"`
+	ClientSecret    string `json:"clientSecret,omitempty"`
+}
+
+// EntraSyncStatus is the outcome of the last Entra sync.
+type EntraSyncStatus struct {
+	GoogleSyncStatus
+
+	// Unchanged is set when the change check found nothing to do.
+	Unchanged bool      `json:"unchanged"`
+	LastFull  time.Time `json:"lastFull"`
+	Requests  int       `json:"requests"`
+}
+
+// EntraSyncState holds the Microsoft Graph delta links of the last sync.
+type EntraSyncState struct {
+	UsersDelta  string    `json:"usersDelta"`
+	GroupsDelta string    `json:"groupsDelta"`
+	LastFull    time.Time `json:"lastFull"`
 }
 
 // Device access principal kinds.

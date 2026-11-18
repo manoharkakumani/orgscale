@@ -42,7 +42,7 @@ export default function OverviewPage() {
   if (error) return <ErrorBox error={error} onRetry={reload} />;
   if (!data) return null;
 
-  const directory = data.scimEnabled || data.googleSync;
+  const directory = data.scimEnabled || data.googleSync || data.entraSync;
 
   return (
     <>
@@ -69,11 +69,13 @@ export default function OverviewPage() {
             {data.ssoConfigured ? `People sign in through ${data.ssoIssuer}.` : "Connect your identity provider in Settings → Single sign-on."}
           </Step>
           <Step done={directory} title="Automatic user sync" to="/settings?section=directory">
-            {data.scimEnabled
+            {data.entraSync
+              ? "Microsoft Entra sync is on: users and groups follow Entra."
+              : data.scimEnabled
               ? "SCIM provisioning is on: users and groups follow your identity provider."
               : data.googleSync
                 ? `Google Workspace sync is on${data.googleSyncStatus?.lastRun ? `, last run ${timeAgo(data.googleSyncStatus.lastRun)}` : ""}.`
-                : "Connect SCIM (Okta, Entra ID, OneLogin, Authentik) or Google Workspace so people who leave lose access automatically."}
+                : "Connect Microsoft Entra, Google Workspace or SCIM (Okta, OneLogin, Authentik) so people who leave lose access automatically."}
           </Step>
           <Step done={data.taggedDevices > 0} title="Add your servers" to="/servers">
             {data.taggedDevices > 0 ? `${data.taggedDevices} server${data.taggedDevices === 1 ? "" : "s"} joined with a tag.` : "Create a tag such as tag:databases and add servers with a one-line install command."}

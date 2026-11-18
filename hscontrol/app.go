@@ -115,6 +115,9 @@ type Orgscale struct {
 	// googleSync pulls the Google Workspace directory when configured.
 	googleSync *googleSyncer
 
+	// entraSync pulls the Microsoft Entra ID directory when configured.
+	entraSync *entraSyncer
+
 	// adminInsecure is set when the console is enabled but not served
 	// because server_url is plain HTTP.
 	adminInsecure bool
@@ -308,6 +311,7 @@ func NewOrgscale(cfg *types.Config) (*Orgscale, error) {
 	app.authProvider = authSw
 
 	app.googleSync = newGoogleSyncer(&app)
+	app.entraSync = newEntraSyncer(&app)
 	app.scimFailures = newIPLimiter(20, time.Minute)
 
 	if cfg.Admin.Enabled {
@@ -776,6 +780,7 @@ func (h *Orgscale) Serve(ctx context.Context) error {
 	// records updates
 	go h.scheduledTasks(ctx)
 	go h.googleSync.Run(ctx)
+	go h.entraSync.Run(ctx)
 
 	if h.admin != nil {
 		h.admin.announceSetup()

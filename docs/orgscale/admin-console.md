@@ -184,6 +184,29 @@ person who signs in. Servers use **Servers → Add server** instead.
 
 ## Directory sync
 
+### Microsoft Entra ID
+
+orgscale reads users and groups from Entra through Microsoft Graph, using the
+single sign-on app registration (or another one you enter):
+
+1. In entra.microsoft.com → **App registrations** → your orgscale app →
+   **API permissions** → **Add a permission → Microsoft Graph → Application
+   permissions**: `User.Read.All`, `Group.Read.All`, `GroupMember.Read.All`.
+   Then **Grant admin consent**.
+2. **Settings → Microsoft Entra ID**: turn sync on, **Save**, **Sync now**.
+
+Each check asks Graph only what changed since the last one (delta queries):
+two small requests when nothing did. The directory is read in full when
+something changed, and once a day. Checks run every 15 minutes by default (5
+minutes to a day). Members are added; accounts disabled or deleted in Entra
+are removed with their devices; groups (with nested members) follow Entra.
+Guests are not synced. The same 25-user / half-of-all safety limit as Google
+sync applies. No public URL is needed.
+
+SCIM (below) also works with Entra, through a separate non-gallery
+enterprise app; it pushes changes instantly but needs orgscale reachable from
+the internet.
+
 ### SCIM (Okta, Microsoft Entra ID, OneLogin, JumpCloud, Authentik)
 
 1. **Settings → Directory sync → SCIM provisioning → Turn on and create token**.
@@ -195,8 +218,10 @@ person who signs in. Servers use **Servers → Add server** instead.
 - **Okta**: enable SCIM provisioning on the app, unique identifier `userName`,
   auth mode *HTTP Header*, then enable *Create*, *Update* and *Deactivate
   Users* and push groups.
-- **Microsoft Entra ID**: Enterprise application → Provisioning → Automatic,
-  Tenant URL and Secret Token, *Test connection*, *Start provisioning*.
+- **Microsoft Entra ID**: Enterprise applications → New application →
+  Create your own application → *Non-gallery*. (Apps made under App
+  registrations cannot provision.) Then Provisioning → Automatic, Tenant URL
+  and Secret Token, *Test connection*, *Start provisioning*.
 - **Authentik**: create a SCIM provider and attach it to the application as a
   backchannel provider.
 

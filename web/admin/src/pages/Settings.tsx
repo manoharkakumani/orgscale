@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { del, get, post, put, type AdminSessionInfo, type GoogleSyncSettings, type GoogleSyncStatus, type ListSetting, type Settings, type SSOState } from "../api";
+import { del, get, post, put, type AdminSessionInfo, type EntraSyncSettings, type EntraSyncStatus, type GoogleSyncSettings, type GoogleSyncStatus, type ListSetting, type Settings, type SSOState } from "../api";
 import { SSOFields, initialForm, issuerFor } from "../components/sso";
 import { useCanEdit } from "../App";
 import { Badge, Button, ChipInput, Confirm, CopyText, ErrorBox, Group, Icon, Modal, PRow, PageHeader, Spinner, Toggle, dateTime, timeAgo, useAsync, useToast } from "../components/ui";
@@ -482,12 +482,141 @@ function Sessions() {
   );
 }
 
+// ---------- Microsoft Entra ID ----------
+
+const graphPermissions = ["User.Read.All", "Group.Read.All", "GroupMember.Read.All"];
+
+function EntraStatus({ s }: { s: EntraSyncStatus }) {
+  if (!s?.lastRun || s.lastRun.startsWith("0001")) return <span className="muted">Never</span>;
+  if (!s.ok)
+    return (
+      <span className="small text-danger" title={dateTime(s.lastRun)}>
+        Failed {timeAgo(s.lastRun)}: {s.error}
+      </span>
+    );
+  return (
+    <span className="small">
+      <Badge tone="green">OK</Badge> checked {timeAgo(s.lastRun)}
+      {s.unchanged ? " · no changes" : ` · ${s.users} users, ${s.groups} groups, ${s.created} added, ${s.disabled} removed`}
+    </span>
+  );
+}
+
+function Entra({ s, onChanged }: { s: Settings; onChanged: () => void }) {
+  const canEdit = useCanEdit();
+  const toast = useToast();
+  const cur = s.entraSync;
+  const [form, setForm] = useState<EntraSyncSettings>({ ...cur.settings, intervalMinutes: cur.settings.intervalMinutes || 15, clientSecret: "" });
+  const [ownApp, setOwnApp] = useState(!!cur.settings.clientId || !cur.usesSSOApp);
+  const [busy, setBusy] = useState<"save" | "run" | "">("");
+
+  return (
+    <div>
+      <Group note="Each check asks Microsoft Graph only what changed since the last one: two small requests when nothing did. The directory is read in full when something changed, and once a day.">
+        <PRow label="Sync from Microsoft Entra ID" sub="Members are added, people disabled or deleted in Entra are removed here with their devices, and groups follow Entra. Guests are not synced.">
+          <Toggle checked={form.enabled} disabled={!canEdit} label="Sync from Microsoft Entra ID" hideLabel onChange={(enabled) => setForm({ ...form, enabled })} />
+        </PRow>
+        <PRow label="Check for changes every">
+          <select value={form.intervalMinutes} disabled={!canEdit} style={{ width: 150 }} onChange={(e) => setForm({ ...form, intervalMinutes: Number(e.target.value) })}>
+            {[5, 15, 30, 60, 240, 1440].map((m) => (
+              <option key={m} value={m}>
+                {m < 60 ? `${m} minutes` : m === 1440 ? "day" : `${m / 60} hour${m === 60 ? "" : "s"}`}
+              </option>
+            ))}
+          </select>
+        </PRow>
+        <PRow label="Last check">
+          <EntraStatus s={cur.status} />
+        </PRow>
+      </Group>
+
+      <Group title="App registration">
+        {cur.usesSSOApp && (
+          <PRow label="Use the single sign-on app" sub={`Tenant ${cur.tenantId}, client ${cur.clientId}. Nothing else to set up apart from the permissions below.`}>
+            <Toggle checked={!ownApp} disabled={!canEdit} label="Use the single sign-on app" hideLabel onChange={(v) => setOwnApp(!v)} />
+          </PRow>
+        )}
+        {ownApp && (
+          <>
+            <PRow label="Directory (tenant) ID">
+              <input value={form.tenantId ?? ""} disabled={!canEdit} placeholder="00000000-0000-…" onChange={(e) => setForm({ ...form, tenantId: e.target.value })} />
+            </PRow>
+            <PRow label="Application (client) ID">
+              <input value={form.clientId ?? ""} disabled={!canEdit} onChange={(e) => setForm({ ...form, clientId: e.target.value })} />
+            </PRow>
+            <PRow label="Client secret" sub={cur.hasSecret ? "Stored. Leave empty to keep it." : undefined}>
+              <input type="password" value={form.clientSecret ?? ""} disabled={!canEdit} placeholder={cur.hasSecret ? "••••••••" : ""} autoComplete="new-password" onChange={(e) => setForm({ ...form, clientSecret: e.target.value })} />
+            </PRow>
+          </>
+        )}
+      </Group>
+
+      <details className="disclosure" open={!cur.status?.ok}>
+        <summary>Permissions the app needs</summary>
+        <ol className="small">
+          <li>In entra.microsoft.com open <b>App registrations</b> → your orgscale app → <b>API permissions</b>.</li>
+          <li>
+            <b>Add a permission → Microsoft Graph → Application permissions</b>, and add: {graphPermissions.map((p) => <code key={p} style={{ marginRight: 4 }}>{p}</code>)}
+          </li>
+          <li>Click <b>Grant admin consent</b> for your organization.</li>
+          <li>Turn sync on here and click <b>Sync now</b>.</li>
+        </ol>
+      </details>
+
+      {canEdit && (
+        <div className="savebar">
+          <Button
+            busy={busy === "run"}
+            disabled={!cur.settings.enabled}
+            onClick={async () => {
+              setBusy("run");
+              try {
+                const st = await post<EntraSyncStatus>("/admin/api/settings/entra-sync/run");
+                if (st.ok) toast.ok(`Synced ${st.users} users and ${st.groups} groups`);
+                else toast.error(st.error ?? "Sync failed");
+                onChanged();
+              } catch (e) {
+                toast.error(e);
+              } finally {
+                setBusy("");
+              }
+            }}
+          >
+            Sync now
+          </Button>
+          <Button
+            variant="primary"
+            busy={busy === "save"}
+            onClick={async () => {
+              setBusy("save");
+              try {
+                const body = ownApp ? form : { enabled: form.enabled, intervalMinutes: form.intervalMinutes };
+                await put("/admin/api/settings/entra-sync", body);
+                toast.ok("Microsoft Entra sync saved");
+                setForm({ ...form, clientSecret: "" });
+                onChanged();
+              } catch (e) {
+                toast.error(e);
+              } finally {
+                setBusy("");
+              }
+            }}
+          >
+            Save
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ---------- page ----------
 
 const sections = [
   { id: "sso", label: "Single sign-on", tile: "tile-blue", icon: "sso", text: "Your identity provider and the redirect URLs to register with it." },
   { id: "signin", label: "Who can sign in", tile: "tile-green", icon: "user", text: "Email domains, people and groups allowed to join the network." },
   { id: "console", label: "Console access", tile: "tile-violet", icon: "key", text: "Who can use this console, as an admin or read-only." },
+  { id: "entra", label: "Microsoft Entra ID", tile: "tile-blue", icon: "sync", text: "Read users and groups from Microsoft Entra ID through Microsoft Graph." },
   { id: "directory", label: "SCIM provisioning", tile: "tile-teal", icon: "link", text: "Okta, Microsoft Entra ID, OneLogin, JumpCloud and Authentik push users and groups here." },
   { id: "google", label: "Google Workspace", tile: "tile-orange", icon: "sync", text: "Read users and groups from Google Workspace on a schedule." },
 ] as const;
@@ -505,6 +634,7 @@ export default function SettingsPage() {
   if (!data) return null;
 
   const status: Partial<Record<SectionId, string>> = {
+    entra: data.entraSync.settings.enabled ? "On" : "Off",
     directory: data.scim.enabled ? "On" : "Off",
     google: data.googleSync.settings.enabled ? "On" : "Off",
   };
@@ -557,6 +687,7 @@ export default function SettingsPage() {
             </>
           )}
           {current === "directory" && <SCIM s={data} onChanged={reload} />}
+          {current === "entra" && <Entra key={JSON.stringify(data.entraSync.settings)} s={data} onChanged={reload} />}
           {current === "google" && <Google key={JSON.stringify(data.googleSync.settings)} s={data} onChanged={reload} />}
         </div>
       </div>

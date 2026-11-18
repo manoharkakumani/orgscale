@@ -50,6 +50,8 @@ func (aa *adminAuth) routes(r chi.Router) {
 		r.Delete("/settings/scim-token", aa.handleDeleteSCIMToken)
 		r.Put("/settings/google-sync", aa.handlePutGoogleSync)
 		r.Post("/settings/google-sync/run", aa.handleRunGoogleSync)
+		r.Put("/settings/entra-sync", aa.handlePutEntraSync)
+		r.Post("/settings/entra-sync/run", aa.handleRunEntraSync)
 
 		r.Get("/users", aa.handleListUsers)
 		r.Post("/users/{id}/disable", aa.handleDisableUser)
@@ -269,6 +271,7 @@ func (aa *adminAuth) handleOverview(w http.ResponseWriter, r *http.Request) {
 		"scimEnabled":       scimSince != "",
 		"googleSync":        google.Enabled,
 		"googleSyncStatus":  googleStatus,
+		"entraSync":         aa.entraSyncEnabled(),
 		"warnings":          warnings,
 	})
 }
@@ -355,7 +358,82 @@ func (aa *adminAuth) handleGetSettings(w http.ResponseWriter, r *http.Request) {
 			"hasServiceAccount": hasSA,
 			"status":            googleStatus,
 		},
+		"entraSync": aa.entraSyncView(),
 	})
+}
+
+func (aa *adminAuth) entraSyncEnabled() bool {
+	return aa.h.entraSync.settings().Enabled
+}
+
+// entraSyncView is the Entra sync settings without the secret, whether the
+// single sign-on app registration can be reused, and the last status.
+func (aa *adminAuth) entraSyncView() map[string]any {
+	e := aa.h.entraSync
+	s := e.settings()
+
+	hasSecret := s.ClientSecret != ""
+	s.ClientSecret = ""
+
+	var status types.EntraSyncStatus
+	_, _ = aa.h.state.GetSettingJSON(types.SettingEntraSyncStatus, &status)
+
+	_, ssoTenant := entraTenant(aa.ssoState().Issuer)
+	creds, credErr := e.credentials(e.settings())
+
+	return map[string]any{
+		"settings":   s,
+		"hasSecret":  hasSecret,
+		"status":     status,
+		"usesSSOApp": ssoTenant && s.ClientID == "",
+		"tenantId":   creds.tenant,
+		"clientId":   creds.clientID,
+		"ready":      credErr == nil,
+	}
+}
+
+func (aa *adminAuth) handlePutEntraSync(w http.ResponseWriter, r *http.Request) {
+	var req types.EntraSyncSettings
+	if !decodeJSON(w, r, &req) {
+		return
+	}
+
+	prev := aa.h.entraSync.settings()
+
+	req.TenantID = strings.TrimSpace(req.TenantID)
+	req.ClientID = strings.TrimSpace(req.ClientID)
+	req.ClientSecret = strings.TrimSpace(req.ClientSecret)
+
+	// An empty secret keeps the stored one: the console never reads it back.
+	if req.ClientSecret == "" && req.ClientID == prev.ClientID {
+		req.ClientSecret = prev.ClientSecret
+	}
+
+	req.IntervalMinutes = min(max(cmp.Or(req.IntervalMinutes, 15), 5), 24*60)
+
+	if _, err := aa.h.entraSync.credentials(req); req.Enabled && err != nil {
+		adminJSONError(w, http.StatusBadRequest, err.Error())
+
+		return
+	}
+
+	err := aa.h.state.SetSettingJSON(types.SettingEntraSync, req, sessionFrom(r).label())
+	if err != nil {
+		adminJSONError(w, http.StatusInternalServerError, err.Error())
+
+		return
+	}
+
+	aa.h.entraSync.Kick()
+	aa.auditReq(r, "entra_sync.update", "", fmt.Sprintf("enabled=%t interval=%dm own_app=%t", req.Enabled, req.IntervalMinutes, req.ClientID != ""))
+	aa.handleGetSettings(w, r)
+}
+
+func (aa *adminAuth) handleRunEntraSync(w http.ResponseWriter, r *http.Request) {
+	status := aa.h.entraSync.RunNow(r.Context(), true)
+
+	aa.auditReq(r, "entra_sync.run", "", fmt.Sprintf("ok=%t users=%d groups=%d disabled=%d", status.OK, status.Users, status.Groups, status.Disabled))
+	adminJSON(w, http.StatusOK, status)
 }
 
 // normaliseList trims, drops empty entries and duplicates, and lowercases

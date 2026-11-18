@@ -17,6 +17,7 @@ import (
 const (
 	userProviderSCIM   = "scim"
 	userProviderGoogle = "google"
+	userProviderEntra  = "entra"
 )
 
 var errUserDisabled = newHTTPUserError(
@@ -78,7 +79,7 @@ func provisionedUserForClaim(st *state.State, claims *types.OIDCClaims, _ bool) 
 			continue
 		}
 
-		if u.Provider != userProviderSCIM && u.Provider != userProviderGoogle {
+		if u.Provider != userProviderSCIM && u.Provider != userProviderGoogle && u.Provider != userProviderEntra {
 			continue
 		}
 
