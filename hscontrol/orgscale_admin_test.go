@@ -15,10 +15,12 @@ import (
 	"testing"
 	"time"
 
+	hsdb "github.com/manoharkakumani/orgscale/hscontrol/db"
 	"github.com/manoharkakumani/orgscale/hscontrol/types"
 	"github.com/oauth2-proxy/mockoidc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 )
 
 // adminHarness is an orgscale with the admin console on, behind a mock OIDC
@@ -580,4 +582,130 @@ func TestAdminRoleGroupMatching(t *testing.T) {
 	role, ok = aa.roleForIdentity("BOSS@example.com", nil)
 	assert.True(t, ok)
 	assert.Equal(t, AdminRoleAdmin, role)
+}
+
+func TestAdminConsoleTagsRulesAndBulk(t *testing.T) {
+	h := newAdminHarness(t)
+
+	boss := h.browser(t)
+	require.Equal(t, http.StatusOK, boss.login(t, &mockoidc.MockUser{
+		Subject: "boss", Email: "boss@example.com", EmailVerified: true,
+	}))
+
+	st := h.app.state
+	alice, _, err := st.CreateUser(types.User{Name: "alice", Email: "alice@example.com"})
+	require.NoError(t, err)
+
+	aliceID := strconv.FormatUint(uint64(alice.ID), 10)
+
+	// Create a tag with access, from the console.
+	assert.Equal(t, http.StatusBadRequest, boss.do(t, http.MethodPut, "/admin/api/tags/Bad Name!", map[string]any{"access": []any{}}, nil))
+	require.Equal(t, http.StatusNoContent, boss.do(t, http.MethodPut, "/admin/api/tags/web", map[string]any{
+		"description": "Web servers",
+		"access":      []map[string]string{{"kind": "user", "principal": aliceID}},
+	}, nil))
+
+	var tags []adminTag
+	require.Equal(t, http.StatusOK, boss.do(t, http.MethodGet, "/admin/api/tags", nil, &tags))
+	require.Len(t, tags, 1)
+	assert.Equal(t, "tag:web", tags[0].Name)
+	assert.True(t, tags[0].Managed)
+	assert.Equal(t, "alice@example.com", tags[0].Access[0].Label)
+
+	// An enrollment key for servers.
+	var enroll map[string]any
+	require.Equal(t, http.StatusCreated, boss.do(t, http.MethodPost, "/admin/api/tags/tag%3Aweb/enroll", map[string]any{
+		"reusable": true, "expiresInHours": 24,
+	}, &enroll))
+	assert.NotEmpty(t, enroll["key"])
+	assert.Equal(t, http.StatusNotFound, boss.do(t, http.MethodPost, "/admin/api/tags/tag:nope/enroll", map[string]any{"expiresInHours": 1}, nil))
+
+	// A rule from the rule editor.
+	assert.Equal(t, http.StatusBadRequest, boss.do(t, http.MethodPost, "/admin/api/rules", map[string]any{
+		"name": "bad ports", "ports": "22-x", "enabled": true,
+		"sources":      []map[string]string{{"kind": "everyone"}},
+		"destinations": []map[string]string{{"kind": "tag", "principal": "tag:web"}},
+	}, nil))
+
+	var created map[string]uint64
+	require.Equal(t, http.StatusOK, boss.do(t, http.MethodPost, "/admin/api/rules", map[string]any{
+		"name": "Everyone to the web", "protocol": "tcp", "ports": "80, 443", "enabled": true,
+		"sources":      []map[string]string{{"kind": "everyone"}},
+		"destinations": []map[string]string{{"kind": "tag", "principal": "tag:web"}},
+	}, &created))
+	require.NotZero(t, created["id"])
+
+	var rules []adminRule
+	require.Equal(t, http.StatusOK, boss.do(t, http.MethodGet, "/admin/api/rules", nil, &rules))
+	require.Len(t, rules, 1)
+	assert.Equal(t, "80,443", rules[0].Ports)
+	assert.Equal(t, "Everyone", rules[0].Sources[0].Label)
+
+	// Turn restriction on so the rules are compiled, and check them.
+	require.Equal(t, http.StatusOK, boss.do(t, http.MethodPut, "/admin/api/settings/device-restriction", map[string]bool{"enabled": true}, nil))
+
+	pol, err := st.EffectivePolicy()
+	require.NoError(t, err)
+	assert.Contains(t, string(pol), `"tag:web:80,443"`)
+	assert.Contains(t, string(pol), `"tag:web":[]`)
+
+	// A tag in use cannot be deleted; an unused one can.
+	require.Equal(t, http.StatusNoContent, boss.do(t, http.MethodDelete, "/admin/api/rules/"+strconv.FormatUint(created["id"], 10), nil, nil))
+	require.Equal(t, http.StatusNoContent, boss.do(t, http.MethodDelete, "/admin/api/tags/tag:web", nil, nil))
+	assert.Equal(t, http.StatusNotFound, boss.do(t, http.MethodDelete, "/admin/api/tags/tag:web", nil, nil))
+
+	var audit []types.AuditEvent
+	require.Equal(t, http.StatusOK, boss.do(t, http.MethodGet, "/admin/api/audit", nil, &audit))
+
+	var actions []string
+	for _, e := range audit {
+		actions = append(actions, e.Action)
+	}
+
+	assert.Subset(t, actions, []string{"tag.save", "tag.enroll_key", "rule.create", "rule.delete", "tag.delete"})
+}
+
+func TestAdminConsoleGroups(t *testing.T) {
+	h := newAdminHarness(t)
+
+	boss := h.browser(t)
+	require.Equal(t, http.StatusOK, boss.login(t, &mockoidc.MockUser{
+		Subject: "boss", Email: "boss@example.com", EmailVerified: true,
+	}))
+
+	alice, _, err := h.app.state.CreateUser(types.User{Name: "alice", Email: "alice@example.com"})
+	require.NoError(t, err)
+
+	var created map[string]any
+	require.Equal(t, http.StatusOK, boss.do(t, http.MethodPost, "/admin/api/groups", map[string]any{
+		"name": "Web Team", "memberIds": []uint{alice.ID},
+	}, &created))
+	assert.Equal(t, "web-team", created["name"])
+
+	id := strconv.FormatUint(uint64(created["id"].(float64)), 10)
+
+	var groups []adminGroup
+	require.Equal(t, http.StatusOK, boss.do(t, http.MethodGet, "/admin/api/groups", nil, &groups))
+	require.Len(t, groups, 1)
+	assert.Equal(t, "console", groups[0].Source)
+	assert.Equal(t, []string{"alice@example.com"}, groups[0].Members)
+
+	assert.Equal(t, http.StatusBadRequest, boss.do(t, http.MethodPut, "/admin/api/groups/"+id, map[string]any{"name": "!!!", "memberIds": []uint{}}, nil))
+	require.Equal(t, http.StatusOK, boss.do(t, http.MethodPut, "/admin/api/groups/"+id, map[string]any{"name": "Web Team", "memberIds": []uint{}}, nil))
+
+	// Groups from the identity provider cannot be changed here.
+	var scimGroupID uint64
+
+	_, err = h.app.state.WriteDirectory(func(tx *gorm.DB) error {
+		g, err := hsdb.UpsertDirectoryGroup(tx, types.DirectorySourceSCIM, "ext", "Engineering")
+		if err == nil {
+			scimGroupID = g.ID
+		}
+
+		return err
+	})
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusConflict, boss.do(t, http.MethodDelete, "/admin/api/groups/"+strconv.FormatUint(scimGroupID, 10), nil, nil))
+
+	require.Equal(t, http.StatusNoContent, boss.do(t, http.MethodDelete, "/admin/api/groups/"+id, nil, nil))
 }

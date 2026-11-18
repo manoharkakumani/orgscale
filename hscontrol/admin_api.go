@@ -60,6 +60,8 @@ func (aa *adminAuth) routes(r chi.Router) {
 		r.Get("/policy", aa.handleGetPolicy)
 
 		r.Get("/audit", aa.handleListAudit)
+
+		aa.accessRoutes(r)
 	})
 }
 

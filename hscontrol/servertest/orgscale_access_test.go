@@ -187,3 +187,175 @@ func TestOrgscaleDisabledUserLosesDevices(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, disabled)
 }
+
+// TestOrgscaleServerTagsAndRules checks servers enrolled into a console tag
+// and access granted per tag and through the rule editor.
+func TestOrgscaleServerTagsAndRules(t *testing.T) {
+	t.Parallel()
+
+	srv := servertest.NewServer(t)
+	st := srv.State()
+
+	alice := srv.CreateUser(t, "alice")
+	bob := srv.CreateUser(t, "bob")
+
+	// A tag made in the console: no policy JSON involved.
+	changes, err := st.SaveServerTag(types.ServerTag{Name: "tag:db", Description: "Databases"}, nil)
+	require.NoError(t, err)
+	srv.App.Change(changes...)
+
+	exp := time.Now().Add(time.Hour)
+	key, err := st.CreatePreAuthKey(nil, true, false, &exp, []string{"tag:db"})
+	require.NoError(t, err)
+
+	aliceLaptop := servertest.NewClient(t, srv, "alice-laptop", servertest.WithUser(alice))
+	bobLaptop := servertest.NewClient(t, srv, "bob-laptop", servertest.WithUser(bob))
+	db1 := servertest.NewClient(t, srv, "db-1", servertest.WithAuthKey(key.Key))
+	db2 := servertest.NewClient(t, srv, "db-2", servertest.WithAuthKey(key.Key))
+
+	db1Node, ok := st.GetNodeByID(nodeIDOf(t, db1))
+	require.True(t, ok)
+	require.True(t, db1Node.IsTagged(), "enrolled with a tag key, the server belongs to the tag")
+
+	changes, err = st.SetDeviceRestriction(true, "test")
+	require.NoError(t, err)
+	srv.App.Change(changes...)
+
+	waitPeers(t, aliceLaptop)
+	waitPeers(t, bobLaptop)
+	waitPeers(t, db1)
+
+	// Bob gets every server carrying the tag at once.
+	changes, err = st.SaveServerTag(types.ServerTag{Name: "tag:db", Description: "Databases"}, []types.ServerTagAccess{
+		{PrincipalKind: types.PrincipalUser, Principal: strconv.FormatUint(uint64(bob.ID), 10)},
+	})
+	require.NoError(t, err)
+	srv.App.Change(changes...)
+
+	waitPeers(t, bobLaptop, "db-1", "db-2")
+	waitPeers(t, aliceLaptop)
+	waitPeers(t, db2, "bob-laptop")
+
+	// A rule from the rule editor: alice may reach the databases on 5432.
+	id, changes, err := st.SaveAccessRule(types.AccessRule{
+		Name: "Alice to Postgres", Protocol: "tcp", Ports: "5432", Enabled: true,
+		Sources:      []types.RulePrincipal{{Kind: types.PrincipalUser, Principal: strconv.FormatUint(uint64(alice.ID), 10)}},
+		Destinations: []types.RulePrincipal{{Kind: types.PrincipalTag, Principal: "tag:db"}},
+	})
+	require.NoError(t, err)
+	srv.App.Change(changes...)
+
+	waitPeers(t, aliceLaptop, "db-1", "db-2")
+
+	pol, err := st.EffectivePolicy()
+	require.NoError(t, err)
+	require.Contains(t, string(pol), `"tag:db:5432"`)
+	require.Contains(t, string(pol), `"proto":"tcp"`)
+
+	// Pausing the rule takes the access away again.
+	_, changes, err = st.SaveAccessRule(types.AccessRule{
+		ID: id, Name: "Alice to Postgres", Protocol: "tcp", Ports: "5432", Enabled: false,
+		Sources:      []types.RulePrincipal{{Kind: types.PrincipalUser, Principal: strconv.FormatUint(uint64(alice.ID), 10)}},
+		Destinations: []types.RulePrincipal{{Kind: types.PrincipalTag, Principal: "tag:db"}},
+	})
+	require.NoError(t, err)
+	srv.App.Change(changes...)
+
+	waitPeers(t, aliceLaptop)
+
+	// Removing bob drops him from the tag's access list.
+	changes, err = st.RemoveUser(types.UserID(bob.ID))
+	require.NoError(t, err)
+	srv.App.Change(changes...)
+
+	waitPeers(t, db1)
+
+	grants, err := st.ListServerTagAccess()
+	require.NoError(t, err)
+	require.Empty(t, grants)
+}
+
+// TestOrgscaleServersTalkPeopleIsolated checks the setup of an organisation
+// where people only see their own devices, never each other's, servers talk to servers
+// as their tags allow, and a console-made group reaches some servers.
+func TestOrgscaleServersTalkPeopleIsolated(t *testing.T) {
+	t.Parallel()
+
+	srv := servertest.NewServer(t)
+	st := srv.State()
+
+	alice := srv.CreateUser(t, "alice")
+	bob := srv.CreateUser(t, "bob")
+
+	for _, tag := range []string{"tag:web", "tag:db"} {
+		changes, err := st.SaveServerTag(types.ServerTag{Name: tag}, nil)
+		require.NoError(t, err)
+		srv.App.Change(changes...)
+	}
+
+	key := func(tag string) string {
+		exp := time.Now().Add(time.Hour)
+		k, err := st.CreatePreAuthKey(nil, true, false, &exp, []string{tag})
+		require.NoError(t, err)
+
+		return k.Key
+	}
+
+	webKey, dbKey := key("tag:web"), key("tag:db")
+
+	aliceLaptop := servertest.NewClient(t, srv, "alice-laptop", servertest.WithUser(alice))
+	alicePhone := servertest.NewClient(t, srv, "alice-phone", servertest.WithUser(alice))
+	bobLaptop := servertest.NewClient(t, srv, "bob-laptop", servertest.WithUser(bob))
+	web1 := servertest.NewClient(t, srv, "web-1", servertest.WithAuthKey(webKey))
+	db1 := servertest.NewClient(t, srv, "db-1", servertest.WithAuthKey(dbKey))
+	db2 := servertest.NewClient(t, srv, "db-2", servertest.WithAuthKey(dbKey))
+
+	changes, err := st.SetDeviceRestriction(true, "test")
+	require.NoError(t, err)
+	srv.App.Change(changes...)
+
+	// Databases reach each other (the tag grants itself); web reaches the
+	// databases through a rule.
+	changes, err = st.SaveServerTag(types.ServerTag{Name: "tag:db"}, []types.ServerTagAccess{
+		{PrincipalKind: types.PrincipalTag, Principal: "tag:db"},
+	})
+	require.NoError(t, err)
+	srv.App.Change(changes...)
+
+	_, changes, err = st.SaveAccessRule(types.AccessRule{
+		Name: "web to db", Protocol: "tcp", Ports: "5432", Enabled: true,
+		Sources:      []types.RulePrincipal{{Kind: types.PrincipalTag, Principal: "tag:web"}},
+		Destinations: []types.RulePrincipal{{Kind: types.PrincipalTag, Principal: "tag:db"}},
+	})
+	require.NoError(t, err)
+	srv.App.Change(changes...)
+
+	// A group made in the console: bob may reach the web servers.
+	var groupID uint64
+
+	changes, err = st.WriteDirectory(func(tx *gorm.DB) error {
+		g, err := hsdb.UpsertDirectoryGroup(tx, types.DirectorySourceConsole, "console-1", "Web Team")
+		if err != nil {
+			return err
+		}
+
+		groupID = g.ID
+
+		return hsdb.SetDirectoryGroupMembers(tx, g.ID, []types.UserID{types.UserID(bob.ID)})
+	})
+	require.NoError(t, err)
+	srv.App.Change(changes...)
+
+	changes, err = st.SaveServerTag(types.ServerTag{Name: "tag:web"}, []types.ServerTagAccess{
+		{PrincipalKind: types.PrincipalDirectoryGroup, Principal: strconv.FormatUint(groupID, 10)},
+	})
+	require.NoError(t, err)
+	srv.App.Change(changes...)
+
+	waitPeers(t, db1, "db-2", "web-1")
+	waitPeers(t, web1, "db-1", "db-2", "bob-laptop")
+	waitPeers(t, bobLaptop, "web-1")
+	waitPeers(t, aliceLaptop, "alice-phone")
+	waitPeers(t, alicePhone, "alice-laptop")
+	waitPeers(t, db2, "db-1", "web-1")
+}
