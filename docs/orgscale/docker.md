@@ -58,7 +58,7 @@ in the console.
 ## HTTPS
 
 Run orgscale behind HTTPS. Either let orgscale get a Let's Encrypt
-certificate itself (`ORGSCALE_TLS_LETSENCRYPT_HOSTNAME=vpn.example.com`,
+certificate itself (`ORGSCALE_TLS_ACME_HOSTNAME=vpn.example.com`, `ORGSCALE_LISTEN_ADDR=0.0.0.0:443`,
 publish port 443), or put a TLS proxy such as Caddy or Traefik in front and
 forward to port 8080. Sign-in cookies, keys and SCIM tokens must never travel
 over plain HTTP.
