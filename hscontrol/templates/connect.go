@@ -32,9 +32,9 @@ func Connect(url string) *elem.Element {
 		detailsBox("Mac",
 			Ol(
 				step(elem.Text("Install "), externalLink("https://tailscale.com/download/mac", "Tailscale for Mac"), elem.Text(" and open it once.")),
-				step(elem.Text("Download the profile below and open it.")),
-				step(elem.Text("Open "), strong("System Settings → General → Device Management"), elem.Text(" (or Profiles), select "), strong("orgscale"), elem.Text(" and click "), strong("Install"), elem.Text(".")),
-				step(elem.Text("Quit and reopen Tailscale, then click "), strong("Log in"), elem.Text(" in its menu.")),
+				step(elem.Text("Download the profile below and open it. macOS says to review it in System Settings; that is expected.")),
+				step(elem.Text("Open "), strong("System Settings"), elem.Text(" and click "), strong("Profile Downloaded"), elem.Text(" near the top of the sidebar (or "), strong("General → Device Management"), elem.Text("). Double-click "), strong("orgscale"), elem.Text(", click "), strong("Install"), elem.Text(" and enter your Mac password. It shows as Unverified; that is fine.")),
+				step(elem.Text("Quit Tailscale from its menu bar icon, open it again, then click "), strong("Log in"), elem.Text(".")),
 			),
 			elem.Div(attrs.Props{attrs.Style: styles.Props{styles.MarginTop: spaceM}.ToInline()},
 				fileButton("/apple/macos", "orgscale.mobileconfig", "Download Mac profile"),
