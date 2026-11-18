@@ -68,13 +68,42 @@ iOS and Android. See [connecting devices](docs/orgscale/admin-console.md#connect
 
 ## Running orgscale
 
-**Please note that we do not support nor encourage the use of reverse proxies
-and container to run Orgscale.**
-
 Run it with Docker ([guide](docs/orgscale/docker.md)), then follow the
 [admin console guide](docs/orgscale/admin-console.md). Server
 settings not covered there work as in Headscale; the
 [configuration reference](docs/ref/configuration-options.md) lists them all.
+
+### First-time setup
+
+A new installation has no identity provider yet, so nobody can sign in. There
+is no built-in admin password. Instead, orgscale writes a one-time setup link
+to its log when it starts:
+
+```
+  orgscale is not set up yet. To finish setup, open
+
+      https://vpn.example.com/admin/setup#oskey-setup-…
+```
+
+Open it, connect your identity provider (Google Workspace, Microsoft Entra ID,
+Okta or any OpenID Connect provider) and enter your email as the first
+administrator. Once you sign in, setup closes and the link stops working.
+
+The link works once and expires after 30 minutes. To get a new one, run on
+the server:
+
+```bash
+orgscale admin setup-link
+
+# with Docker
+docker compose exec orgscale orgscale admin setup-link
+```
+
+Each run replaces the previous link. The command only works on the server
+itself (over its local socket), so nobody can make a link from outside. Use
+the same command to get back in if nobody can sign in any more, for example
+after your identity provider changed. Restarting orgscale without single
+sign-on configured also prints a fresh link.
 
 For NixOS users, a module is available in [`nix/`](./nix/).
 
