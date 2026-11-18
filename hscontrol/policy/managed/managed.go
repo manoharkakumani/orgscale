@@ -16,6 +16,7 @@ package managed
 
 import (
 	"bytes"
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"maps"
@@ -25,15 +26,20 @@ import (
 	"github.com/tailscale/hujson"
 )
 
-// Rule lets Src reach Dst on every port.
+// Rule lets Src reach Dst on Ports over Proto.
 type Rule struct {
 	// Comment names what the rule is for, e.g. the device.
 	Comment string
-	// Src are policy aliases: user tokens ("alice@example.com") and groups
-	// ("group:engineering").
+	// Src are policy aliases: user tokens ("alice@example.com"), groups
+	// ("group:engineering"), tags ("tag:db") and "autogroup:member".
 	Src []string
-	// Dst are device addresses ("100.64.0.5").
+	// Dst are policy hosts without ports: device addresses
+	// ("100.64.0.5"), user tokens, groups, tags and "autogroup:member".
 	Dst []string
+	// Ports is "*" (also when empty) or a list like "22,443,8000-8100".
+	Ports string
+	// Proto is "" (any), "tcp", "udp" or "icmp".
+	Proto string
 }
 
 // Policy is what orgscale adds to the administrator's policy.
@@ -43,7 +49,11 @@ type Policy struct {
 	RestrictDevices bool
 	// Groups maps a group name, without "group:", to its members' user tokens.
 	Groups map[string][]string
-	// Rules are the device access rules.
+	// Tags are tags the console defines. Each is added to tagOwners with no
+	// owners, unless the policy defines it: only administrators apply them,
+	// through auth keys and the console.
+	Tags []string
+	// Rules are the device, tag and rule-editor access rules.
 	Rules []Rule
 }
 
@@ -58,7 +68,7 @@ var baselineRule = map[string]any{
 // stays that way unless device restriction is on, so turning restriction off
 // and syncing groups never narrows access.
 func Merge(raw []byte, m Policy) ([]byte, error) {
-	if !m.RestrictDevices && (len(m.Groups) == 0 || len(bytes.TrimSpace(raw)) == 0) {
+	if !m.RestrictDevices && len(m.Tags) == 0 && (len(m.Groups) == 0 || len(bytes.TrimSpace(raw)) == 0) {
 		return raw, nil
 	}
 
@@ -114,6 +124,47 @@ func Merge(raw []byte, m Policy) ([]byte, error) {
 		doc["groups"] = b
 	}
 
+	tagOwners := map[string]json.RawMessage{}
+
+	if t, ok := doc["tagOwners"]; ok {
+		err := json.Unmarshal(t, &tagOwners)
+		if err != nil {
+			return nil, fmt.Errorf("parsing policy tagOwners: %w", err)
+		}
+	}
+
+	if len(m.Tags) > 0 {
+		for _, tag := range m.Tags {
+			if _, defined := tagOwners[tag]; !defined {
+				tagOwners[tag] = json.RawMessage("[]")
+			}
+		}
+
+		b, err := json.Marshal(tagOwners)
+		if err != nil {
+			return nil, err
+		}
+
+		doc["tagOwners"] = b
+	}
+
+	// An alias naming a group or tag the policy does not define would fail
+	// the whole compile; a rule naming it grants nothing through it instead.
+	undefined := func(alias string) bool {
+		switch {
+		case strings.HasPrefix(alias, "group:"):
+			_, ok := groups[alias]
+
+			return !ok
+		case strings.HasPrefix(alias, "tag:"):
+			_, ok := tagOwners[alias]
+
+			return !ok
+		}
+
+		return false
+	}
+
 	if m.RestrictDevices {
 		var acls []json.RawMessage
 
@@ -132,28 +183,30 @@ func Merge(raw []byte, m Policy) ([]byte, error) {
 		acls = append(acls, b)
 
 		for _, r := range m.Rules {
-			// A group the policy no longer defines would fail the whole
-			// compile; the grant to it grants nothing instead.
-			r.Src = slices.DeleteFunc(slices.Clone(r.Src), func(src string) bool {
-				_, defined := groups[src]
-
-				return strings.HasPrefix(src, "group:") && !defined
-			})
+			r.Src = slices.DeleteFunc(slices.Clone(r.Src), undefined)
+			r.Dst = slices.DeleteFunc(slices.Clone(r.Dst), undefined)
 
 			if len(r.Src) == 0 || len(r.Dst) == 0 {
 				continue
 			}
 
+			ports := cmp.Or(strings.ReplaceAll(r.Ports, " ", ""), "*")
+
 			dst := make([]string, 0, len(r.Dst))
 			for _, d := range r.Dst {
-				dst = append(dst, d+":*")
+				dst = append(dst, d+":"+ports)
 			}
 
-			b, err := json.Marshal(map[string]any{
+			acl := map[string]any{
 				"action": "accept",
 				"src":    r.Src,
 				"dst":    dst,
-			})
+			}
+			if r.Proto != "" {
+				acl["proto"] = r.Proto
+			}
+
+			b, err := json.Marshal(acl)
 			if err != nil {
 				return nil, err
 			}

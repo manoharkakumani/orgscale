@@ -116,3 +116,43 @@ func TestMergeDropsUndefinedGroupReferences(t *testing.T) {
 	require.Len(t, acls, 2, "baseline + the rule that still has a defined source")
 	assert.Equal(t, []any{"group:ops"}, acls[1].(map[string]any)["src"])
 }
+
+func TestMergeTagsAndPortRules(t *testing.T) {
+	out, err := Merge(nil, Policy{Tags: []string{"tag:db"}})
+	require.NoError(t, err)
+
+	doc := decode(t, out)
+	assert.Equal(t, map[string]any{"tag:db": []any{}}, doc["tagOwners"])
+	assert.NotContains(t, doc, "acls", "defining tags alone keeps an open network open")
+
+	out, err = Merge([]byte(`{"tagOwners":{"tag:db":["alice@"]}}`), Policy{
+		RestrictDevices: true,
+		Tags:            []string{"tag:db", "tag:web"},
+		Rules: []Rule{
+			{Src: []string{"group:ops"}, Dst: []string{"tag:db"}, Ports: "5432, 6432", Proto: "tcp"},
+			{Src: []string{"alice@"}, Dst: []string{"tag:gone"}},
+		},
+	})
+	require.NoError(t, err)
+
+	doc = decode(t, out)
+	assert.Equal(t, map[string]any{"tag:db": []any{"alice@"}, "tag:web": []any{}}, doc["tagOwners"], "the policy's own owners win")
+
+	acls, ok := doc["acls"].([]any)
+	require.True(t, ok)
+	require.Len(t, acls, 1, "baseline only: group:ops is undefined and tag:gone too")
+
+	out, err = Merge([]byte(`{"groups":{"group:ops":["bob@"]}}`), Policy{
+		RestrictDevices: true,
+		Tags:            []string{"tag:db"},
+		Rules:           []Rule{{Src: []string{"group:ops"}, Dst: []string{"tag:db"}, Ports: "5432, 6432", Proto: "tcp"}},
+	})
+	require.NoError(t, err)
+
+	acls, ok = decode(t, out)["acls"].([]any)
+	require.True(t, ok)
+	require.Len(t, acls, 2)
+	assert.Equal(t, map[string]any{
+		"action": "accept", "proto": "tcp", "src": []any{"group:ops"}, "dst": []any{"tag:db:5432,6432"},
+	}, acls[1])
+}

@@ -47,6 +47,8 @@ const (
 	DirectorySourceOIDC   = "oidc"
 	DirectorySourceSCIM   = "scim"
 	DirectorySourceGoogle = "google"
+	// DirectorySourceConsole is a group made in the admin console.
+	DirectorySourceConsole = "console"
 )
 
 // DirectoryGroup is a group synced from the identity provider, through the

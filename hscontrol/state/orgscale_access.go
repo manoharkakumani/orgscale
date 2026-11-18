@@ -1,0 +1,163 @@
+package state
+
+import (
+	"errors"
+
+	hsdb "github.com/manoharkakumani/orgscale/hscontrol/db"
+	"github.com/manoharkakumani/orgscale/hscontrol/types"
+	"github.com/manoharkakumani/orgscale/hscontrol/types/change"
+	"gorm.io/gorm"
+)
+
+// ListServerTags returns the tags the console manages.
+func (s *State) ListServerTags() ([]types.ServerTag, error) {
+	return hsdb.Read(s.db.DB, hsdb.ListServerTags)
+}
+
+// ListServerTagAccess returns every tag access grant.
+func (s *State) ListServerTagAccess() ([]types.ServerTagAccess, error) {
+	return hsdb.Read(s.db.DB, hsdb.ListServerTagAccess)
+}
+
+// ListAccessRules returns the rule editor's rules in order.
+func (s *State) ListAccessRules() ([]types.AccessRule, error) {
+	return hsdb.Read(s.db.DB, hsdb.ListAccessRules)
+}
+
+// changePolicy runs apply, then recompiles the policy. When the result does
+// not compile, undo puts the database back and the error is returned, so the
+// stored rules and the live policy always agree.
+func (s *State) changePolicy(apply, undo func(tx *gorm.DB) error) ([]change.Change, error) {
+	err := s.db.Write(apply)
+	if err != nil {
+		return nil, err
+	}
+
+	changes, err := s.ReloadPolicy()
+	if err != nil {
+		undoErr := s.db.Write(undo)
+		if undoErr != nil {
+			return nil, errors.Join(err, undoErr)
+		}
+
+		_, _ = s.ReloadPolicy()
+
+		return nil, err
+	}
+
+	return changes, nil
+}
+
+// SaveServerTag creates or updates a tag with its access grants.
+func (s *State) SaveServerTag(tag types.ServerTag, grants []types.ServerTagAccess) ([]change.Change, error) {
+	var (
+		prev       *types.ServerTag
+		prevGrants []types.ServerTagAccess
+	)
+
+	err := s.ReadDirectory(func(rx *gorm.DB) error {
+		var t types.ServerTag
+
+		err := rx.Where("name = ?", tag.Name).Take(&t).Error
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil
+		}
+
+		if err != nil {
+			return err
+		}
+
+		prev = &t
+
+		return rx.Where("tag = ?", tag.Name).Find(&prevGrants).Error
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return s.changePolicy(
+		func(tx *gorm.DB) error { return hsdb.SaveServerTag(tx, tag, grants) },
+		func(tx *gorm.DB) error {
+			if prev == nil {
+				return hsdb.DeleteServerTag(tx, tag.Name)
+			}
+
+			return hsdb.SaveServerTag(tx, *prev, prevGrants)
+		},
+	)
+}
+
+// DeleteServerTag removes a tag the console manages.
+func (s *State) DeleteServerTag(name string) ([]change.Change, error) {
+	err := s.db.Write(func(tx *gorm.DB) error { return hsdb.DeleteServerTag(tx, name) })
+	if err != nil {
+		return nil, err
+	}
+
+	return s.ReloadPolicy()
+}
+
+// SaveAccessRule creates (ID 0) or updates an access rule and returns its ID.
+func (s *State) SaveAccessRule(rule types.AccessRule) (uint64, []change.Change, error) {
+	var prev *types.AccessRule
+
+	if rule.ID != 0 {
+		rules, err := s.ListAccessRules()
+		if err != nil {
+			return 0, nil, err
+		}
+
+		for i := range rules {
+			if rules[i].ID == rule.ID {
+				prev = &rules[i]
+			}
+		}
+
+		if prev == nil {
+			return 0, nil, hsdb.ErrAccessRuleNotFound
+		}
+	}
+
+	var id uint64
+
+	changes, err := s.changePolicy(
+		func(tx *gorm.DB) error {
+			var err error
+
+			id, err = hsdb.SaveAccessRule(tx, rule)
+
+			return err
+		},
+		func(tx *gorm.DB) error {
+			if prev == nil {
+				return hsdb.DeleteAccessRule(tx, id)
+			}
+
+			_, err := hsdb.SaveAccessRule(tx, *prev)
+
+			return err
+		},
+	)
+
+	return id, changes, err
+}
+
+// DeleteAccessRule removes an access rule.
+func (s *State) DeleteAccessRule(id uint64) ([]change.Change, error) {
+	err := s.db.Write(func(tx *gorm.DB) error { return hsdb.DeleteAccessRule(tx, id) })
+	if err != nil {
+		return nil, err
+	}
+
+	return s.ReloadPolicy()
+}
+
+// ReorderAccessRules sets the order of the access rules.
+func (s *State) ReorderAccessRules(ids []uint64) ([]change.Change, error) {
+	err := s.db.Write(func(tx *gorm.DB) error { return hsdb.ReorderAccessRules(tx, ids) })
+	if err != nil {
+		return nil, err
+	}
+
+	return s.ReloadPolicy()
+}

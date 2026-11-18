@@ -380,6 +380,15 @@ WHERE auth_key_id IN (
 				},
 				Rollback: func(db *gorm.DB) error { return nil },
 			},
+			{
+				// orgscale: server tags and the access rules built in the
+				// console's rule editor.
+				ID: "202611180000-orgscale-access-rules",
+				Migrate: func(tx *gorm.DB) error {
+					return tx.Transaction(ensureOrgscaleAccessTables)
+				},
+				Rollback: func(db *gorm.DB) error { return nil },
+			},
 		},
 	)
 
@@ -437,7 +446,12 @@ WHERE auth_key_id IN (
 			}
 		}
 
-		return ensureOrgscaleAdminTables(tx)
+		err = ensureOrgscaleAdminTables(tx)
+		if err != nil {
+			return err
+		}
+
+		return ensureOrgscaleAccessTables(tx)
 	})
 
 	err = runMigrations(cfg.Database, dbConn, migrations)

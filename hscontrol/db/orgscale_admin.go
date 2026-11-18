@@ -611,6 +611,11 @@ func (hsdb *HSDatabase) SetDeviceAccess(node types.NodeID, grants []types.Device
 // DeleteDeviceAccessForPrincipal removes every grant naming the principal,
 // as when a user or group is deleted.
 func DeleteDeviceAccessForPrincipal(tx *gorm.DB, kind, principal string) error {
-	return tx.Where("principal_kind = ? AND principal = ?", kind, principal).
+	err := tx.Where("principal_kind = ? AND principal = ?", kind, principal).
 		Delete(&types.DeviceAccess{}).Error
+	if err != nil {
+		return err
+	}
+
+	return deletePrincipalEverywhere(tx, kind, principal)
 }

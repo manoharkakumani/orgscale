@@ -109,8 +109,67 @@ func managedPolicy(db *hsdb.HSDatabase, users []types.User, nodes views.Slice[ty
 		m.Groups[g.Name] = members
 	}
 
+	serverTags, err := hsdb.Read(db.DB, hsdb.ListServerTags)
+	if err != nil {
+		return m, err
+	}
+
+	for _, t := range serverTags {
+		m.Tags = append(m.Tags, t.Name)
+	}
+
 	if !m.RestrictDevices {
 		return m, nil
+	}
+
+	nodeIPs := make(map[string][]string, nodes.Len())
+	for _, n := range nodes.All() {
+		nodeIPs[strconv.FormatUint(uint64(n.ID()), 10)] = n.IPsAsString()
+	}
+
+	// resolve turns a principal into policy aliases; one that no longer
+	// exists resolves to nothing.
+	resolve := func(kind, principal string) []string {
+		switch kind {
+		case types.PrincipalUser:
+			id, err := strconv.ParseUint(principal, 10, 64)
+			if err != nil {
+				return nil
+			}
+
+			if t, ok := tokens[types.UserID(id)]; ok {
+				return []string{t}
+			}
+		case types.PrincipalDirectoryGroup:
+			id, err := strconv.ParseUint(principal, 10, 64)
+			if err != nil {
+				return nil
+			}
+
+			return groupMembers[id]
+		case types.PrincipalPolicyGroup:
+			return []string{"group:" + strings.TrimPrefix(principal, "group:")}
+		case types.PrincipalTag:
+			return []string{principal}
+		case types.PrincipalDevice:
+			return nodeIPs[principal]
+		case types.PrincipalEveryone:
+			return []string{"autogroup:member"}
+		}
+
+		return nil
+	}
+
+	resolveAll := func(add func(yield func(kind, principal string))) []string {
+		var out []string
+
+		add(func(kind, principal string) {
+			out = append(out, resolve(kind, principal)...)
+		})
+
+		slices.Sort(out)
+
+		return slices.Compact(out)
 	}
 
 	grants, err := db.ListDeviceAccess()
@@ -129,38 +188,70 @@ func managedPolicy(db *hsdb.HSDatabase, users []types.User, nodes views.Slice[ty
 			continue
 		}
 
-		var src []string
-
-		for _, g := range gs {
-			switch g.PrincipalKind {
-			case types.PrincipalUser:
-				id, err := strconv.ParseUint(g.Principal, 10, 64)
-				if err != nil {
-					continue
-				}
-
-				if t, ok := tokens[types.UserID(id)]; ok {
-					src = append(src, t)
-				}
-			case types.PrincipalDirectoryGroup:
-				id, err := strconv.ParseUint(g.Principal, 10, 64)
-				if err != nil {
-					continue
-				}
-
-				src = append(src, groupMembers[id]...)
-			case types.PrincipalPolicyGroup:
-				src = append(src, "group:"+strings.TrimPrefix(g.Principal, "group:"))
+		src := resolveAll(func(yield func(string, string)) {
+			for _, g := range gs {
+				yield(g.PrincipalKind, g.Principal)
 			}
-		}
-
-		slices.Sort(src)
-		src = slices.Compact(src)
+		})
 
 		m.Rules = append(m.Rules, managed.Rule{
 			Comment: n.Hostname(),
 			Src:     src,
 			Dst:     n.IPsAsString(),
+		})
+	}
+
+	tagGrants, err := hsdb.Read(db.DB, hsdb.ListServerTagAccess)
+	if err != nil {
+		return m, err
+	}
+
+	byTag := make(map[string][]types.ServerTagAccess)
+	for _, g := range tagGrants {
+		byTag[g.Tag] = append(byTag[g.Tag], g)
+	}
+
+	for _, t := range serverTags {
+		gs := byTag[t.Name]
+		if len(gs) == 0 {
+			continue
+		}
+
+		m.Rules = append(m.Rules, managed.Rule{
+			Comment: t.Name,
+			Src: resolveAll(func(yield func(string, string)) {
+				for _, g := range gs {
+					yield(g.PrincipalKind, g.Principal)
+				}
+			}),
+			Dst: []string{t.Name},
+		})
+	}
+
+	rules, err := hsdb.Read(db.DB, hsdb.ListAccessRules)
+	if err != nil {
+		return m, err
+	}
+
+	for _, r := range rules {
+		if !r.Enabled {
+			continue
+		}
+
+		side := func(ps []types.RulePrincipal) []string {
+			return resolveAll(func(yield func(string, string)) {
+				for _, p := range ps {
+					yield(p.Kind, p.Principal)
+				}
+			})
+		}
+
+		m.Rules = append(m.Rules, managed.Rule{
+			Comment: r.Name,
+			Src:     side(r.Sources),
+			Dst:     side(r.Destinations),
+			Ports:   r.Ports,
+			Proto:   r.Protocol,
 		})
 	}
 

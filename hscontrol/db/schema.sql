@@ -168,3 +168,38 @@ CREATE TABLE device_access(
   PRIMARY KEY(node_id, principal_kind, principal),
   CONSTRAINT fk_device_access_node FOREIGN KEY(node_id) REFERENCES nodes(id) ON DELETE CASCADE
 );
+
+-- orgscale server tags and access rules (see hscontrol/db/orgscale_access.go).
+CREATE TABLE server_tags(
+  name text PRIMARY KEY,
+  description text,
+  created_at datetime,
+  created_by text
+);
+CREATE TABLE server_tag_access(
+  tag text NOT NULL,
+  principal_kind text NOT NULL,
+  principal text NOT NULL,
+  created_at datetime,
+  PRIMARY KEY(tag, principal_kind, principal),
+  CONSTRAINT fk_server_tag_access_tag FOREIGN KEY(tag) REFERENCES server_tags(name) ON DELETE CASCADE
+);
+CREATE TABLE access_rules(
+  id integer PRIMARY KEY AUTOINCREMENT,
+  name text NOT NULL,
+  protocol text NOT NULL DEFAULT '',
+  ports text NOT NULL DEFAULT '*',
+  position integer NOT NULL DEFAULT 0,
+  enabled numeric NOT NULL DEFAULT true,
+  created_at datetime,
+  updated_at datetime,
+  updated_by text
+);
+CREATE TABLE access_rule_principals(
+  rule_id integer NOT NULL,
+  side text NOT NULL,
+  principal_kind text NOT NULL,
+  principal text NOT NULL,
+  PRIMARY KEY(rule_id, side, principal_kind, principal),
+  CONSTRAINT fk_access_rule_principals_rule FOREIGN KEY(rule_id) REFERENCES access_rules(id) ON DELETE CASCADE
+);
