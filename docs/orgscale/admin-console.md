@@ -154,6 +154,28 @@ otherwise. Under access control an SSH rule also opens port 22 to those
 servers for those people. Removing someone in your identity provider ends
 their SSH access with everything else.
 
+### Temporary access on request
+
+For servers people should reach only now and then (production databases,
+customer environments), let them ask instead of giving standing access:
+
+1. **Servers → edit a tag → Temporary access on request**: turn it on, pick
+   the longest access allowed (1 hour to 7 days) and, optionally, the Linux
+   accounts people may also SSH in as (`ubuntu`).
+2. People sign in to `https://vpn.example.com/admin/` with single sign-on.
+   Anyone with an orgscale account who is not an administrator sees only a
+   **Request access** page: they pick the tag, a duration and write why.
+3. Administrators see the request under **Requests** (with a count in the
+   sidebar) and approve, approve for less time, or deny, with a note.
+   Nobody can approve their own request.
+4. Approved access is added to the policy at once and removed when the time
+   is up (checked every 20 seconds). The requester or an administrator can
+   end it early. Requests nobody decides within a day lapse.
+
+Every step is in the audit log. With access control off everyone reaches
+everything anyway, so only the SSH part of a request then makes a
+difference.
+
 ### Advanced: policy file
 
 **Access → Advanced: policy file** keeps the Tailscale policy editor for

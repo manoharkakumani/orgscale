@@ -36,10 +36,55 @@ type ServerTag struct {
 	Description string    `gorm:"column:description"     json:"description"`
 	CreatedAt   time.Time `gorm:"column:created_at"      json:"createdAt"`
 	CreatedBy   string    `gorm:"column:created_by"      json:"createdBy"`
+
+	// RequestMaxMinutes, when above zero, lets people ask for temporary
+	// access to the tag's devices for up to this long.
+	RequestMaxMinutes int `gorm:"column:request_max_minutes" json:"requestMaxMinutes"`
+	// RequestSSHUsers is a JSON array of the Linux accounts an approved
+	// request may also SSH in as, e.g. ["ubuntu"]; empty means no SSH.
+	RequestSSHUsers string `gorm:"column:request_ssh_users" json:"-"`
 }
 
 // TableName pins the gorm table name.
 func (ServerTag) TableName() string { return "server_tags" }
+
+// Access request states.
+const (
+	AccessRequestPending   = "pending"
+	AccessRequestApproved  = "approved"
+	AccessRequestDenied    = "denied"
+	AccessRequestCancelled = "cancelled"
+	AccessRequestRevoked   = "revoked"
+	AccessRequestExpired   = "expired"
+)
+
+// AccessRequest is someone asking for temporary access to the devices of a
+// server tag. Once approved it grants access until ExpiresAt, then lapses
+// on its own.
+type AccessRequest struct {
+	ID        uint64 `gorm:"column:id;primaryKey"`
+	UserID    uint   `gorm:"column:user_id"`
+	Requester string `gorm:"column:requester"` // verified email
+	Tag       string `gorm:"column:tag"`
+	Reason    string `gorm:"column:reason"`
+	Minutes   int    `gorm:"column:minutes"`
+	SSH       bool   `gorm:"column:ssh"`
+	Status    string `gorm:"column:status"`
+
+	CreatedAt    time.Time  `gorm:"column:created_at"`
+	DecidedBy    string     `gorm:"column:decided_by"`
+	DecidedAt    *time.Time `gorm:"column:decided_at"`
+	DecisionNote string     `gorm:"column:decision_note"`
+	ExpiresAt    *time.Time `gorm:"column:expires_at"`
+}
+
+// TableName pins the gorm table name.
+func (AccessRequest) TableName() string { return "access_requests" }
+
+// Active reports whether the request grants access at now.
+func (r AccessRequest) Active(now time.Time) bool {
+	return r.Status == AccessRequestApproved && r.ExpiresAt != nil && now.Before(*r.ExpiresAt)
+}
 
 // ServerTagAccess grants a user or group access to every device carrying a
 // tag.

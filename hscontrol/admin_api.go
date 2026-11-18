@@ -90,7 +90,12 @@ func (aa *adminAuth) requireSession(next http.Handler) http.Handler {
 			return
 		}
 
-		ctx := withAuditActor(r.Context(), auditActor{Name: sess.label(), Kind: types.AuditActorAdmin})
+		kind := types.AuditActorAdmin
+		if sess.Role == AdminRoleMember {
+			kind = types.AuditActorUser
+		}
+
+		ctx := withAuditActor(r.Context(), auditActor{Name: sess.label(), Kind: kind})
 		ctx = contextWithSession(ctx, sess)
 
 		next.ServeHTTP(w, r.WithContext(ctx))
@@ -144,7 +149,7 @@ func (aa *adminAuth) handleMe(w http.ResponseWriter, r *http.Request) {
 	if sess != nil {
 		var ok bool
 
-		role, ok = aa.roleForIdentity(sess.roleEmail, sess.roleGroups)
+		role, ok = aa.sessionRole(sess)
 		if !ok {
 			aa.dropSessions(key)
 

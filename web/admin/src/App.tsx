@@ -12,6 +12,8 @@ import KeysPage from "./pages/Keys";
 import SettingsPage from "./pages/Settings";
 import SetupPage from "./pages/Setup";
 import AuditPage from "./pages/Audit";
+import RequestsPage, { MyAccessPage } from "./pages/Requests";
+import { get, type AccessRequest } from "./api";
 
 const MeCtx = createContext<Me | null>(null);
 
@@ -33,6 +35,7 @@ const nav: { group: string; items: { to: string; label: string; icon: string; en
       { to: "/devices", label: "Devices", icon: "devices" },
       { to: "/servers", label: "Servers", icon: "server" },
       { to: "/access", label: "Access", icon: "shield" },
+      { to: "/requests", label: "Requests", icon: "clock" },
     ],
   },
   {
@@ -52,9 +55,30 @@ const nav: { group: string; items: { to: string; label: string; icon: string; en
   },
 ];
 
-function pageTitle(path: string): string {
-  for (const g of nav) for (const n of g.items) if (n.to !== "/" && path.startsWith(n.to)) return n.label;
-  return "Overview";
+// People who are not administrators only request access.
+const memberNav: typeof nav = [{ group: "You", items: [{ to: "/", label: "Request access", icon: "key", end: true }] }];
+
+function pageTitle(path: string, items: typeof nav): string {
+  for (const g of items) for (const n of g.items) if (n.to !== "/" && path.startsWith(n.to)) return n.label;
+  return items[0].items[0].label;
+}
+
+const roleLabel = { admin: "Admin", viewer: "Read-only", member: "Member" } as const;
+
+/** usePendingRequests counts requests waiting for a decision, for the nav. */
+function usePendingRequests(enabled: boolean): number {
+  const [n, setN] = useState(0);
+  useEffect(() => {
+    if (!enabled) return;
+    const load = () =>
+      get<AccessRequest[]>("/admin/api/requests")
+        .then((rs) => setN(rs.filter((r) => r.status === "pending").length))
+        .catch(() => undefined);
+    void load();
+    const id = window.setInterval(load, 30000);
+    return () => window.clearInterval(id);
+  }, [enabled]);
+  return n;
 }
 
 function SignIn({ error, setupRequired }: { error?: string; setupRequired?: boolean }) {
@@ -157,6 +181,14 @@ function Console() {
 
   if (me === undefined) return <Spinner />;
   if (me === null) return <SignIn error={error} setupRequired={setupRequired} />;
+  return <Shell me={me} setMe={setMe} menuOpen={menuOpen} setMenuOpen={setMenuOpen} scrolled={scrolled} />;
+}
+
+function Shell({ me, setMe, menuOpen, setMenuOpen, scrolled }: { me: Me; setMe: (m: Me | null) => void; menuOpen: boolean; setMenuOpen: (v: boolean) => void; scrolled: boolean }) {
+  const location = useLocation();
+  const member = me.role === "member";
+  const items = member ? memberNav : nav;
+  const pending = usePendingRequests(!member);
 
   const signOut = async () => {
     try {
@@ -176,13 +208,14 @@ function Console() {
             orgscale
           </div>
           <nav>
-            {nav.map((g) => (
+            {items.map((g) => (
               <div key={g.group}>
                 <div className="nav-group">{g.group}</div>
                 {g.items.map((n) => (
                   <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
                     <Icon name={n.icon} />
                     {n.label}
+                    {n.to === "/requests" && pending > 0 && <span className="nav-count">{pending}</span>}
                   </NavLink>
                 ))}
               </div>
@@ -193,7 +226,7 @@ function Console() {
               {me.picture ? <img className="avatar" src={me.picture} alt="" referrerPolicy="no-referrer" /> : <span className="avatar avatar-fallback">{(me.name || me.email).slice(0, 1).toUpperCase()}</span>}
               <div className="cell-stack grow">
                 <span className="ellipsis">{me.name || me.email}</span>
-                <span className="muted small ellipsis">{me.role === "admin" ? "Admin" : "Read-only"}</span>
+                <span className="muted small ellipsis">{roleLabel[me.role]}</span>
               </div>
             </div>
             <div className="row-between">
@@ -215,7 +248,7 @@ function Console() {
               </svg>
             </button>
             <div className="muted topbar-server">{me.serverUrl}</div>
-            <div className="topbar-title">{pageTitle(location.pathname)}</div>
+            <div className="topbar-title">{pageTitle(location.pathname, items)}</div>
             <button className="topbar-avatar" aria-label="Account" onClick={() => setMenuOpen(true)}>
               {me.picture ? <img className="avatar" src={me.picture} alt="" referrerPolicy="no-referrer" /> : <span className="avatar avatar-fallback">{(me.name || me.email).slice(0, 1).toUpperCase()}</span>}
             </button>
@@ -226,15 +259,22 @@ function Console() {
                 <div>{me.name || me.email}</div>
                 {me.name && me.name !== me.email && <div className="muted small">{me.email}</div>}
               </div>
-              <Badge tone={me.role === "admin" ? "blue" : "neutral"}>{me.role === "admin" ? "Admin" : "Read-only"}</Badge>
+              <Badge tone={me.role === "admin" ? "blue" : "neutral"}>{roleLabel[me.role]}</Badge>
               <Button variant="ghost" onClick={signOut}>
                 Sign out
               </Button>
             </div>
           </header>
           <main className="content">
+            {member ? (
+              <Routes>
+                <Route path="/" element={<MyAccessPage />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            ) : (
             <Routes>
               <Route path="/" element={<OverviewPage />} />
+              <Route path="/requests" element={<RequestsPage />} />
               <Route path="/users" element={<UsersPage />} />
               <Route path="/devices" element={<DevicesPage />} />
               <Route path="/groups" element={<GroupsPage />} />
@@ -246,6 +286,7 @@ function Console() {
               <Route path="/audit" element={<AuditPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
+            )}
           </main>
         </div>
       </div>

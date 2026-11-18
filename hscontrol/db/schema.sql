@@ -174,7 +174,9 @@ CREATE TABLE server_tags(
   name text PRIMARY KEY,
   description text,
   created_at datetime,
-  created_by text
+  created_by text,
+  request_max_minutes integer NOT NULL DEFAULT 0,
+  request_ssh_users text
 );
 CREATE TABLE server_tag_access(
   tag text NOT NULL,
@@ -225,3 +227,21 @@ CREATE TABLE admin_sessions(
   expires_at datetime NOT NULL
 );
 CREATE INDEX idx_admin_sessions_expires_at ON admin_sessions(expires_at);
+
+-- orgscale just-in-time access requests (see hscontrol/db/orgscale_access.go).
+CREATE TABLE access_requests(
+  id integer PRIMARY KEY AUTOINCREMENT,
+  user_id integer NOT NULL,
+  requester text NOT NULL,
+  tag text NOT NULL,
+  reason text NOT NULL,
+  minutes integer NOT NULL,
+  ssh numeric NOT NULL DEFAULT false,
+  status text NOT NULL,
+  created_at datetime NOT NULL,
+  decided_by text,
+  decided_at datetime,
+  decision_note text,
+  expires_at datetime
+);
+CREATE INDEX idx_access_requests_status ON access_requests(status);

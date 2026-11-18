@@ -50,7 +50,13 @@ const (
 	AdminRoleAdmin AdminRole = "admin"
 	// AdminRoleViewer may read everything and change nothing.
 	AdminRoleViewer AdminRole = "viewer"
+	// AdminRoleMember is anyone else with an orgscale account. A member sees
+	// only their own access requests (/admin/api/my/...).
+	AdminRoleMember AdminRole = "member"
 )
+
+// memberAPIPrefix is the only part of the console API a member may use.
+const memberAPIPrefix = "/admin/api/my/"
 
 // adminSession is a signed-in administrator.
 type adminSession struct {
@@ -344,21 +350,16 @@ func (aa *adminAuth) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 
 	applyProviderEmail(&claims)
 
-	role, ok := aa.roleFor(&claims)
-	if !ok {
-		aa.audit(types.AuditEvent{
-			Actor: cmp.Or(aa.trustedEmail(&claims), "sub:"+claims.Identifier()), ActorKind: types.AuditActorAdmin,
-			Action: "admin.login.denied",
-		})
-		adminLoginError(w, http.StatusForbidden,
-			"You signed in, but you are not an orgscale administrator. Ask an administrator to add you.")
+	// The person's orgscale user: the one their devices joined as, or one
+	// a directory sync made for them. A disabled user cannot sign in.
+	var userID uint
 
-		return
+	u, err := aa.h.state.GetUserByOIDCIdentifier(claims.Identifier())
+	if err != nil {
+		u = provisionedUserForClaim(aa.h.state, &claims, false)
 	}
 
-	// A disabled user cannot administer either.
-	var userID uint
-	if u, err := aa.h.state.GetUserByOIDCIdentifier(claims.Identifier()); err == nil {
+	if u != nil {
 		userID = u.ID
 
 		disabled, err := aa.h.state.IsUserDisabled(types.UserID(u.ID))
@@ -367,6 +368,22 @@ func (aa *adminAuth) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 
 			return
 		}
+	}
+
+	role, ok := aa.roleFor(&claims)
+	if !ok && userID != 0 && aa.trustedEmail(&claims) != "" {
+		role, ok = AdminRoleMember, true
+	}
+
+	if !ok {
+		aa.audit(types.AuditEvent{
+			Actor: cmp.Or(aa.trustedEmail(&claims), "sub:"+claims.Identifier()), ActorKind: types.AuditActorAdmin,
+			Action: "admin.login.denied",
+		})
+		adminLoginError(w, http.StatusForbidden,
+			"You signed in, but you have no orgscale account yet. Connect a device first (it creates your account), or ask an administrator.")
+
+		return
 	}
 
 	now := time.Now()
@@ -448,6 +465,30 @@ func (aa *adminAuth) trustedEmail(claims *types.OIDCClaims) string {
 	}
 
 	return ""
+}
+
+// sessionRole decides a session's role now: admin or viewer from the
+// current lists, else member while the session's user exists and is not
+// disabled.
+func (aa *adminAuth) sessionRole(sess *adminSession) (AdminRole, bool) {
+	if role, ok := aa.roleForIdentity(sess.roleEmail, sess.roleGroups); ok {
+		return role, true
+	}
+
+	if sess.UserID == 0 || sess.roleEmail == "" {
+		return "", false
+	}
+
+	if _, err := aa.h.state.GetUserByID(types.UserID(sess.UserID)); err != nil {
+		return "", false
+	}
+
+	disabled, err := aa.h.state.IsUserDisabled(types.UserID(sess.UserID))
+	if err != nil || disabled {
+		return "", false
+	}
+
+	return AdminRoleMember, true
 }
 
 func (aa *adminAuth) roleForIdentity(email string, groups []string) (AdminRole, bool) {
@@ -622,7 +663,7 @@ func (aa *adminAuth) authenticate(r *http.Request) (*adminSession, int, error) {
 
 	// Decide the role again: the admin and viewer lists may have changed
 	// since sign-in.
-	role, ok := aa.roleForIdentity(sess.roleEmail, sess.roleGroups)
+	role, ok := aa.sessionRole(sess)
 	if !ok {
 		aa.dropSessions(key)
 
@@ -650,8 +691,16 @@ func (aa *adminAuth) authenticate(r *http.Request) (*adminSession, int, error) {
 		return nil, http.StatusForbidden, errAdminCSRF
 	}
 
-	if role != AdminRoleAdmin && r.Method != http.MethodGet && r.Method != http.MethodHead {
-		return nil, http.StatusForbidden, errors.New("your role is read-only")
+	switch role {
+	case AdminRoleAdmin:
+	case AdminRoleMember:
+		if !strings.HasPrefix(r.URL.Path, memberAPIPrefix) {
+			return nil, http.StatusForbidden, errors.New("only administrators can use this")
+		}
+	default:
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			return nil, http.StatusForbidden, errors.New("your role is read-only")
+		}
 	}
 
 	return sess, 0, nil

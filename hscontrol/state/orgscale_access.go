@@ -182,3 +182,93 @@ func (s *State) TouchAdminSession(id string, at time.Time) error {
 func (s *State) DeleteAdminSessions(ids ...string) error {
 	return s.db.Write(func(tx *gorm.DB) error { return hsdb.DeleteAdminSessions(tx, ids...) })
 }
+
+// SetServerTagRequests changes a tag's access request settings. The SSH
+// accounts apply to requests already approved, so the policy is rebuilt.
+func (s *State) SetServerTagRequests(name string, maxMinutes int, sshUsers string) ([]change.Change, error) {
+	var prev types.ServerTag
+
+	err := s.ReadDirectory(func(rx *gorm.DB) error { return rx.Where("name = ?", name).Take(&prev).Error })
+	if err != nil {
+		return nil, err
+	}
+
+	return s.changePolicy(
+		func(tx *gorm.DB) error { return hsdb.SetServerTagRequests(tx, name, maxMinutes, sshUsers) },
+		func(tx *gorm.DB) error {
+			return hsdb.SetServerTagRequests(tx, name, prev.RequestMaxMinutes, prev.RequestSSHUsers)
+		},
+	)
+}
+
+// ListAccessRequests returns access requests, newest first: everyone's when
+// userID is zero.
+func (s *State) ListAccessRequests(userID uint, limit int) ([]types.AccessRequest, error) {
+	return hsdb.Read(s.db.DB, func(rx *gorm.DB) ([]types.AccessRequest, error) {
+		return hsdb.ListAccessRequests(rx, userID, limit)
+	})
+}
+
+// GetAccessRequest returns one access request.
+func (s *State) GetAccessRequest(id uint64) (types.AccessRequest, error) {
+	return hsdb.Read(s.db.DB, func(rx *gorm.DB) (types.AccessRequest, error) {
+		return hsdb.GetAccessRequest(rx, id)
+	})
+}
+
+// CreateAccessRequest stores a pending request. It grants nothing until
+// approved.
+func (s *State) CreateAccessRequest(r types.AccessRequest) (uint64, error) {
+	var id uint64
+
+	err := s.db.Write(func(tx *gorm.DB) error {
+		var err error
+
+		id, err = hsdb.CreateAccessRequest(tx, r)
+
+		return err
+	})
+
+	return id, err
+}
+
+// DecideAccessRequest moves request r (already set to its new state) from
+// one of the states in from. Moving into or out of approved recompiles the
+// policy, so access starts or ends at once.
+func (s *State) DecideAccessRequest(r types.AccessRequest, from ...string) ([]change.Change, error) {
+	prev, err := s.GetAccessRequest(r.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	if r.Status != types.AccessRequestApproved && prev.Status != types.AccessRequestApproved {
+		return nil, s.db.Write(func(tx *gorm.DB) error { return hsdb.UpdateAccessRequest(tx, r, from...) })
+	}
+
+	return s.changePolicy(
+		func(tx *gorm.DB) error { return hsdb.UpdateAccessRequest(tx, r, from...) },
+		func(tx *gorm.DB) error { return hsdb.UpdateAccessRequest(tx, prev, r.Status) },
+	)
+}
+
+// ExpireAccessRequests ends approved requests whose time is up, and pending
+// ones nobody decided within maxPending. It recompiles the policy when any
+// access lapsed and returns how many did.
+func (s *State) ExpireAccessRequests(now time.Time, maxPending time.Duration) (int64, []change.Change, error) {
+	var lapsed int64
+
+	err := s.db.Write(func(tx *gorm.DB) error {
+		var err error
+
+		lapsed, err = hsdb.ExpireAccessRequests(tx, now, maxPending)
+
+		return err
+	})
+	if err != nil || lapsed == 0 {
+		return lapsed, nil, err
+	}
+
+	changes, err := s.ReloadPolicy()
+
+	return lapsed, changes, err
+}

@@ -41,6 +41,8 @@ func (aa *adminAuth) accessRoutes(r chi.Router) {
 
 	r.Post("/devices/bulk", aa.handleBulkDevices)
 
+	aa.requestRoutes(r)
+
 	r.Post("/groups", aa.handleSaveGroup)
 	r.Put("/groups/{id}", aa.handleSaveGroup)
 	r.Delete("/groups/{id}", aa.handleDeleteGroup)
@@ -364,6 +366,9 @@ type adminTag struct {
 	CreatedAt   *time.Time       `json:"createdAt,omitempty"`
 	Access      []adminPrincipal `json:"access"`
 	Devices     []adminTagDevice `json:"devices"`
+
+	RequestMaxMinutes int      `json:"requestMaxMinutes"`
+	RequestSSHUsers   []string `json:"requestSSHUsers"`
 }
 
 func (aa *adminAuth) handleListTags(w http.ResponseWriter, r *http.Request) {
@@ -394,7 +399,7 @@ func (aa *adminAuth) handleListTags(w http.ResponseWriter, r *http.Request) {
 	get := func(name string) *adminTag {
 		t, ok := byName[name]
 		if !ok {
-			t = &adminTag{Name: name, Access: []adminPrincipal{}, Devices: []adminTagDevice{}}
+			t = &adminTag{Name: name, Access: []adminPrincipal{}, Devices: []adminTagDevice{}, RequestSSHUsers: []string{}}
 			byName[name] = t
 		}
 
@@ -404,6 +409,7 @@ func (aa *adminAuth) handleListTags(w http.ResponseWriter, r *http.Request) {
 	for _, mt := range managedTags {
 		t := get(mt.Name)
 		t.Managed, t.Description = true, mt.Description
+		t.RequestMaxMinutes, t.RequestSSHUsers = mt.RequestMaxMinutes, sshUsersOf(mt)
 		created := mt.CreatedAt
 		t.CreatedAt = &created
 	}
@@ -476,10 +482,41 @@ func (aa *adminAuth) handlePutTag(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Description string           `json:"description"`
 		Access      []adminPrincipal `json:"access"`
+		// Requests, when present, sets who may ask for temporary access.
+		Requests *struct {
+			MaxMinutes int      `json:"maxMinutes"`
+			SSHUsers   []string `json:"sshUsers"`
+		} `json:"requests"`
 	}
 
 	if !decodeJSON(w, r, &req) {
 		return
+	}
+
+	var requestSSH string
+
+	if q := req.Requests; q != nil {
+		if q.MaxMinutes < 0 || q.MaxMinutes > accessRequestMaxMinutes || (q.MaxMinutes > 0 && q.MaxMinutes < 15) {
+			adminJSONError(w, http.StatusBadRequest, "requested access can last from 15 minutes to 7 days")
+
+			return
+		}
+
+		users := []string{}
+
+		if len(q.SSHUsers) > 0 {
+			var err error
+
+			users, err = validSSHUsers(q.SSHUsers)
+			if err != nil {
+				adminJSONError(w, http.StatusBadRequest, err.Error())
+
+				return
+			}
+		}
+
+		b, _ := json.Marshal(users)
+		requestSSH = string(b)
 	}
 
 	// The tag being saved is a valid grantee too (servers reaching each
@@ -538,6 +575,17 @@ func (aa *adminAuth) handlePutTag(w http.ResponseWriter, r *http.Request) {
 		adminJSONError(w, http.StatusBadRequest, err.Error())
 
 		return
+	}
+
+	if q := req.Requests; q != nil {
+		changes, err := aa.h.state.SetServerTagRequests(name, q.MaxMinutes, requestSSH)
+		aa.h.Change(changes...)
+
+		if err != nil {
+			adminJSONError(w, http.StatusBadRequest, err.Error())
+
+			return
+		}
 	}
 
 	aa.auditReq(r, "tag.save", name, "access: "+cmp.Or(strings.Join(labels, ", "), "nobody"))

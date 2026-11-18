@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	hsdb "github.com/manoharkakumani/orgscale/hscontrol/db"
 	"github.com/manoharkakumani/orgscale/hscontrol/policy/managed"
@@ -200,6 +201,43 @@ func managedPolicy(db *hsdb.HSDatabase, users []types.User, nodes views.Slice[ty
 		netDst := slices.DeleteFunc(slices.Clone(dst), func(d string) bool { return d == "autogroup:self" })
 		if m.RestrictDevices && len(netDst) > 0 {
 			m.Rules = append(m.Rules, managed.Rule{Comment: r.Name + " (SSH)", Src: src, Dst: netDst, Ports: "22", Proto: "tcp"})
+		}
+	}
+
+	// Approved access requests grant their tag until they lapse: SSH (when
+	// asked for and the tag allows it) always, network access when devices
+	// are restricted (otherwise everyone reaches everything already).
+	requests, err := hsdb.Read(db.DB, func(rx *gorm.DB) ([]types.AccessRequest, error) {
+		return hsdb.ListGrantingAccessRequests(rx, time.Now())
+	})
+	if err != nil {
+		return m, err
+	}
+
+	tagByName := make(map[string]types.ServerTag, len(serverTags))
+	for _, t := range serverTags {
+		tagByName[t.Name] = t
+	}
+
+	for _, r := range requests {
+		who, ok := tokens[types.UserID(r.UserID)]
+		t, tagOK := tagByName[r.Tag]
+
+		if !ok || !tagOK {
+			continue
+		}
+
+		comment := fmt.Sprintf("access request #%d (%s)", r.ID, r.Requester)
+
+		if m.RestrictDevices {
+			m.Rules = append(m.Rules, managed.Rule{Comment: comment, Src: []string{who}, Dst: []string{t.Name}})
+		}
+
+		var sshUsers []string
+		_ = json.Unmarshal([]byte(t.RequestSSHUsers), &sshUsers)
+
+		if r.SSH && len(sshUsers) > 0 {
+			m.SSH = append(m.SSH, managed.SSHRule{Comment: comment, Src: []string{who}, Dst: []string{t.Name}, Users: sshUsers})
 		}
 	}
 

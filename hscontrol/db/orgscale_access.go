@@ -18,7 +18,9 @@ CREATE TABLE server_tags(
   name text PRIMARY KEY,
   description text,
   created_at datetime,
-  created_by text
+  created_by text,
+  request_max_minutes integer NOT NULL DEFAULT 0,
+  request_ssh_users text
 );
 CREATE TABLE server_tag_access(
   tag text NOT NULL,
@@ -57,7 +59,9 @@ CREATE TABLE server_tags(
   name text PRIMARY KEY,
   description text,
   created_at timestamptz,
-  created_by text
+  created_by text,
+  request_max_minutes integer NOT NULL DEFAULT 0,
+  request_ssh_users text
 );
 CREATE TABLE server_tag_access(
   tag text NOT NULL,
@@ -130,6 +134,188 @@ CREATE TABLE admin_sessions(
 );
 CREATE INDEX idx_admin_sessions_expires_at ON admin_sessions(expires_at);
 `
+
+const accessRequestsDDLSQLite = `
+CREATE TABLE access_requests(
+  id integer PRIMARY KEY AUTOINCREMENT,
+  user_id integer NOT NULL,
+  requester text NOT NULL,
+  tag text NOT NULL,
+  reason text NOT NULL,
+  minutes integer NOT NULL,
+  ssh numeric NOT NULL DEFAULT false,
+  status text NOT NULL,
+  created_at datetime NOT NULL,
+  decided_by text,
+  decided_at datetime,
+  decision_note text,
+  expires_at datetime
+);
+CREATE INDEX idx_access_requests_status ON access_requests(status);
+`
+
+const accessRequestsDDLPostgres = `
+CREATE TABLE access_requests(
+  id bigserial PRIMARY KEY,
+  user_id bigint NOT NULL,
+  requester text NOT NULL,
+  tag text NOT NULL,
+  reason text NOT NULL,
+  minutes integer NOT NULL,
+  ssh boolean NOT NULL DEFAULT false,
+  status text NOT NULL,
+  created_at timestamptz NOT NULL,
+  decided_by text,
+  decided_at timestamptz,
+  decision_note text,
+  expires_at timestamptz
+);
+CREATE INDEX idx_access_requests_status ON access_requests(status);
+`
+
+// ensureAccessRequests adds the access request table, and the request
+// settings to server_tags made before requests existed.
+func ensureAccessRequests(tx *gorm.DB) error {
+	cols := []struct{ name, ddl string }{
+		{"request_max_minutes", "ALTER TABLE server_tags ADD COLUMN request_max_minutes integer NOT NULL DEFAULT 0"},
+		{"request_ssh_users", "ALTER TABLE server_tags ADD COLUMN request_ssh_users text"},
+	}
+
+	for _, c := range cols {
+		if tx.Migrator().HasColumn(&types.ServerTag{}, c.name) {
+			continue
+		}
+
+		err := tx.Exec(c.ddl).Error
+		if err != nil {
+			return fmt.Errorf("adding server_tags.%s: %w", c.name, err)
+		}
+	}
+
+	if tx.Migrator().HasTable("access_requests") {
+		return nil
+	}
+
+	ddl := accessRequestsDDLSQLite
+	if tx.Name() != "sqlite" {
+		ddl = accessRequestsDDLPostgres
+	}
+
+	for stmt := range strings.SplitSeq(ddl, ";") {
+		if strings.TrimSpace(stmt) == "" {
+			continue
+		}
+
+		err := tx.Exec(stmt).Error
+		if err != nil {
+			return fmt.Errorf("creating access_requests: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// ErrAccessRequestNotFound is returned for an unknown access request.
+var ErrAccessRequestNotFound = errors.New("access request not found")
+
+// ListAccessRequests returns access requests, newest first: all of them
+// when userID is zero, else that person's.
+func ListAccessRequests(rx *gorm.DB, userID uint, limit int) ([]types.AccessRequest, error) {
+	q := rx.Order("id DESC")
+	if userID != 0 {
+		q = q.Where("user_id = ?", userID)
+	}
+
+	if limit > 0 {
+		q = q.Limit(limit)
+	}
+
+	var rows []types.AccessRequest
+
+	err := q.Find(&rows).Error
+	if err != nil {
+		return nil, fmt.Errorf("listing access requests: %w", err)
+	}
+
+	return rows, nil
+}
+
+// ListGrantingAccessRequests returns approved requests that have not
+// lapsed by now.
+func ListGrantingAccessRequests(rx *gorm.DB, now time.Time) ([]types.AccessRequest, error) {
+	var rows []types.AccessRequest
+
+	err := rx.Where("status = ? AND expires_at > ?", types.AccessRequestApproved, now.UTC()).Find(&rows).Error
+	if err != nil {
+		return nil, fmt.Errorf("listing active access requests: %w", err)
+	}
+
+	return rows, nil
+}
+
+// GetAccessRequest returns one access request.
+func GetAccessRequest(rx *gorm.DB, id uint64) (types.AccessRequest, error) {
+	var r types.AccessRequest
+
+	err := rx.Where("id = ?", id).Take(&r).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return r, ErrAccessRequestNotFound
+	}
+
+	return r, err
+}
+
+// CreateAccessRequest stores a new request and returns its ID.
+func CreateAccessRequest(tx *gorm.DB, r types.AccessRequest) (uint64, error) {
+	r.ID = 0
+
+	err := tx.Create(&r).Error
+	if err != nil {
+		return 0, fmt.Errorf("creating access request: %w", err)
+	}
+
+	return r.ID, nil
+}
+
+// UpdateAccessRequest moves a request from one of the states in from to the
+// state in r, so two admins deciding at once cannot both win.
+func UpdateAccessRequest(tx *gorm.DB, r types.AccessRequest, from ...string) error {
+	res := tx.Model(&types.AccessRequest{}).Where("id = ? AND status IN ?", r.ID, from).Updates(map[string]any{
+		"status":        r.Status,
+		"minutes":       r.Minutes,
+		"decided_by":    r.DecidedBy,
+		"decided_at":    r.DecidedAt,
+		"decision_note": r.DecisionNote,
+		"expires_at":    r.ExpiresAt,
+	})
+	if res.Error != nil {
+		return fmt.Errorf("updating access request: %w", res.Error)
+	}
+
+	if res.RowsAffected == 0 {
+		return ErrAccessRequestNotFound
+	}
+
+	return nil
+}
+
+// ExpireAccessRequests marks approved requests whose time is up as expired
+// and pending ones older than maxPending as expired too. It returns how
+// many approved requests lapsed.
+func ExpireAccessRequests(tx *gorm.DB, now time.Time, maxPending time.Duration) (int64, error) {
+	res := tx.Model(&types.AccessRequest{}).
+		Where("status = ? AND expires_at <= ?", types.AccessRequestApproved, now.UTC()).
+		Update("status", types.AccessRequestExpired)
+	if res.Error != nil {
+		return 0, res.Error
+	}
+
+	err := tx.Model(&types.AccessRequest{}).
+		Where("status = ? AND created_at <= ?", types.AccessRequestPending, now.Add(-maxPending).UTC()).
+		Update("status", types.AccessRequestExpired).Error
+
+	return res.RowsAffected, err
+}
 
 // ensureSSHRuleColumns adds the SSH columns to access_rules made before SSH
 // rules existed.
@@ -287,6 +473,7 @@ func SaveServerTag(tx *gorm.DB, tag types.ServerTag, grants []types.ServerTagAcc
 
 		err = tx.Create(&tag).Error
 	case err == nil:
+		// Request settings change only through SetServerTagRequests.
 		err = tx.Model(&types.ServerTag{}).Where("name = ?", tag.Name).
 			Update("description", tag.Description).Error
 	}
@@ -316,6 +503,25 @@ func SaveServerTag(tx *gorm.DB, tag types.ServerTag, grants []types.ServerTagAcc
 		if err != nil {
 			return fmt.Errorf("adding server tag access: %w", err)
 		}
+	}
+
+	return nil
+}
+
+// SetServerTagRequests sets whether people may request temporary access to
+// a tag, for how long at most (0 turns requests off), and which Linux
+// accounts an approved request may SSH in as (a JSON array).
+func SetServerTagRequests(tx *gorm.DB, name string, maxMinutes int, sshUsers string) error {
+	res := tx.Model(&types.ServerTag{}).Where("name = ?", name).Updates(map[string]any{
+		"request_max_minutes": maxMinutes,
+		"request_ssh_users":   sshUsers,
+	})
+	if res.Error != nil {
+		return res.Error
+	}
+
+	if res.RowsAffected == 0 {
+		return ErrServerTagNotFound
 	}
 
 	return nil

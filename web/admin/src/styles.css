@@ -2363,3 +2363,58 @@ details.disclosure.drawer-section {
     font-size: 13px;
   }
 }
+
+/* ---------- access requests ---------- */
+.nav-count {
+  margin-left: auto;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
+}
+.request-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.request.card {
+  padding: 14px 16px;
+}
+.request-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.request-reason {
+  margin: 8px 0 0;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.request-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+.request textarea,
+.modal textarea {
+  width: 100%;
+  resize: vertical;
+}
+@media (max-width: 640px) {
+  .request-head {
+    flex-direction: column;
+    gap: 6px;
+  }
+  .request-actions .btn {
+    flex: 1;
+  }
+}

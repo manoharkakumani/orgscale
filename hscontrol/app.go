@@ -784,6 +784,7 @@ func (h *Orgscale) Serve(ctx context.Context) error {
 	go h.scheduledTasks(ctx)
 	go h.googleSync.Run(ctx)
 	go h.entraSync.Run(ctx)
+	go h.runAccessRequestExpiry(ctx)
 
 	if h.admin != nil {
 		h.admin.announceSetup()

@@ -3,7 +3,8 @@ import { Link, useSearchParams } from "react-router-dom";
 import { del, get, post, put, type EnrollKey, type Principal, type ServerTag } from "../api";
 import { useCanEdit } from "../App";
 import { PrincipalList, PrincipalPicker, type Option } from "../components/principals";
-import { Badge, Button, CodeBlock, Confirm, Empty, ErrorBox, Field, Icon, Modal, PRow, PageHeader, Segmented, Spinner, Toggle, dateTime, useAsync, useToast } from "../components/ui";
+import { durationChoices } from "./Requests";
+import { Badge, Button, ChipInput, CodeBlock, Confirm, Empty, ErrorBox, Field, Icon, Modal, PRow, PageHeader, Segmented, Spinner, Toggle, dateTime, useAsync, useToast } from "../components/ui";
 
 const granteeKinds = ["everyone", "directory_group", "policy_group", "user", "tag"] as const;
 
@@ -22,6 +23,8 @@ function TagEditor({ tag, onClose, onSaved }: { tag?: ServerTag; onClose: () => 
   const [name, setName] = useState(tag ? tag.name.replace(/^tag:/, "") : "");
   const [description, setDescription] = useState(tag?.description ?? "");
   const [access, setAccess] = useState<Principal[]>(tag?.access ?? []);
+  const [reqMax, setReqMax] = useState(tag?.requestMaxMinutes ?? 0);
+  const [reqSSH, setReqSSH] = useState<string[]>(tag?.requestSSHUsers ?? []);
   const [busy, setBusy] = useState(false);
   const full = `tag:${slug(name)}`;
   const self: Option = { kind: "tag", principal: full, label: full, sub: "servers in this tag reach each other", key: `tag:${full}` };
@@ -43,7 +46,11 @@ function TagEditor({ tag, onClose, onSaved }: { tag?: ServerTag; onClose: () => 
             onClick={async () => {
               setBusy(true);
               try {
-                await put(`/admin/api/tags/${encodeURIComponent(full)}`, { description, access: access.map(({ kind, principal }) => ({ kind, principal })) });
+                await put(`/admin/api/tags/${encodeURIComponent(full)}`, {
+                  description,
+                  access: access.map(({ kind, principal }) => ({ kind, principal })),
+                  requests: { maxMinutes: reqMax, sshUsers: reqMax > 0 ? reqSSH : [] },
+                });
                 toast.ok(tag ? "Tag saved" : `${full} created`);
                 onSaved(full);
                 onClose();
@@ -70,6 +77,28 @@ function TagEditor({ tag, onClose, onSaved }: { tag?: ServerTag; onClose: () => 
       <Field label="Who can reach these servers" hint="Applies to every server with this tag, including ones added later. Groups follow your identity provider.">
         <PrincipalPicker kinds={[...granteeKinds]} value={access} onChange={setAccess} extra={[self]} height={240} />
       </Field>
+      <div className="group-title">Temporary access on request</div>
+      <div className="group">
+        <PRow label="People can request access" sub="Anyone signed in can ask for time-limited access with a reason. Another administrator approves; access ends on its own.">
+          <Toggle hideLabel label="People can request access" checked={reqMax > 0} onChange={(v) => setReqMax(v ? 240 : 0)} />
+        </PRow>
+        {reqMax > 0 && (
+          <>
+            <PRow label="Longest access">
+              <select value={reqMax} onChange={(e) => setReqMax(Number(e.target.value))}>
+                {durationChoices.filter((d) => d.minutes >= 60).map((d) => (
+                  <option key={d.minutes} value={d.minutes}>
+                    {d.label}
+                  </option>
+                ))}
+              </select>
+            </PRow>
+            <PRow block label="SSH accounts" sub="Linux accounts people may also SSH in as with approved access, e.g. ubuntu. Leave empty for network access only.">
+              <ChipInput values={reqSSH} onChange={setReqSSH} placeholder="ubuntu" />
+            </PRow>
+          </>
+        )}
+      </div>
     </Modal>
   );
 }

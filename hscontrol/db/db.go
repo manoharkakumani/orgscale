@@ -405,6 +405,14 @@ WHERE auth_key_id IN (
 				},
 				Rollback: func(db *gorm.DB) error { return nil },
 			},
+			{
+				// orgscale: just-in-time access requests.
+				ID: "202611190000-orgscale-access-requests",
+				Migrate: func(tx *gorm.DB) error {
+					return tx.Transaction(ensureAccessRequests)
+				},
+				Rollback: func(db *gorm.DB) error { return nil },
+			},
 		},
 	)
 
@@ -472,7 +480,12 @@ WHERE auth_key_id IN (
 			return err
 		}
 
-		return ensureOrgscaleSessionsTable(tx)
+		err = ensureOrgscaleSessionsTable(tx)
+		if err != nil {
+			return err
+		}
+
+		return ensureAccessRequests(tx)
 	})
 
 	err = runMigrations(cfg.Database, dbConn, migrations)
