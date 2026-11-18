@@ -502,6 +502,22 @@ func (a *AuthProviderOIDC) extractIDToken(
 	return idToken, nil
 }
 
+// notAllowedMessage tells someone who signed in, but is not on the sign-in
+// allow list, which account they used and where an administrator fixes it.
+// It names only their own account, never the list.
+func notAllowedMessage(claims *types.OIDCClaims) string {
+	who := claims.Email
+	if who == "" {
+		who = claims.Username
+	}
+
+	if who == "" {
+		return "Your account is not allowed to join this network. Ask an administrator to allow it under Settings → Who can sign in."
+	}
+
+	return "You signed in as " + who + ", which is not allowed to join this network. Ask an administrator to allow it under Settings → Who can sign in."
+}
+
 // validateOIDCAllowedDomains checks that if AllowedDomains is provided,
 // that the authenticated principal ends with @<alloweddomain>.
 func validateOIDCAllowedDomains(
@@ -511,7 +527,7 @@ func validateOIDCAllowedDomains(
 	if len(allowedDomains) > 0 {
 		if _, domain, found := strings.CutLast(claims.Email, "@"); !found ||
 			!slices.Contains(allowedDomains, domain) {
-			return NewHTTPError(http.StatusUnauthorized, "unauthorised domain", errOIDCAllowedDomains)
+			return newHTTPUserError(http.StatusUnauthorized, "unauthorised domain", notAllowedMessage(claims), errOIDCAllowedDomains)
 		}
 	}
 
@@ -532,7 +548,7 @@ func validateOIDCAllowedGroups(
 		}
 	}
 
-	return NewHTTPError(http.StatusUnauthorized, "unauthorised group", errOIDCAllowedGroups)
+	return newHTTPUserError(http.StatusUnauthorized, "unauthorised group", notAllowedMessage(claims), errOIDCAllowedGroups)
 }
 
 // validateOIDCAllowedUsers checks that if AllowedUsers is provided,
@@ -542,7 +558,7 @@ func validateOIDCAllowedUsers(
 	claims *types.OIDCClaims,
 ) error {
 	if !slices.Contains(allowedUsers, claims.Email) {
-		return NewHTTPError(http.StatusUnauthorized, "unauthorised user", errOIDCAllowedUsers)
+		return newHTTPUserError(http.StatusUnauthorized, "unauthorised user", notAllowedMessage(claims), errOIDCAllowedUsers)
 	}
 
 	return nil
