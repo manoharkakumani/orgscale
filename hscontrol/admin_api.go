@@ -53,6 +53,7 @@ func (aa *adminAuth) routes(r chi.Router) {
 
 		r.Get("/users", aa.handleListUsers)
 		r.Post("/users/{id}/disable", aa.handleDisableUser)
+		r.Put("/users/{id}/role", aa.handlePutUserRole)
 		r.Post("/users/{id}/enable", aa.handleEnableUser)
 		r.Delete("/users/{id}", aa.handleRemoveUser)
 
@@ -478,6 +479,130 @@ func (aa *adminAuth) handlePutRoles(w http.ResponseWriter, r *http.Request) {
 	aa.handleGetSettings(w, r)
 }
 
+// roleSource returns a person's console role and where it comes from.
+func (aa *adminAuth) roleSource(email string, groups []string) (string, string) {
+	if email == "" {
+		return "", ""
+	}
+
+	has := func(list []string, v string) bool {
+		return slices.ContainsFunc(list, func(x string) bool { return strings.EqualFold(x, v) })
+	}
+
+	var consoleAdmins, consoleViewers []string
+	_, _ = aa.h.state.GetSettingJSON(types.SettingAdminUsers, &consoleAdmins)
+	_, _ = aa.h.state.GetSettingJSON(types.SettingViewerUsers, &consoleViewers)
+
+	switch {
+	case has(aa.h.cfg.Admin.Users, email):
+		return string(AdminRoleAdmin), "config"
+	case has(consoleAdmins, email):
+		return string(AdminRoleAdmin), "console"
+	}
+
+	role, ok := aa.roleForIdentity(email, groups)
+	if ok && role == AdminRoleAdmin {
+		return string(AdminRoleAdmin), "group"
+	}
+
+	if has(consoleViewers, email) {
+		return string(AdminRoleViewer), "console"
+	}
+
+	if ok {
+		return string(role), "group"
+	}
+
+	return "", ""
+}
+
+// handlePutUserRole makes a person an admin, a read-only viewer, or takes
+// their console access away. Roles from the configuration file or from IdP
+// groups are changed there, not here.
+func (aa *adminAuth) handlePutUserRole(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		adminJSONError(w, http.StatusBadRequest, "invalid user id")
+
+		return
+	}
+
+	var req struct {
+		Role string `json:"role"` // "admin", "viewer" or "none"
+	}
+
+	if !decodeJSON(w, r, &req) {
+		return
+	}
+
+	if req.Role != "admin" && req.Role != "viewer" && req.Role != "none" {
+		adminJSONError(w, http.StatusBadRequest, "role is admin, viewer or none")
+
+		return
+	}
+
+	u, err := aa.h.state.GetUserByID(types.UserID(id))
+	if err != nil {
+		adminJSONError(w, http.StatusNotFound, "no such user")
+
+		return
+	}
+
+	email := strings.ToLower(u.Email)
+	if email == "" {
+		adminJSONError(w, http.StatusBadRequest, "this user has no email address, so they cannot sign in to the console")
+
+		return
+	}
+
+	sess := sessionFrom(r)
+	if strings.EqualFold(email, sess.roleEmail) && req.Role != "admin" {
+		adminJSONError(w, http.StatusBadRequest, "you cannot change your own role; ask another admin")
+
+		return
+	}
+
+	if slices.ContainsFunc(aa.h.cfg.Admin.Users, func(x string) bool { return strings.EqualFold(x, email) }) {
+		adminJSONError(w, http.StatusConflict, "this person is an admin in the configuration file (admin.users); change it there")
+
+		return
+	}
+
+	without := func(list []string) []string {
+		return slices.DeleteFunc(slices.Clone(list), func(x string) bool { return strings.EqualFold(x, email) })
+	}
+
+	var admins, viewers []string
+	_, _ = aa.h.state.GetSettingJSON(types.SettingAdminUsers, &admins)
+	_, _ = aa.h.state.GetSettingJSON(types.SettingViewerUsers, &viewers)
+
+	admins, viewers = without(admins), without(viewers)
+
+	switch req.Role {
+	case "admin":
+		admins = append(admins, email)
+	case "viewer":
+		viewers = append(viewers, email)
+	}
+
+	for key, v := range map[string][]string{types.SettingAdminUsers: nonNil(admins), types.SettingViewerUsers: nonNil(viewers)} {
+		err := aa.h.state.SetSettingJSON(key, v, sess.label())
+		if err != nil {
+			adminJSONError(w, http.StatusInternalServerError, err.Error())
+
+			return
+		}
+	}
+
+	if req.Role == "none" {
+		aa.endSessionsOf(email)
+	}
+
+	role, from := aa.roleSource(email, nil)
+	aa.auditReq(r, "user.role", email, req.Role)
+	adminJSON(w, http.StatusOK, map[string]string{"role": role, "roleFrom": from})
+}
+
 func (aa *adminAuth) handlePutDeviceRestriction(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Enabled bool `json:"enabled"`
@@ -599,6 +724,10 @@ type adminUser struct {
 	Groups      []string   `json:"groups"`
 	Devices     int        `json:"devices"`
 	LastSeen    *time.Time `json:"lastSeen,omitempty"`
+	// Role is the console role ("admin", "viewer" or ""), and RoleFrom
+	// where it comes from: "console", "config" or "group".
+	Role     string `json:"role"`
+	RoleFrom string `json:"roleFrom"`
 }
 
 func (aa *adminAuth) handleListUsers(w http.ResponseWriter, r *http.Request) {
@@ -626,10 +755,12 @@ func (aa *adminAuth) handleListUsers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userGroups := make(map[types.UserID][]string)
+	idpGroups := make(map[types.UserID][]string)
 
 	for _, g := range groups {
 		for _, uid := range g.MemberIDs {
 			userGroups[uid] = append(userGroups[uid], g.Name)
+			idpGroups[uid] = append(idpGroups[uid], g.DisplayName, g.ExternalID)
 		}
 	}
 
@@ -646,6 +777,8 @@ func (aa *adminAuth) handleListUsers(w http.ResponseWriter, r *http.Request) {
 		if a, ok := disabled[uid]; ok {
 			au.Disabled, au.DisabledAt, au.DisabledBy = true, a.DisabledAt, a.DisabledBy
 		}
+
+		au.Role, au.RoleFrom = aa.roleSource(u.Email, idpGroups[uid])
 
 		for _, n := range st.ListNodesByUser(uid).All() {
 			au.Devices++

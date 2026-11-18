@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { del, get, post, type AdminUser } from "../api";
+import { del, get, post, put, type AdminUser } from "../api";
 import { useCanEdit, useMe } from "../App";
 import { MList, MRow } from "../components/mlist";
 import { Badge, Button, Confirm, Empty, ErrorBox, Field, Group, Modal, PRow, PageHeader, SearchBox, Spinner, timeAgo, useAsync, useToast } from "../components/ui";
@@ -59,6 +59,56 @@ function AddUserModal({ onClose, onDone }: { onClose: () => void; onDone: () => 
         <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" />
       </Field>
     </Modal>
+  );
+}
+
+function RoleBadge({ u }: { u: AdminUser }) {
+  if (u.role === "admin") return <Badge tone="blue">Admin</Badge>;
+  if (u.role === "viewer") return <Badge tone="violet">Read-only</Badge>;
+  return null;
+}
+
+// RoleControl changes a person's console role. Roles from the configuration
+// file or from an IdP group are shown but changed there.
+function RoleControl({ u, self, onChanged }: { u: AdminUser; self: boolean; onChanged: () => void }) {
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+  const locked = self || u.roleFrom === "config" || u.roleFrom === "group" || !u.email;
+  const note = !u.email
+    ? "No email address, so no console access."
+    : self
+      ? "You can't change your own role."
+      : u.roleFrom === "config"
+        ? "Set in the configuration file (admin.users)."
+        : u.roleFrom === "group"
+          ? "Comes from an admin group in Settings → Console access."
+          : undefined;
+
+  return (
+    <div className="cell-stack" style={{ gap: 4 }}>
+      <select
+        value={u.role || "none"}
+        disabled={locked || busy}
+        style={{ width: "auto", minWidth: 140 }}
+        onChange={async (e) => {
+          setBusy(true);
+          try {
+            await put(`/admin/api/users/${u.id}/role`, { role: e.target.value });
+            toast.ok(e.target.value === "admin" ? `${u.email} is now an admin` : e.target.value === "viewer" ? `${u.email} can now view the console` : `${u.email} has no console access now`);
+            onChanged();
+          } catch (err) {
+            toast.error(err);
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        <option value="none">No console access</option>
+        <option value="viewer">Read-only</option>
+        <option value="admin">Admin</option>
+      </select>
+      {note && <span className="muted small">{note}</span>}
+    </div>
   );
 }
 
@@ -128,7 +178,7 @@ export default function UsersPage() {
               lead={u.picture ? <img className="avatar" src={u.picture} alt="" referrerPolicy="no-referrer" /> : <span className="avatar avatar-fallback">{(u.displayName || u.email || u.name).slice(0, 1).toUpperCase()}</span>}
               title={u.displayName || u.name}
               sub={[u.email || u.name, `${u.devices} device${u.devices === 1 ? "" : "s"}`].join(" · ")}
-              trail={u.disabled ? <Badge tone="red">Disabled</Badge> : undefined}
+              trail={u.disabled ? <Badge tone="red">Disabled</Badge> : <RoleBadge u={u} />}
             />
           ))}
         </MList>
@@ -142,6 +192,7 @@ export default function UsersPage() {
                 <th className="num">Devices</th>
                 <th>Last seen</th>
                 <th>Status</th>
+                <th>Console</th>
                 {canEdit && <th aria-label="Actions" />}
               </tr>
             </thead>
@@ -170,6 +221,7 @@ export default function UsersPage() {
                     <td className="num">{u.devices}</td>
                     <td className="muted">{timeAgo(u.lastSeen)}</td>
                     <td>{u.disabled ? <Badge tone="red" title={`by ${u.disabledBy ?? "?"}`}>Disabled</Badge> : <Badge tone="green">Active</Badge>}</td>
+                    <td>{canEdit ? <RoleControl u={u} self={!!self} onChanged={reload} /> : <RoleBadge u={u} />}</td>
                     {canEdit && (
                       <td className="actions">
                         {u.disabled ? (
@@ -206,6 +258,13 @@ export default function UsersPage() {
           </div>
           <Group>
             <PRow label="Status">{open.disabled ? <Badge tone="red">Disabled</Badge> : <Badge tone="green">Active</Badge>}</PRow>
+            {canEdit ? (
+              <PRow label="Console access" block>
+                <RoleControl u={open} self={isSelf(open)} onChanged={reload} />
+              </PRow>
+            ) : (
+              <PRow label="Console access">{open.role ? <RoleBadge u={open} /> : <span className="muted">None</span>}</PRow>
+            )}
             <PRow label="Devices">{open.devices}</PRow>
             <PRow label="Last seen">{timeAgo(open.lastSeen)}</PRow>
             <PRow label="Groups" block>

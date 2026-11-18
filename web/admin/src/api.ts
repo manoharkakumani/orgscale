@@ -104,6 +104,8 @@ export interface AdminUser {
   groups: string[];
   devices: number;
   lastSeen?: string;
+  role: "" | "admin" | "viewer";
+  roleFrom: "" | "console" | "config" | "group";
 }
 
 export type PrincipalKind = "user" | "directory_group" | "policy_group" | "tag" | "device" | "everyone" | "self";

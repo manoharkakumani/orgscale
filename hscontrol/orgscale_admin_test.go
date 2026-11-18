@@ -804,3 +804,60 @@ func TestAdminConsoleRuleEditAndSSH(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, string(pol), `"ssh":[`)
 }
+
+func TestAdminConsoleUserRoles(t *testing.T) {
+	h := newAdminHarness(t)
+
+	boss := h.browser(t)
+	require.Equal(t, http.StatusOK, boss.login(t, &mockoidc.MockUser{Subject: "boss", Email: "boss@example.com", EmailVerified: true}))
+
+	carol, _, err := h.app.state.CreateUser(types.User{Name: "carol", Email: "Carol@Example.com"})
+	require.NoError(t, err)
+
+	cid := strconv.FormatUint(uint64(carol.ID), 10)
+
+	role := func(email string) (string, string) {
+		var users []adminUser
+		require.Equal(t, http.StatusOK, boss.do(t, http.MethodGet, "/admin/api/users", nil, &users))
+
+		for _, u := range users {
+			if strings.EqualFold(u.Email, email) {
+				return u.Role, u.RoleFrom
+			}
+		}
+
+		return "?", "?"
+	}
+
+	r, from := role("carol@example.com")
+	assert.Empty(t, r)
+	assert.Empty(t, from)
+
+	require.Equal(t, http.StatusOK, boss.do(t, http.MethodPut, "/admin/api/users/"+cid+"/role", map[string]string{"role": "admin"}, nil))
+	r, from = role("carol@example.com")
+	assert.Equal(t, "admin", r)
+	assert.Equal(t, "console", from)
+
+	// Carol can now sign in to the console as admin.
+	c := h.browser(t)
+	require.Equal(t, http.StatusOK, c.login(t, &mockoidc.MockUser{Subject: "carol", Email: "carol@example.com", EmailVerified: true}))
+
+	require.Equal(t, http.StatusOK, boss.do(t, http.MethodPut, "/admin/api/users/"+cid+"/role", map[string]string{"role": "viewer"}, nil))
+	r, _ = role("carol@example.com")
+	assert.Equal(t, "viewer", r)
+	assert.Equal(t, http.StatusForbidden, c.do(t, http.MethodPost, "/admin/api/groups", map[string]any{"name": "x"}, nil), "viewers cannot change things")
+
+	require.Equal(t, http.StatusOK, boss.do(t, http.MethodPut, "/admin/api/users/"+cid+"/role", map[string]string{"role": "none"}, nil))
+	assert.Equal(t, http.StatusUnauthorized, c.do(t, http.MethodGet, "/admin/api/users", nil, nil), "taking access away ends the session")
+
+	// The configuration file's admins are changed there; nobody demotes themselves.
+	var users []adminUser
+	require.Equal(t, http.StatusOK, boss.do(t, http.MethodGet, "/admin/api/users", nil, &users))
+
+	for _, u := range users {
+		if u.Email == "boss@example.com" {
+			assert.Equal(t, "config", u.RoleFrom)
+			assert.Equal(t, http.StatusBadRequest, boss.do(t, http.MethodPut, "/admin/api/users/"+strconv.FormatUint(uint64(u.ID), 10)+"/role", map[string]string{"role": "none"}, nil))
+		}
+	}
+}
