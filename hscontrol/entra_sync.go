@@ -263,13 +263,11 @@ func graphList[T any](ctx context.Context, g *graph, u string) ([]T, string, err
 }
 
 type entraUser struct {
-	ID                string   `json:"id"`
-	DisplayName       string   `json:"displayName"`
-	Mail              string   `json:"mail"`
-	UserPrincipalName string   `json:"userPrincipalName"`
-	AccountEnabled    *bool    `json:"accountEnabled"`
-	UserType          string   `json:"userType"`
-	ProxyAddresses    []string `json:"proxyAddresses"`
+	ID                string `json:"id"`
+	DisplayName       string `json:"displayName"`
+	UserPrincipalName string `json:"userPrincipalName"`
+	AccountEnabled    *bool  `json:"accountEnabled"`
+	UserType          string `json:"userType"`
 }
 
 type entraGroup struct {
@@ -364,7 +362,7 @@ func (e *entraSyncer) sync(ctx context.Context, full bool, status *types.EntraSy
 	}
 
 	users, _, err := graphList[entraUser](ctx, g,
-		"/users?$select=id,displayName,mail,userPrincipalName,accountEnabled,userType,proxyAddresses&$top=999")
+		"/users?$select=id,displayName,userPrincipalName,accountEnabled,userType&$top=999")
 	if err != nil {
 		return err
 	}
@@ -427,17 +425,12 @@ func (e *entraSyncer) apply(users []entraUser, groups []entraGroup, members map[
 			continue // guests are not synced
 		}
 
+		// People are identified only by their UPN, the name they sign in
+		// with. The mail and proxy addresses are not used: they can carry
+		// addresses that are not the account's own.
 		email := entraEmail(u)
 		if email == "" {
 			continue
-		}
-
-		addrs := []string{email, strings.ToLower(u.Mail)}
-
-		for _, p := range u.ProxyAddresses {
-			if a, ok := strings.CutPrefix(strings.ToLower(p), "smtp:"); ok {
-				addrs = append(addrs, a)
-			}
 		}
 
 		if _, d, ok := strings.Cut(email, "@"); ok {
@@ -445,21 +438,14 @@ func (e *entraSyncer) apply(users []entraUser, groups []entraGroup, members map[
 		}
 
 		if u.AccountEnabled != nil && !*u.AccountEnabled {
-			for _, a := range addrs {
-				inactive[a] = true
-			}
+			inactive[email] = true
 
 			continue
 		}
 
 		active[email] = u
 		byEntraID[u.ID] = email
-
-		for _, a := range addrs {
-			if a != "" {
-				known[a] = true
-			}
-		}
+		known[email] = true
 	}
 
 	if len(active) == 0 {
@@ -471,10 +457,10 @@ func (e *entraSyncer) apply(users []entraUser, groups []entraGroup, members map[
 		return err
 	}
 
-	// Who to offboard: accounts disabled in Entra, and users from this sync
-	// or from single sign-on whose address is in a tenant domain but belongs
-	// to no active member. SCIM, Google and local users are never removed
-	// for a missing address.
+	// Who to offboard: users from this sync or from single sign-on whose
+	// UPN is disabled in Entra, or is in a tenant domain but belongs to no
+	// active member. SCIM, Google and local users are never removed because
+	// of Entra data.
 	var leavers []types.User
 
 	for _, u := range existing {
@@ -486,7 +472,7 @@ func (e *entraSyncer) apply(users []entraUser, groups []entraGroup, members map[
 		_, d, _ := strings.Cut(email, "@")
 		syncable := u.Provider == userProviderEntra || u.Provider == util.RegisterMethodOIDC
 
-		if inactive[email] || (syncable && domains[d]) {
+		if syncable && (inactive[email] || domains[d]) {
 			leavers = append(leavers, u)
 		}
 	}

@@ -151,6 +151,23 @@ func TestEntraSync(t *testing.T) {
 	assert.Equal(t, 2, st.Users, "counts of the last full read are kept")
 	assert.Equal(t, 2, fg.calls(), "a quiet check is two small requests")
 
+	// A local user whose address a disabled Entra account claims in its
+	// mail attribute is never touched.
+	_, _, err = app.state.CreateUser(types.User{Name: "carol", Email: "carol@stayx.ai"})
+	require.NoError(t, err)
+
+	fg.mu.Lock()
+	fg.users = append(fg.users, map[string]any{"id": "u-x", "displayName": "X", "userPrincipalName": "x@stayx.ai", "mail": "carol@stayx.ai", "accountEnabled": disabled, "userType": "Member"})
+	fg.mu.Unlock()
+
+	st = app.entraSync.RunNow(ctx, true)
+	require.True(t, st.OK, st.Error)
+	assert.Zero(t, st.Disabled)
+
+	users, err = app.state.ListAllUsers()
+	require.NoError(t, err)
+	require.Len(t, users, 3, "alice, bob and the local carol stay")
+
 	// Bob is disabled in Entra: the change check notices and he is removed.
 	fg.mu.Lock()
 	fg.users[1]["accountEnabled"] = disabled
@@ -164,8 +181,13 @@ func TestEntraSync(t *testing.T) {
 
 	users, err = app.state.ListAllUsers()
 	require.NoError(t, err)
-	require.Len(t, users, 1)
-	assert.Equal(t, "alice@stayx.ai", users[0].Email)
+
+	var emails []string
+	for _, u := range users {
+		emails = append(emails, u.Email)
+	}
+
+	assert.ElementsMatch(t, []string{"alice@stayx.ai", "carol@stayx.ai"}, emails)
 }
 
 func TestEntraSyncReusesSSOApp(t *testing.T) {
