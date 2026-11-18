@@ -106,6 +106,22 @@ Visibility is two-way: if a group may reach a server, the server also lists
 the group's devices as peers (it can't open connections to them unless a rule
 allows it).
 
+## Connecting devices
+
+People use the official Tailscale app, pointed at your server:
+
+| Platform | How |
+|---|---|
+| Managed devices (Intune, Jamf, …) | Push the Tailscale app with the login server setting (`ControlURL` on Apple platforms, `LoginURL` on Windows and Android) set to your server URL. |
+| macOS | Open `https://vpn.example.com/apple` and install the profile, then **Log in** in the Tailscale menu. |
+| Windows | Open `https://vpn.example.com/windows`, or run `tailscale login --login-server https://vpn.example.com`. |
+| iOS / iPadOS | Settings → Tailscale → Alternate Coordination Server URL. |
+| Android | In the app, tap ⋮ until **Change server** appears. |
+| Linux | `sudo tailscale up --login-server https://vpn.example.com` |
+
+Signing in opens your identity provider; the device is registered to the
+person who signs in. Servers use **Servers → Add server** instead.
+
 ## Directory sync
 
 ### SCIM (Okta, Microsoft Entra ID, OneLogin, JumpCloud, Authentik)

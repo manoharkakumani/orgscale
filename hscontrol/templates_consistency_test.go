@@ -176,8 +176,7 @@ func TestTemplateExternalLinkSecurity(t *testing.T) {
 				Message: "You can now close this window.",
 			}).Render(),
 			externalURLs: []string{
-				"https://headscale.net/stable/",
-				"https://tailscale.com/docs",
+				"https://tailscale.com/kb/1017/install",
 			},
 		},
 		{

@@ -56,26 +56,31 @@ buttons available in the repo.
 
 ## Features
 
-Please see ["Features" in the documentation](https://headscale.net/stable/about/features/).
+Everything Headscale does, plus the admin console, single sign-on driven user
+management, directory sync (SCIM, Google Workspace), server tags, visual
+access rules and an audit log. See the
+[admin console guide](docs/orgscale/admin-console.md).
 
 ## Client OS support
 
-Please see ["Client and operating system support" in the documentation](https://headscale.net/stable/about/clients/).
+orgscale works with the official Tailscale clients on macOS, Windows, Linux,
+iOS and Android. See [connecting devices](docs/orgscale/admin-console.md#connecting-devices).
 
 ## Running orgscale
 
 **Please note that we do not support nor encourage the use of reverse proxies
 and container to run Orgscale.**
 
-Please have a look at the [`documentation`](https://headscale.net/stable/).
+Start with the [admin console guide](docs/orgscale/admin-console.md). Server
+settings not covered there work as in Headscale; the
+[configuration reference](docs/ref/configuration-options.md) lists them all.
 
 For NixOS users, a module is available in [`nix/`](./nix/).
 
 ## Builds from `main`
 
-Development builds from the `main` branch are available as container images and
-binaries. See the [development builds](https://headscale.net/stable/setup/install/main/)
-documentation for details.
+Build from source with `make build`; the console is embedded, so Node.js is
+only needed to change it (`make admin-ui`).
 
 ## Talks
 

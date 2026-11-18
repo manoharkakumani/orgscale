@@ -142,7 +142,7 @@ func initConfig() {
 		if (runtime.GOOS == "linux" || runtime.GOOS == "darwin") &&
 			!versionInfo.Dirty {
 			githubTag := &latest.GithubTag{
-				Owner:         "juanfont",
+				Owner:         "manoharkakumani",
 				Repository:    "orgscale",
 				TagFilterFunc: filterPreReleasesIfStable(func() string { return versionInfo.Version }),
 			}
@@ -151,7 +151,7 @@ func initConfig() {
 			if err == nil && res.Outdated {
 				//nolint
 				log.Warn().Msgf(
-					"An updated version of Orgscale has been found (%s vs. your current %s). Check it out https://github.com/juanfont/headscale/releases\n",
+					"An updated version of Orgscale has been found (%s vs. your current %s). Check it out https://github.com/manoharkakumani/orgscale/releases\n",
 					res.Current,
 					versionInfo.Version,
 				)
@@ -192,9 +192,10 @@ var rootCmd = &cobra.Command{
 	Use:   "orgscale",
 	Short: "orgscale - a Tailscale control server",
 	Long: `
-orgscale is an open source implementation of the Tailscale control server
+orgscale is a Tailscale control server for organizations, with a web
+admin console, single sign-on and directory sync. Based on Headscale.
 
-https://github.com/juanfont/headscale`,
+https://github.com/manoharkakumani/orgscale`,
 	SilenceErrors: true,
 	SilenceUsage:  true,
 }

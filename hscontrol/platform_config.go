@@ -113,7 +113,7 @@ var commonTemplate = textTemplate.Must(
     <key>PayloadDescription</key>
     <string>Configure Tailscale login server to: {{.URL}}</string>
     <key>PayloadIdentifier</key>
-    <string>com.github.juanfont.orgscale</string>
+    <string>com.github.manoharkakumani.orgscale</string>
     <key>PayloadRemovalDisallowed</key>
     <false/>
     <key>PayloadType</key>
@@ -135,7 +135,7 @@ var payloadTemplate = textTemplate.Must(textTemplate.New("payloadTemplate").Pars
         <key>PayloadUUID</key>
         <string>{{.UUID}}</string>
         <key>PayloadIdentifier</key>
-        <string>com.github.juanfont.orgscale</string>
+        <string>com.github.manoharkakumani.orgscale</string>
         <key>PayloadVersion</key>
         <integer>1</integer>
         <key>PayloadEnabled</key>
