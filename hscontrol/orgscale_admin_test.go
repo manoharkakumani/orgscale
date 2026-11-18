@@ -210,6 +210,20 @@ func TestAdminConsoleLoginAndRoles(t *testing.T) {
 	assert.Equal(t, http.StatusForbidden, viewer.do(t, http.MethodPost, "/api/v1/user", map[string]string{"name": "nope"}, nil))
 	assert.Equal(t, http.StatusForbidden, viewer.do(t, http.MethodPut, "/admin/api/settings/device-restriction", map[string]bool{"enabled": true}, nil))
 
+	// Viewers cannot change tags, rules, groups or devices either.
+	for _, req := range []struct{ method, path string }{
+		{http.MethodPut, "/admin/api/tags/tag:x"},
+		{http.MethodPost, "/admin/api/tags/tag:x/enroll"},
+		{http.MethodPost, "/admin/api/rules"},
+		{http.MethodDelete, "/admin/api/rules/1"},
+		{http.MethodPost, "/admin/api/groups"},
+		{http.MethodPost, "/admin/api/devices/bulk"},
+	} {
+		assert.Equal(t, http.StatusForbidden, viewer.do(t, req.method, req.path, map[string]any{}, nil), req.method+" "+req.path)
+	}
+
+	assert.Equal(t, http.StatusOK, viewer.do(t, http.MethodGet, "/admin/api/rules", nil, nil), "viewers can read rules")
+
 	// An admin through an IdP group.
 	groupAdmin := h.browser(t)
 	require.Equal(t, http.StatusOK, groupAdmin.login(t, &mockoidc.MockUser{
