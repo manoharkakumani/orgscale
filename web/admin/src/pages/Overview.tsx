@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { get, type Overview } from "../api";
-import { ErrorBox, PageHeader, Spinner, timeAgo, useAsync } from "../components/ui";
+import { useMe } from "../App";
+import { CopyText, ErrorBox, PageHeader, Spinner, timeAgo, useAsync } from "../components/ui";
 
 function Stat({ label, value, sub, to }: { label: string; value: number | string; sub?: string; to?: string }) {
   const body = (
@@ -36,7 +37,9 @@ function Step({ done, title, children, to }: { done: boolean; title: string; chi
 }
 
 export default function OverviewPage() {
+  const me = useMe();
   const { data, error, loading, reload } = useAsync(() => get<Overview>("/admin/api/overview"));
+  const base = me.serverUrl.replace(/\/+$/, "");
 
   if (loading && !data) return <Spinner />;
   if (error) return <ErrorBox error={error} onRetry={reload} />;
@@ -87,6 +90,27 @@ export default function OverviewPage() {
             {data.assignedDevices > 0 ? `${data.assignedDevices} device${data.assignedDevices === 1 ? " is" : "s are"} shared with people or groups.` : "Share servers through their tag, or add access rules for groups."}
           </Step>
         </ol>
+      </section>
+
+      <section className="card">
+        <h2>Connect people's devices</h2>
+        <p className="muted small">Send everyone this link. It shows each platform's steps and downloads the settings, so nobody types a command.</p>
+        <CopyText value={`${base}/connect`} />
+        <details className="mt">
+          <summary>Company-managed devices (Intune, Jamf, Kandji)</summary>
+          <ul className="small">
+            <li>
+              <b>Mac</b>: upload <a href={`${base}/apple/macos`} download="orgscale.mobileconfig">orgscale.mobileconfig</a> as a custom configuration profile.
+            </li>
+            <li>
+              <b>Windows</b>: set the registry value <code>HKLM\SOFTWARE\Policies\Tailscale\LoginURL</code> to <code>{base}</code> (Settings catalog, OMA-URI or a script), or deploy <a href={`${base}/windows/orgscale.reg`}>orgscale.reg</a>.
+            </li>
+            <li>
+              <b>iPhone and iPad</b>: an app configuration policy for the Tailscale app with <code>ControlURL</code> = <code>{base}</code>. <b>Android</b>: managed configuration with <code>LoginURL</code> = <code>{base}</code>.
+            </li>
+          </ul>
+          <p className="muted small">People then just open Tailscale and click Log in. Servers join from Servers → Add server instead.</p>
+        </details>
       </section>
 
       {data.googleSync && data.googleSyncStatus?.error && (

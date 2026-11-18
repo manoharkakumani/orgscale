@@ -598,6 +598,9 @@ func (h *Orgscale) createRouter(apiV1Mux, apiV2Mux http.Handler) *chi.Mux {
 	r.Get("/apple", h.AppleConfigMessage)
 	r.Get("/apple/{platform}", h.ApplePlatformConfig)
 	r.Get("/windows", h.WindowsConfigMessage)
+	r.Get("/windows/orgscale.reg", h.WindowsRegistryFile)
+	r.Get("/connect", h.ConnectPage)
+	r.Get("/connect/linux.sh", h.LinuxConnectScript)
 
 	r.Post("/verify", h.VerifyHandler)
 

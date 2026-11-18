@@ -168,16 +168,26 @@ allows it).
 
 ## Connecting devices
 
-People use the official Tailscale app, pointed at your server:
+People use the official Tailscale app, pointed at your server. Send everyone
+**`https://vpn.example.com/connect`** (also on the console's Overview): it has
+each platform's steps and downloads the settings, so nobody types a command.
 
 | Platform | How |
 |---|---|
-| Managed devices (Intune, Jamf, …) | Push the Tailscale app with the login server setting (`ControlURL` on Apple platforms, `LoginURL` on Windows and Android) set to your server URL. |
-| macOS | Open `https://vpn.example.com/apple` and install the profile, then **Log in** in the Tailscale menu. |
-| Windows | Open `https://vpn.example.com/windows`, or run `tailscale login --login-server https://vpn.example.com`. |
-| iOS / iPadOS | Settings → Tailscale → Alternate Coordination Server URL. |
-| Android | In the app, tap ⋮ until **Change server** appears. |
-| Linux | `sudo tailscale up --login-server https://vpn.example.com` |
+| Managed Mac (Intune, Jamf, Kandji) | Upload `https://vpn.example.com/apple/macos` as a custom configuration profile. |
+| Managed Windows | Set `HKLM\SOFTWARE\Policies\Tailscale\LoginURL` to your server URL (Settings catalog, OMA-URI or a script), or deploy `https://vpn.example.com/windows/orgscale.reg`. |
+| Managed iPhone / iPad | App configuration policy for Tailscale: `ControlURL` = your server URL. |
+| Managed Android | Managed configuration for Tailscale: `LoginURL` = your server URL. |
+| Mac (own) | Install the profile from `/connect`, then **Log in** in the Tailscale menu. |
+| Windows (own) | Open the settings file from `/connect`, then **Log in**. |
+| iPhone / iPad (own) | Settings → Apps → Tailscale → Alternate Coordination Server URL. |
+| Android (own) | Account → ⋮ → **Use an alternate server**. |
+| Linux | `curl -fsSL https://vpn.example.com/connect/linux.sh \| sh` |
+
+Devices remember the server address they joined with. Use a permanent name
+(such as `vpn.example.com`) before connecting people: with a temporary tunnel
+address (ngrok, trycloudflare) every device must be set up again when it
+changes, and the Overview warns about it.
 
 Signing in opens your identity provider; the device is registered to the
 person who signs in. Servers use **Servers → Add server** instead.

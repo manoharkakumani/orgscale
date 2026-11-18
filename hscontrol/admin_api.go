@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"slices"
 	"strconv"
 	"strings"
@@ -245,6 +246,11 @@ func (aa *adminAuth) handleOverview(w http.ResponseWriter, r *http.Request) {
 	if !restrict {
 		warnings = append(warnings,
 			"Access control is off: everyone sees and reaches every device. Turn it on in Access so people only reach their own devices and what they have been given.")
+	}
+
+	if temporaryAddress(aa.h.cfg.ServerURL) {
+		warnings = append(warnings,
+			"The server address "+aa.h.cfg.ServerURL+" is a temporary tunnel address. Devices remember the address they joined with, so when it changes they all have to be set up again. Give orgscale a permanent name such as vpn.yourcompany.com before connecting people.")
 	}
 
 	var scimSince string
@@ -1339,4 +1345,22 @@ func (aa *adminAuth) handleListAudit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	adminJSON(w, http.StatusOK, evs)
+}
+
+// temporaryAddress reports a server URL on a tunnel service's throwaway
+// domain, which changes when the tunnel restarts.
+func temporaryAddress(serverURL string) bool {
+	u, err := url.Parse(serverURL)
+	if err != nil {
+		return false
+	}
+
+	host := strings.ToLower(u.Hostname())
+	for _, suffix := range []string{".ngrok-free.app", ".ngrok-free.dev", ".ngrok.io", ".ngrok.app", ".trycloudflare.com", ".loca.lt", ".serveo.net"} {
+		if strings.HasSuffix(host, suffix) {
+			return true
+		}
+	}
+
+	return false
 }
