@@ -1,12 +1,13 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 import { ApiError, get, post, setCSRFToken, type Me } from "./api";
-import { Badge, Button, Spinner } from "./components/ui";
+import { Badge, Button, Icon, Spinner, ThemeSwitch } from "./components/ui";
 import OverviewPage from "./pages/Overview";
 import UsersPage from "./pages/Users";
 import DevicesPage from "./pages/Devices";
 import GroupsPage from "./pages/Groups";
-import PolicyPage from "./pages/Policy";
+import AccessPage from "./pages/Access";
+import ServersPage from "./pages/Servers";
 import KeysPage from "./pages/Keys";
 import SettingsPage from "./pages/Settings";
 import AuditPage from "./pages/Audit";
@@ -23,15 +24,31 @@ export function useCanEdit(): boolean {
   return useMe().role === "admin";
 }
 
-const nav = [
-  { to: "/", label: "Overview", end: true },
-  { to: "/users", label: "Users" },
-  { to: "/devices", label: "Devices" },
-  { to: "/groups", label: "Groups" },
-  { to: "/policy", label: "Access policy" },
-  { to: "/keys", label: "Keys" },
-  { to: "/settings", label: "Settings" },
-  { to: "/audit", label: "Audit log" },
+const nav: { group: string; items: { to: string; label: string; icon: string; end?: boolean }[] }[] = [
+  {
+    group: "Network",
+    items: [
+      { to: "/", label: "Overview", icon: "overview", end: true },
+      { to: "/devices", label: "Devices", icon: "devices" },
+      { to: "/servers", label: "Servers", icon: "server" },
+      { to: "/access", label: "Access", icon: "shield" },
+    ],
+  },
+  {
+    group: "People",
+    items: [
+      { to: "/users", label: "Users", icon: "user" },
+      { to: "/groups", label: "Groups", icon: "users" },
+    ],
+  },
+  {
+    group: "Administration",
+    items: [
+      { to: "/keys", label: "Keys", icon: "key" },
+      { to: "/settings", label: "Settings", icon: "gear" },
+      { to: "/audit", label: "Audit log", icon: "clock" },
+    ],
+  },
 ];
 
 function SignIn({ error }: { error?: string }) {
@@ -94,22 +111,31 @@ export default function App() {
             orgscale
           </div>
           <nav>
-            {nav.map((n) => (
-              <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
-                {n.label}
-              </NavLink>
+            {nav.map((g) => (
+              <div key={g.group}>
+                <div className="nav-group">{g.group}</div>
+                {g.items.map((n) => (
+                  <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
+                    <Icon name={n.icon} />
+                    {n.label}
+                  </NavLink>
+                ))}
+              </div>
             ))}
           </nav>
-          <div className="sidebar-foot muted">{me.version}</div>
+          <div className="sidebar-foot muted" title={me.version}>
+            orgscale {me.version.split("-")[0]}
+          </div>
         </aside>
         <div className="main">
           <header className="topbar">
             <div className="muted topbar-server">{me.serverUrl}</div>
             <div className="topbar-user">
+              <ThemeSwitch />
               {me.picture ? <img className="avatar" src={me.picture} alt="" referrerPolicy="no-referrer" /> : <span className="avatar avatar-fallback">{(me.name || me.email).slice(0, 1).toUpperCase()}</span>}
               <div className="topbar-who">
                 <div>{me.name || me.email}</div>
-                <div className="muted small">{me.email}</div>
+                {me.name && me.name !== me.email && <div className="muted small">{me.email}</div>}
               </div>
               <Badge tone={me.role === "admin" ? "blue" : "neutral"}>{me.role === "admin" ? "Admin" : "Read-only"}</Badge>
               <Button variant="ghost" onClick={signOut}>
@@ -123,7 +149,9 @@ export default function App() {
               <Route path="/users" element={<UsersPage />} />
               <Route path="/devices" element={<DevicesPage />} />
               <Route path="/groups" element={<GroupsPage />} />
-              <Route path="/policy" element={<PolicyPage />} />
+              <Route path="/servers" element={<ServersPage />} />
+              <Route path="/access" element={<AccessPage />} />
+              <Route path="/policy" element={<Navigate to="/access" replace />} />
               <Route path="/keys" element={<KeysPage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/audit" element={<AuditPage />} />

@@ -106,10 +106,48 @@ export interface AdminUser {
   lastSeen?: string;
 }
 
+export type PrincipalKind = "user" | "directory_group" | "policy_group" | "tag" | "device" | "everyone";
+
+export interface Principal {
+  kind: PrincipalKind;
+  principal: string;
+  label?: string;
+}
+
 export interface DeviceGrant {
   kind: "user" | "directory_group" | "policy_group";
   principal: string;
   label: string;
+}
+
+export interface ServerTag {
+  name: string;
+  description: string;
+  managed: boolean;
+  createdAt?: string;
+  access: Principal[];
+  devices: { id: number; name: string; online: boolean; os: string }[];
+}
+
+export interface AccessRule {
+  id: number;
+  name: string;
+  protocol: "" | "tcp" | "udp" | "icmp";
+  ports: string;
+  enabled: boolean;
+  sources: Principal[];
+  destinations: Principal[];
+  updatedAt: string;
+  updatedBy: string;
+}
+
+export interface EnrollKey {
+  key: string;
+  expiration: string;
+  reusable: boolean;
+  ephemeral: boolean;
+  tag: string;
+  serverUrl: string;
 }
 
 export interface AdminDevice {
@@ -136,7 +174,7 @@ export interface AdminGroup {
   id?: number;
   name: string;
   displayName: string;
-  source: "oidc" | "scim" | "google" | "policy";
+  source: "oidc" | "scim" | "google" | "policy" | "console";
   members: string[];
   memberIds: number[];
 }

@@ -1,116 +1,54 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { del, get, post, put, type AdminDevice, type AdminGroup, type AdminUser, type DeviceGrant } from "../api";
+import { del, get, post, put, type AdminDevice, type Principal, type ServerTag } from "../api";
 import { useCanEdit } from "../App";
-import { Badge, Button, ChipInput, Confirm, Empty, ErrorBox, Modal, PageHeader, SearchBox, Spinner, dateTime, timeAgo, useAsync, useToast } from "../components/ui";
+import { PrincipalPicker } from "../components/principals";
+import { Badge, Button, ChipInput, Confirm, Empty, ErrorBox, Field, Icon, Modal, PageHeader, SearchBox, Segmented, Spinner, dateTime, timeAgo, useAsync, useToast } from "../components/ui";
 
 function Status({ d }: { d: AdminDevice }) {
   if (d.expired) return <Badge tone="red">Expired</Badge>;
   return d.online ? <Badge tone="green">Online</Badge> : <Badge>Offline</Badge>;
 }
 
-type Option = { key: string; kind: DeviceGrant["kind"]; principal: string; label: string; sub: string };
-
 function AccessEditor({ device, onSaved }: { device: AdminDevice; onSaved: () => void }) {
   const canEdit = useCanEdit();
   const toast = useToast();
-  const users = useAsync(() => get<AdminUser[]>("/admin/api/users"));
-  const groups = useAsync(() => get<AdminGroup[]>("/admin/api/groups"));
-  const [selected, setSelected] = useState<DeviceGrant[]>(device.access);
-  const [filter, setFilter] = useState("");
+  const [selected, setSelected] = useState<Principal[]>(device.access);
   const [busy, setBusy] = useState(false);
-
-  const options: Option[] = useMemo(() => {
-    const out: Option[] = [];
-    for (const g of groups.data ?? []) {
-      if (g.source === "policy") {
-        out.push({ key: `policy_group:${g.name}`, kind: "policy_group", principal: g.name, label: `group:${g.name}`, sub: `policy group · ${g.members.length} member${g.members.length === 1 ? "" : "s"}` });
-      } else if (g.id) {
-        out.push({ key: `directory_group:${g.id}`, kind: "directory_group", principal: String(g.id), label: `group:${g.name}`, sub: `${g.source.toUpperCase()} group · ${g.members.length} member${g.members.length === 1 ? "" : "s"}` });
-      }
-    }
-    for (const u of users.data ?? []) {
-      if (u.disabled) continue;
-      out.push({ key: `user:${u.id}`, kind: "user", principal: String(u.id), label: u.email || u.name, sub: u.displayName || "user" });
-    }
-    return out;
-  }, [users.data, groups.data]);
-
-  const isSel = (o: { kind: string; principal: string }) => selected.some((s) => s.kind === o.kind && s.principal === o.principal);
-  const toggle = (o: Option) =>
-    setSelected((cur) => (isSel(o) ? cur.filter((s) => !(s.kind === o.kind && s.principal === o.principal)) : [...cur, { kind: o.kind, principal: o.principal, label: o.label }]));
-
   const dirty = JSON.stringify([...selected].map((s) => s.kind + s.principal).sort()) !== JSON.stringify([...device.access].map((s) => s.kind + s.principal).sort());
-  const needle = filter.trim().toLowerCase();
-  const shown = options.filter((o) => !needle || o.label.toLowerCase().includes(needle) || o.sub.toLowerCase().includes(needle));
 
   return (
     <section className="drawer-section">
-      <h3>Who can access this device</h3>
+      <h3>Who can reach this device</h3>
       <p className="muted small">
-        With device restriction on, a device is visible only to its owner and to the users and groups below. Group membership follows your identity provider.
+        With access control on, a device is visible only to its owner{device.owner === "tagged" ? ", the people its tags allow," : ""} and the people and groups below. Group membership follows your identity provider.
       </p>
-      <div className="chip-row">
-        {selected.length ? (
-          selected.map((s) => (
-            <span className="chip" key={s.kind + s.principal}>
-              {s.label}
-              {canEdit && (
-                <button type="button" aria-label={`Remove ${s.label}`} onClick={() => setSelected((c) => c.filter((x) => !(x.kind === s.kind && x.principal === s.principal)))}>
-                  ×
-                </button>
-              )}
-            </span>
-          ))
-        ) : (
-          <span className="muted">Only the owner{device.owner === "tagged" ? " (none: tagged device)" : ""}.</span>
-        )}
-      </div>
+      <PrincipalPicker kinds={["directory_group", "policy_group", "user"]} value={selected} onChange={setSelected} disabled={!canEdit} placeholder="Search people and groups" height={220} />
       {canEdit && (
-        <>
-          <input className="search mt" type="search" placeholder="Find a user or group" value={filter} onChange={(e) => setFilter(e.target.value)} />
-          <div className="picker">
-            {users.loading || groups.loading ? (
-              <Spinner />
-            ) : shown.length === 0 ? (
-              <div className="muted pad">Nothing matches.</div>
-            ) : (
-              shown.map((o) => (
-                <label key={o.key} className="picker-row">
-                  <input type="checkbox" checked={isSel(o)} onChange={() => toggle(o)} />
-                  <span>
-                    <span>{o.label}</span>
-                    <span className="muted small"> · {o.sub}</span>
-                  </span>
-                </label>
-              ))
-            )}
-          </div>
-          <div className="row-end">
-            <Button variant="ghost" disabled={!dirty} onClick={() => setSelected(device.access)}>
-              Reset
-            </Button>
-            <Button
-              variant="primary"
-              disabled={!dirty}
-              busy={busy}
-              onClick={async () => {
-                setBusy(true);
-                try {
-                  await put(`/admin/api/devices/${device.id}/access`, { access: selected.map(({ kind, principal }) => ({ kind, principal })) });
-                  toast.ok("Access updated");
-                  onSaved();
-                } catch (e) {
-                  toast.error(e);
-                } finally {
-                  setBusy(false);
-                }
-              }}
-            >
-              Save access
-            </Button>
-          </div>
-        </>
+        <div className="row-end">
+          <Button variant="ghost" disabled={!dirty} onClick={() => setSelected(device.access)}>
+            Reset
+          </Button>
+          <Button
+            variant="primary"
+            disabled={!dirty}
+            busy={busy}
+            onClick={async () => {
+              setBusy(true);
+              try {
+                await put(`/admin/api/devices/${device.id}/access`, { access: selected.map(({ kind, principal }) => ({ kind, principal })) });
+                toast.ok("Access updated");
+                onSaved();
+              } catch (e) {
+                toast.error(e);
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            Save access
+          </Button>
+        </div>
       )}
     </section>
   );
@@ -121,6 +59,7 @@ function DeviceDrawer({ device, onClose, onChanged }: { device: AdminDevice; onC
   const toast = useToast();
   const [name, setName] = useState(device.name);
   const [tags, setTags] = useState(device.tags);
+  const serverTags = useAsync(() => get<ServerTag[]>("/admin/api/tags"));
   const [routes, setRoutes] = useState(device.approvedRoutes);
   const [confirm, setConfirm] = useState<"expire" | "delete" | null>(null);
   const [busy, setBusy] = useState("");
@@ -148,7 +87,7 @@ function DeviceDrawer({ device, onClose, onChanged }: { device: AdminDevice; onC
           <Status d={device} />
         </div>
         <div>Owner</div>
-        <div>{device.owner === "tagged" ? <Badge tone="violet">Tagged device</Badge> : device.owner}</div>
+        <div>{device.owner === "tagged" ? <Badge tone="violet">Server ({device.tags.join(", ")})</Badge> : device.owner}</div>
         <div>Addresses</div>
         <div className="mono">{device.ips.join(", ")}</div>
         <div>OS / client</div>
@@ -178,14 +117,17 @@ function DeviceDrawer({ device, onClose, onChanged }: { device: AdminDevice; onC
           </section>
 
           <section className="drawer-section">
-            <h3>Tags</h3>
+            <h3>Server tags</h3>
             <p className="muted small">
-              Tags must be owned in the policy (tagOwners). A tagged device belongs to its tags instead of a user. <Link to="/policy">Access policy</Link>
+              {device.owner === "tagged"
+                ? "This device is a server: it belongs to its tags, and each tag's access list on the Servers page says who can reach it."
+                : "Moving this device to a tag turns it into a server: it stops belonging to " + device.owner + " and gets the tag's access list."}{" "}
+              <Link to="/servers">Servers</Link>
             </p>
-            <ChipInput values={tags} onChange={setTags} placeholder="tag:server" validate={(v) => (v.startsWith("tag:") ? null : "Tags start with tag:")} />
+            <ChipInput values={tags} onChange={setTags} placeholder="tag:servers" suggestions={(serverTags.data ?? []).map((t) => t.name)} validate={(v) => ((serverTags.data ?? []).some((t) => t.name === v) ? null : `${v} is not a tag yet; create it on the Servers page`)} />
             <div className="row-end">
-              <Button disabled={JSON.stringify(tags) === JSON.stringify(device.tags)} busy={busy === "tags"} onClick={() => run("tags", () => post(`/api/v1/node/${device.id}/tags`, { tags }), "Tags updated")}>
-                Save tags
+              <Button disabled={!tags.length || JSON.stringify(tags) === JSON.stringify(device.tags)} busy={busy === "tags"} onClick={() => run("tags", () => post(`/api/v1/node/${device.id}/tags`, { tags }), device.owner === "tagged" ? "Tags updated" : "Moved to tag")}>
+                {device.owner === "tagged" ? "Save tags" : "Move to tag"}
               </Button>
             </div>
           </section>
@@ -254,10 +196,139 @@ function DeviceDrawer({ device, onClose, onChanged }: { device: AdminDevice; onC
   );
 }
 
+function BulkTags({ devices, onClose, onDone }: { devices: AdminDevice[]; onClose: () => void; onDone: () => void }) {
+  const toast = useToast();
+  const tags = useAsync(() => get<ServerTag[]>("/admin/api/tags"));
+  const [chosen, setChosen] = useState<string[]>([]);
+  const [busy, setBusy] = useState(false);
+  const personal = devices.filter((d) => d.owner !== "tagged");
+
+  return (
+    <Modal
+      title={`Move ${devices.length} device${devices.length === 1 ? "" : "s"} to a tag`}
+      onClose={onClose}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            busy={busy}
+            disabled={!chosen.length}
+            onClick={async () => {
+              setBusy(true);
+              try {
+                await post("/admin/api/devices/bulk", { ids: devices.map((d) => d.id), action: "set_tags", tags: chosen });
+                toast.ok(`Moved ${devices.length} device${devices.length === 1 ? "" : "s"} to ${chosen.join(", ")}`);
+                onDone();
+                onClose();
+              } catch (e) {
+                toast.error(e);
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            Move
+          </Button>
+        </>
+      }
+    >
+      {tags.loading ? (
+        <Spinner />
+      ) : !tags.data?.length ? (
+        <div className="callout callout-info">
+          <span>
+            There are no tags yet. <Link to="/servers">Create one on the Servers page</Link> first.
+          </span>
+        </div>
+      ) : (
+        <>
+          <div className="choice-grid">
+            {tags.data.map((t) => (
+              <button key={t.name} type="button" className={`choice ${chosen.includes(t.name) ? "active" : ""}`} onClick={() => setChosen((c) => (c.includes(t.name) ? c.filter((x) => x !== t.name) : [...c, t.name]))}>
+                <b>{t.name}</b>
+                <span className="muted small">{t.description || `${t.devices.length} server${t.devices.length === 1 ? "" : "s"}`}</span>
+              </button>
+            ))}
+          </div>
+          {personal.length > 0 && (
+            <div className="callout callout-warn mt">
+              <span>
+                {personal.length} of these belong to a person ({Array.from(new Set(personal.map((d) => d.owner))).join(", ")}). After moving they become servers owned by the tag, and the person no longer owns them. Use this for shared machines that were set up with someone's account.
+              </span>
+            </div>
+          )}
+        </>
+      )}
+    </Modal>
+  );
+}
+
+function BulkAccess({ devices, onClose, onDone }: { devices: AdminDevice[]; onClose: () => void; onDone: () => void }) {
+  const toast = useToast();
+  const [who, setWho] = useState<Principal[]>([]);
+  const [mode, setMode] = useState<"add_access" | "set_access">("add_access");
+  const [busy, setBusy] = useState(false);
+
+  return (
+    <Modal
+      title={`Share ${devices.length} device${devices.length === 1 ? "" : "s"}`}
+      onClose={onClose}
+      wide
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            busy={busy}
+            disabled={mode === "add_access" && !who.length}
+            onClick={async () => {
+              setBusy(true);
+              try {
+                await post("/admin/api/devices/bulk", { ids: devices.map((d) => d.id), action: mode, access: who.map(({ kind, principal }) => ({ kind, principal })) });
+                toast.ok("Access updated");
+                onDone();
+                onClose();
+              } catch (e) {
+                toast.error(e);
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            {mode === "add_access" ? "Give access" : "Replace access"}
+          </Button>
+        </>
+      }
+    >
+      <Field label="Change">
+        <Segmented
+          value={mode}
+          options={[
+            { value: "add_access", label: "Add to current access" },
+            { value: "set_access", label: "Replace current access" },
+          ]}
+          onChange={setMode}
+        />
+      </Field>
+      <Field label="People and groups" hint="They can see and connect to the selected devices. Group membership follows your identity provider.">
+        <PrincipalPicker kinds={["directory_group", "policy_group", "user"]} value={who} onChange={setWho} height={260} />
+      </Field>
+    </Modal>
+  );
+}
+
 export default function DevicesPage() {
   const { data, error, loading, reload } = useAsync(() => get<AdminDevice[]>("/admin/api/devices"));
   const [q, setQ] = useState("");
   const [openId, setOpenId] = useState<number | null>(null);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [bulk, setBulk] = useState<"tags" | "access" | null>(null);
+  const canEdit = useCanEdit();
 
   const rows = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -270,7 +341,7 @@ export default function DevicesPage() {
 
   return (
     <>
-      <PageHeader title="Devices" description="Every machine on the network. Open a device to choose who can access it." />
+      <PageHeader title="Devices" description="Every machine on the network. Open a device to choose who can reach it, or select several to share them or move them to a server tag." />
       <div className="toolbar">
         <SearchBox value={q} onChange={setQ} placeholder="Search name, owner, address, tag or grantee" />
       </div>
@@ -284,6 +355,11 @@ export default function DevicesPage() {
           <table>
             <thead>
               <tr>
+                {canEdit && (
+                  <th className="check">
+                    <input type="checkbox" aria-label="Select all" checked={rows.length > 0 && rows.every((d) => selected.has(d.id))} onChange={(e) => setSelected(e.target.checked ? new Set(rows.map((d) => d.id)) : new Set())} />
+                  </th>
+                )}
                 <th>Device</th>
                 <th>Owner</th>
                 <th>Address</th>
@@ -294,7 +370,24 @@ export default function DevicesPage() {
             </thead>
             <tbody>
               {rows.map((d) => (
-                <tr key={d.id} className="row-click" onClick={() => setOpenId(d.id)} tabIndex={0} onKeyDown={(e) => e.key === "Enter" && setOpenId(d.id)}>
+                <tr key={d.id} className={`row-click ${selected.has(d.id) ? "row-selected" : ""}`} onClick={() => setOpenId(d.id)} tabIndex={0} onKeyDown={(e) => e.key === "Enter" && setOpenId(d.id)}>
+                  {canEdit && (
+                    <td className="check" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        aria-label={`Select ${d.name}`}
+                        checked={selected.has(d.id)}
+                        onChange={(e) =>
+                          setSelected((cur) => {
+                            const next = new Set(cur);
+                            if (e.target.checked) next.add(d.id);
+                            else next.delete(d.id);
+                            return next;
+                          })
+                        }
+                      />
+                    </td>
+                  )}
                   <td>
                     <div>{d.name}</div>
                     <div className="muted small">
@@ -303,7 +396,7 @@ export default function DevicesPage() {
                       {d.announcedRoutes.length > d.approvedRoutes.length && <Badge tone="amber">routes pending</Badge>}
                     </div>
                   </td>
-                  <td>{d.owner === "tagged" ? <Badge tone="violet">tagged</Badge> : d.owner}</td>
+                  <td>{d.owner === "tagged" ? <Badge tone="violet">server</Badge> : d.owner}</td>
                   <td className="mono small">{d.ips[0]}</td>
                   <td>
                     <div className="chip-row">
@@ -321,6 +414,28 @@ export default function DevicesPage() {
           </table>
         </div>
       )}
+      {selected.size > 0 && (
+        <div className="bulkbar">
+          <b>{selected.size} selected</b>
+          <Button onClick={() => setBulk("access")}>
+            <Icon name="users" /> Share…
+          </Button>
+          <Button onClick={() => setBulk("tags")}>
+            <Icon name="tag" /> Move to tag…
+          </Button>
+          <Button variant="ghost" onClick={() => setSelected(new Set())}>
+            Clear
+          </Button>
+        </div>
+      )}
+      {bulk && (() => {
+        const chosen = (data ?? []).filter((d) => selected.has(d.id));
+        const done = () => {
+          setSelected(new Set());
+          void reload();
+        };
+        return bulk === "tags" ? <BulkTags devices={chosen} onClose={() => setBulk(null)} onDone={done} /> : <BulkAccess devices={chosen} onClose={() => setBulk(null)} onDone={done} />;
+      })()}
       {open && <DeviceDrawer device={open} onClose={() => setOpenId(null)} onChanged={reload} />}
     </>
   );

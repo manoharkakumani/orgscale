@@ -11,9 +11,11 @@ browser at `https://<your server>/admin/`.
 |---|---|
 | **Sign-in** | Users and admins sign in with your identity provider (any OpenID Connect provider: Google, Microsoft Entra ID, Okta, Keycloak, Authentik, …). Users are created on first sign-in; nobody creates accounts by hand. |
 | **Who can join** | Allowed email domains, people and IdP groups, edited in **Settings → Who can sign in**. Stored in the database; no restart. |
-| **Device visibility** | With **device restriction** on, each person's Tailscale client shows only their own devices and the devices assigned to them. |
-| **Device access** | On **Devices**, open a device and pick the users and groups who may reach it. Groups follow your identity provider. |
-| **Groups** | IdP groups arrive through SCIM, Google Workspace sync, or the `groups` claim at sign-in. They are usable for device access and in the policy as `group:<name>`. |
+| **Access control** | With **access control** on (**Access** page), each person sees only their own devices and whatever they have been given. People never see each other's devices. |
+| **Access rules** | Point-and-click rules: *who* (people, groups, server tags, devices, everyone) *can reach* what, on which ports. No policy JSON. |
+| **Servers** | Servers, VMs and containers join with a one-line install command and belong to a **tag** instead of a person. Each tag has an access list; servers can be allowed to reach each other or other tags. |
+| **Device access** | On **Devices**, open a device and pick the users and groups who may reach it, or select several devices to share them or move them to a tag at once. |
+| **Groups** | Make groups on the **Groups** page, or bring them from your IdP through SCIM, Google Workspace sync, or the `groups` claim at sign-in. |
 | **Offboarding** | Deactivating or deleting someone in your IdP (SCIM), or suspending them in Google Workspace, removes the user, their devices, personal keys and access grants. **Disable** in the console does the same but keeps the user so they can be re-enabled. |
 | **Roles** | Admins change everything; viewers have read-only access. Set by email or IdP group. |
 | **Audit log** | Every change from the console, the API (with the API key prefix), SCIM and directory sync, with who made it. |
@@ -53,36 +55,56 @@ Anything set in the configuration file (`oidc.allowed_*`, `admin.users`,
 `admin.groups`) still applies. Sign-in rules saved in the console replace the
 file's rules; admin and viewer lists from the console are added to the file's.
 
-## Device restriction and assignments
+## Access
 
-1. **Settings → Device visibility**: turn restriction on. From now on a device
-   is visible only to its owner and its grantees.
-2. **Devices**: open a shared machine (a server, a NAS, a jump host) and select
-   the users and groups who need it, then **Save access**.
+Open **Access** and turn on **access control**. From then on:
 
-orgscale turns this into access rules: everyone can reach their own devices
-(`autogroup:member` → `autogroup:self`), and each assigned device gets a rule
-letting its grantees reach it. Tailscale clients only list peers they are
-allowed to talk to, so users see exactly their own and assigned devices.
+- everyone reaches their own devices (a person's laptop and phone see each
+  other), and nobody sees anyone else's devices;
+- servers are reached only as their tag's access list and the rules allow;
+- shared devices are reached by the people and groups picked on **Devices**.
 
-The rules are merged into the policy you write on **Access policy** at compile
-time; your policy is stored as written. **Show the effective policy** on that
-page displays the merged result. Rules you write still apply on top, e.g. to
-open specific ports to a group. A rule letting everyone reach everything
-(`"src": ["*"]`, `"dst": ["*:*"]`) defeats restriction; the console warns
-about it.
+Before access control is on, everyone can reach everything (the Tailscale
+default).
 
-A device grant names the device by its addresses. Deleting a device drops its
-rule immediately, before its address can be reused.
+### Servers and tags
+
+1. **Servers → New tag**: name it (e.g. `databases`) and choose who can reach
+   these servers: people, groups, other tags, or the tag itself so its
+   servers reach each other.
+2. **Add server**: pick the tag, whether the command is for one server,
+   several, or short-lived containers, and how long it stays valid (1 hour to
+   360 days). Run the command it shows (Linux, Docker, Windows or macOS). The
+   server joins as the tag, owned by no person.
+
+A machine already added with someone's account (a shared box, a VM set up
+with an admin's login) can be turned into a server: select it on **Devices**
+and choose **Move to tag**. It stops belonging to that person.
+
+### Rules
+
+**Access → New rule**: choose *who*, *can reach* and *on* (everything, SSH,
+web, Remote Desktop, PostgreSQL, MySQL, ping, or custom ports). Examples:
+
+| Need | Who | Can reach | On |
+|---|---|---|---|
+| Web servers talk to databases | `tag:web` | `tag:databases` | PostgreSQL |
+| Engineers SSH into staging | group Engineering | `tag:staging` | SSH |
+| Support uses one kiosk | group Support | device `kiosk-1` | Everything |
+
+Rules can be paused and resumed. Every change is in the audit log.
+
+### Advanced: policy file
+
+**Access → Advanced: policy file** keeps the Tailscale policy editor for
+experts. Anything written there applies in addition to the console's rules;
+nobody needs it for everyday work. A rule there letting everyone reach
+everything (`"src": ["*"]`, `"dst": ["*:*"]`) defeats access control; the
+console warns about it.
 
 Visibility is two-way: if a group may reach a server, the server also lists
 the group's devices as peers (it can't open connections to them unless a rule
 allows it).
-
-Directory group names are unique. Two IdP groups whose names normalize to the
-same name (e.g. "Eng Team" from SCIM and "eng-team" from sign-in claims) get
-`group:eng-team` and `group:eng-team-oidc`; check the Groups page for the
-exact names before writing them into the policy.
 
 ## Directory sync
 
@@ -165,3 +187,6 @@ make admin-ui      # from the repository root: build into hscontrol/adminui/dist
 ```
 
 The built files are committed so `go build` works without Node.js.
+
+The console follows the system's light or dark appearance; the switch in the
+top bar overrides it per browser.

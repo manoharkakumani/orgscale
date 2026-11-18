@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { get, post, type AdminUser, type ApiKey, type PreAuthKey } from "../api";
+import { get, post, type AdminUser, type ApiKey, type PreAuthKey, type ServerTag } from "../api";
 import { useCanEdit } from "../App";
 import { Badge, Button, ChipInput, CopyText, Empty, ErrorBox, Field, Modal, PageHeader, Spinner, dateTime, timeAgo, useAsync, useToast } from "../components/ui";
 
@@ -13,6 +13,7 @@ function isExpired(iso: string | null): boolean {
 
 function NewAuthKey({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
   const users = useAsync(() => get<AdminUser[]>("/admin/api/users"));
+  const serverTags = useAsync(() => get<ServerTag[]>("/admin/api/tags"));
   const toast = useToast();
   const [owner, setOwner] = useState<"tags" | string>("tags");
   const [tags, setTags] = useState<string[]>([]);
@@ -71,7 +72,7 @@ function NewAuthKey({ onClose, onDone }: { onClose: () => void; onDone: () => vo
       }
     >
       <p className="muted">Auth keys add machines without an interactive sign-in: servers, containers, CI runners.</p>
-      <Field label="Devices belong to" hint="Servers usually belong to tags; tags must be owned in the policy (tagOwners).">
+      <Field label="Devices belong to" hint="Servers usually belong to a tag. Create tags on the Servers page; its Add server button makes a key for you.">
         <select value={owner} onChange={(e) => setOwner(e.target.value)}>
           <option value="tags">Tags (recommended for servers)</option>
           {(users.data ?? [])
@@ -84,7 +85,7 @@ function NewAuthKey({ onClose, onDone }: { onClose: () => void; onDone: () => vo
         </select>
       </Field>
       <Field label="Tags">
-        <ChipInput values={tags} onChange={setTags} placeholder="tag:server" validate={(v) => (v.startsWith("tag:") ? null : "Tags start with tag:")} />
+        <ChipInput values={tags} onChange={setTags} placeholder={serverTags.data?.[0]?.name ?? "tag:server"} suggestions={(serverTags.data ?? []).map((t) => t.name)} validate={(v) => ((serverTags.data ?? []).some((t) => t.name === v) ? null : `${v} is not a tag yet; create it on the Servers page`)} />
       </Field>
       <div className="check-row">
         <label>
@@ -96,7 +97,7 @@ function NewAuthKey({ onClose, onDone }: { onClose: () => void; onDone: () => vo
       </div>
       <Field label="Expires in">
         <select value={days} onChange={(e) => setDays(Number(e.target.value))}>
-          {[1, 7, 30, 90].map((d) => (
+          {[1, 7, 30, 90, 180, 360].map((d) => (
             <option key={d} value={d}>
               {d} day{d === 1 ? "" : "s"}
             </option>
@@ -154,7 +155,7 @@ function NewApiKey({ onClose, onDone }: { onClose: () => void; onDone: () => voi
       <p className="muted">API keys are for scripts, Terraform and the orgscale CLI on another machine. They have full admin access.</p>
       <Field label="Expires in">
         <select value={days} onChange={(e) => setDays(Number(e.target.value))}>
-          {[7, 30, 90, 365].map((d) => (
+          {[7, 30, 90, 180, 360].map((d) => (
             <option key={d} value={d}>
               {d} days
             </option>

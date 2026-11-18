@@ -1,22 +1,18 @@
 import { useEffect, useState } from "react";
 import { get, post, put, type PolicyInfo } from "../api";
 import { useCanEdit } from "../App";
-import { Button, ErrorBox, PageHeader, Spinner, useAsync, useToast } from "../components/ui";
+import { Button, ErrorBox, Spinner, useAsync, useToast } from "../components/ui";
 
 const starter = `{
-  // Groups from your identity provider are available as group:<name>
-  // (see the Groups page) without listing them here.
-  "acls": [
-    // Example: let the engineering group reach staging servers on SSH and HTTPS.
-    // {"action": "accept", "src": ["group:engineering"], "dst": ["tag:staging:22,443"]},
-  ],
-  "tagOwners": {
-    // "tag:server": ["group:it-admins"],
-  },
+  // Optional. Groups, server tags and the rules from the Access page are
+  // added automatically; anything written here applies on top of them.
+  "acls": [],
 }
 `;
 
-export default function PolicyPage() {
+// PolicyEditor edits the hand-written policy file. It sits under "Advanced"
+// on the Access page: the console's rules cover everyday needs.
+export function PolicyEditor() {
   const canEdit = useCanEdit();
   const toast = useToast();
   const { data, error, loading, reload } = useAsync(() => get<PolicyInfo>("/admin/api/policy"));
@@ -64,22 +60,16 @@ export default function PolicyPage() {
 
   return (
     <>
-      <PageHeader
-        title="Access policy"
-        description="Rules for who can reach what, in Tailscale's policy format (HuJSON: JSON with comments and trailing commas). Device assignments and IdP groups are added automatically; you don't need to write them here."
-        actions={
-          editable && (
-            <>
-              <Button onClick={validate} busy={busy === "check"}>
-                Validate
-              </Button>
-              <Button variant="primary" onClick={save} busy={busy === "save"} disabled={!dirty}>
-                Save
-              </Button>
-            </>
-          )
-        }
-      />
+      {editable && (
+        <div className="row-end" style={{ marginTop: 0, marginBottom: 10 }}>
+          <Button onClick={validate} busy={busy === "check"}>
+            Validate
+          </Button>
+          <Button variant="primary" onClick={save} busy={busy === "save"} disabled={!dirty}>
+            Save policy file
+          </Button>
+        </div>
+      )}
 
       {!data.editable && (
         <div className="callout callout-warn">
@@ -88,7 +78,7 @@ export default function PolicyPage() {
       )}
       {data.allowsEverything && (
         <div className="callout callout-warn">
-          This policy has a rule letting everyone reach everything (<code>"src": ["*"]</code> to <code>"*:*"</code>). Device restriction can't narrow that; remove the rule to use device assignments.
+          This policy has a rule letting everyone reach everything (<code>"src": ["*"]</code> to <code>"*:*"</code>). Access control can't narrow that; remove the rule so the console's rules take effect.
         </div>
       )}
       {check && <div className={`callout ${check.ok ? "callout-ok" : "callout-error"}`}>{check.msg}</div>}

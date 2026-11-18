@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { del, get, post, put, type GoogleSyncSettings, type GoogleSyncStatus, type ListSetting, type Settings } from "../api";
 import { useCanEdit } from "../App";
-import { Badge, Button, ChipInput, Confirm, CopyText, ErrorBox, Field, Modal, PageHeader, Spinner, Toggle, dateTime, timeAgo, useAsync, useToast } from "../components/ui";
+import { Badge, Button, ChipInput, Confirm, CopyText, ErrorBox, Group, Icon, Modal, PRow, PageHeader, Spinner, Toggle, dateTime, timeAgo, useAsync, useToast } from "../components/ui";
 
 const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const domainRe = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/i;
@@ -39,14 +40,14 @@ function Rule({
   disabled: boolean;
 }) {
   return (
-    <Field label={label} hint={hint}>
+    <PRow label={label} sub={hint} block>
       <ChipInput values={state.useConfig ? setting.config : state.values} onChange={(values) => onChange({ ...state, values })} disabled={disabled || state.useConfig} placeholder={placeholder} validate={validate} />
       {setting.config.length > 0 && (
-        <label className="small muted mt-xs">
+        <label className="small muted check-row">
           <input type="checkbox" checked={state.useConfig} disabled={disabled} onChange={(e) => onChange({ useConfig: e.target.checked, values: setting.config })} /> Use the configuration file's list
         </label>
       )}
-    </Field>
+    </PRow>
   );
 }
 
@@ -62,17 +63,15 @@ function LoginRules({ s, onSaved }: { s: Settings; onSaved: (s: Settings) => voi
   const nobody = !domains.useConfig && !users.useConfig && !groups.useConfig && !domains.values.length && !users.values.length && !groups.values.length;
 
   return (
-    <section className="card section">
-      <h2>Who can sign in</h2>
-      <p className="muted">
-        People must pass every rule that has entries. Leave all three empty to admit anyone your identity provider signs in. Changes apply to the next sign-in; to cut off someone already signed in, disable them on the Users page.
-      </p>
+    <>
+      <Group note="People must pass every rule that has entries. Changes apply from the next sign-in; to cut off someone already connected, disable them on the Users page.">
       <Rule label="Email domains" hint="e.g. example.com. Only these domains may join." setting={s.sso.allowedDomains} state={domains} onChange={setDomains} placeholder="example.com" validate={validDomain} disabled={!canEdit} />
       <Rule label="Individual people" hint="Only these email addresses may join." setting={s.sso.allowedUsers} state={users} onChange={setUsers} placeholder="alice@example.com" validate={validEmail} disabled={!canEdit} />
       <Rule label="Identity provider groups" hint="Only members of at least one of these groups may join. Needs your IdP to send a groups claim." setting={s.sso.allowedGroups} state={groups} onChange={setGroups} placeholder="vpn-users" disabled={!canEdit} />
-      {nobody && <div className="callout callout-warn">No rules: anyone who can sign in to your identity provider can join.</div>}
+      </Group>
+      {nobody && <div className="callout callout-warn mt">No rules: anyone who can sign in to your identity provider can join.</div>}
       {canEdit && (
-        <div className="row-end">
+        <div className="savebar">
           <Button
             variant="primary"
             busy={busy}
@@ -93,11 +92,11 @@ function LoginRules({ s, onSaved }: { s: Settings; onSaved: (s: Settings) => voi
               }
             }}
           >
-            Save sign-in rules
+            Save
           </Button>
         </div>
       )}
-    </section>
+    </>
   );
 }
 
@@ -105,7 +104,7 @@ function LoginRules({ s, onSaved }: { s: Settings; onSaved: (s: Settings) => voi
 
 function RoleList({ label, hint, s, values, onChange, validate, placeholder, disabled }: { label: string; hint: string; s: ListSetting; values: string[]; onChange: (v: string[]) => void; validate?: (v: string) => string | null; placeholder: string; disabled: boolean }) {
   return (
-    <Field label={label} hint={hint}>
+    <PRow label={label} sub={hint} block>
       {s.config.length > 0 && (
         <div className="chip-row mb-xs">
           {s.config.map((v) => (
@@ -116,7 +115,7 @@ function RoleList({ label, hint, s, values, onChange, validate, placeholder, dis
         </div>
       )}
       <ChipInput values={values} onChange={onChange} validate={validate} placeholder={placeholder} disabled={disabled} />
-    </Field>
+    </PRow>
   );
 }
 
@@ -130,15 +129,17 @@ function Roles({ s, onSaved }: { s: Settings; onSaved: (s: Settings) => void }) 
   const [busy, setBusy] = useState(false);
 
   return (
-    <section className="card section">
-      <h2>Console access</h2>
-      <p className="muted">Who can use this console. Admins can change everything; viewers can look but not change anything. Entries from the configuration file always apply and can only be changed there.</p>
-      <RoleList label="Admins (people)" hint="Email addresses." s={s.roles.adminUsers} values={adminUsers} onChange={setAdminUsers} validate={validEmail} placeholder="alice@example.com" disabled={!canEdit} />
-      <RoleList label="Admins (groups)" hint="Identity provider groups whose members are admins." s={s.roles.adminGroups} values={adminGroups} onChange={setAdminGroups} placeholder="it-admins" disabled={!canEdit} />
-      <RoleList label="Viewers (people)" hint="Read-only access." s={s.roles.viewerUsers} values={viewerUsers} onChange={setViewerUsers} validate={validEmail} placeholder="auditor@example.com" disabled={!canEdit} />
-      <RoleList label="Viewers (groups)" hint="Read-only access for members of these groups." s={s.roles.viewerGroups} values={viewerGroups} onChange={setViewerGroups} placeholder="security" disabled={!canEdit} />
+    <>
+      <Group title="Administrators" note="Admins can change everything.">
+      <RoleList label="People" hint="Email addresses." s={s.roles.adminUsers} values={adminUsers} onChange={setAdminUsers} validate={validEmail} placeholder="alice@example.com" disabled={!canEdit} />
+      <RoleList label="Groups" hint="Identity provider groups whose members are admins." s={s.roles.adminGroups} values={adminGroups} onChange={setAdminGroups} placeholder="it-admins" disabled={!canEdit} />
+      </Group>
+      <Group title="Viewers" note="Viewers can look at everything but change nothing. Entries marked config come from the configuration file and can only be changed there.">
+      <RoleList label="People" hint="Read-only access." s={s.roles.viewerUsers} values={viewerUsers} onChange={setViewerUsers} validate={validEmail} placeholder="auditor@example.com" disabled={!canEdit} />
+      <RoleList label="Groups" hint="Read-only access for members of these groups." s={s.roles.viewerGroups} values={viewerGroups} onChange={setViewerGroups} placeholder="security" disabled={!canEdit} />
+      </Group>
       {canEdit && (
-        <div className="row-end">
+        <div className="savebar">
           <Button
             variant="primary"
             busy={busy}
@@ -155,44 +156,11 @@ function Roles({ s, onSaved }: { s: Settings; onSaved: (s: Settings) => void }) 
               }
             }}
           >
-            Save console access
+            Save
           </Button>
         </div>
       )}
-    </section>
-  );
-}
-
-// ---------- device visibility ----------
-
-function Visibility({ s, onChanged }: { s: Settings; onChanged: () => void }) {
-  const canEdit = useCanEdit();
-  const toast = useToast();
-  const [busy, setBusy] = useState(false);
-  return (
-    <section className="card section" id="visibility">
-      <h2>Device visibility</h2>
-      <p className="muted">
-        When restricted, each person's Tailscale client only shows their own devices and the devices assigned to them on the Devices page, directly or through a group. Rules you write in the access policy still apply on top.
-      </p>
-      <Toggle
-        checked={s.deviceRestriction}
-        disabled={!canEdit || busy}
-        label={s.deviceRestriction ? "Restricted: own and assigned devices only" : "Open: everyone sees every device"}
-        onChange={async (enabled) => {
-          setBusy(true);
-          try {
-            await put("/admin/api/settings/device-restriction", { enabled });
-            toast.ok(enabled ? "Device visibility restricted" : "Device visibility opened");
-            onChanged();
-          } catch (e) {
-            toast.error(e);
-          } finally {
-            setBusy(false);
-          }
-        }}
-      />
-    </section>
+    </>
   );
 }
 
@@ -219,31 +187,27 @@ function SCIM({ s, onChanged }: { s: Settings; onChanged: () => void }) {
   };
 
   return (
-    <div className="subsection">
-      <div className="section-head">
-        <h3>
-          SCIM provisioning {s.scim.enabled ? <Badge tone="green">On</Badge> : <Badge>Off</Badge>}
-        </h3>
-      </div>
-      <p className="muted">For Okta, Microsoft Entra ID, OneLogin, JumpCloud and Authentik. Your identity provider pushes users and groups here; deactivating or deleting someone there removes them, their devices and their access here within minutes.</p>
-      <Field label="SCIM base URL (tenant URL)">
-        <CopyText value={s.scim.baseUrl} />
-      </Field>
-      {s.scim.enabled && <p className="small muted">Token created {timeAgo(s.scim.createdAt)}.</p>}
-      {canEdit && (
-        <div className="row">
-          <Button variant={s.scim.enabled ? "secondary" : "primary"} busy={busy} onClick={create}>
-            {s.scim.enabled ? "Rotate token" : "Turn on and create token"}
-          </Button>
-          {s.scim.enabled && (
+    <div>
+      <Group>
+        <PRow label="SCIM provisioning" sub={s.scim.enabled ? `On · token created ${timeAgo(s.scim.createdAt)}` : "Off"}>
+          {s.scim.enabled ? <Badge tone="green">On</Badge> : <Badge>Off</Badge>}
+          {canEdit && (
+            <Button variant={s.scim.enabled ? "secondary" : "primary"} busy={busy} onClick={create}>
+              {s.scim.enabled ? "Rotate token" : "Turn on"}
+            </Button>
+          )}
+          {canEdit && s.scim.enabled && (
             <Button variant="ghost" className="text-danger" onClick={() => setConfirmRevoke(true)}>
               Turn off
             </Button>
           )}
-        </div>
-      )}
-      <details className="mt">
-        <summary>Setup steps</summary>
+        </PRow>
+        <PRow label="SCIM base URL" sub="Also called tenant URL or connector base URL." block>
+          <CopyText value={s.scim.baseUrl} />
+        </PRow>
+      </Group>
+      <details className="disclosure">
+        <summary>Setup steps for Okta, Entra ID and Authentik</summary>
         <ul className="small">
           <li>
             <b>Okta</b>: Applications → your orgscale app → General → enable SCIM provisioning. Provisioning → Integration: SCIM connector base URL above, unique identifier <code>userName</code>, push new users, profile updates and groups, auth mode <i>HTTP Header</i> with the token. Then To App: enable Create, Update and Deactivate Users.
@@ -284,15 +248,15 @@ function SCIM({ s, onChanged }: { s: Settings; onChanged: () => void }) {
 // ---------- Google Workspace ----------
 
 function SyncStatus({ status }: { status: GoogleSyncStatus }) {
-  if (!status?.lastRun || status.lastRun.startsWith("0001")) return <p className="small muted">Never run.</p>;
+  if (!status?.lastRun || status.lastRun.startsWith("0001")) return <span className="muted">Never</span>;
   return status.ok ? (
-    <p className="small">
-      <Badge tone="green">OK</Badge> {timeAgo(status.lastRun)}: {status.users} users, {status.groups} groups, {status.created} added, {status.disabled} removed.
-    </p>
+    <span className="small">
+      <Badge tone="green">OK</Badge> {timeAgo(status.lastRun)} · {status.users} users, {status.groups} groups, {status.created} added, {status.disabled} removed
+    </span>
   ) : (
-    <div className="callout callout-error small">
-      Failed {timeAgo(status.lastRun)} ({dateTime(status.lastRun)}): {status.error}
-    </div>
+    <span className="small text-danger" title={dateTime(status.lastRun)}>
+      Failed {timeAgo(status.lastRun)}: {status.error}
+    </span>
   );
 }
 
@@ -304,50 +268,29 @@ function Google({ s, onChanged }: { s: Settings; onChanged: () => void }) {
   const [busy, setBusy] = useState<"save" | "run" | "">("");
 
   return (
-    <div className="subsection">
-      <div className="section-head">
-        <h3>Google Workspace sync {cur.enabled ? <Badge tone="green">On</Badge> : <Badge>Off</Badge>}</h3>
-      </div>
-      <p className="muted">
-        Google doesn't push changes to custom apps, so orgscale reads your directory on a schedule. Suspended, archived or deleted Workspace accounts are removed here with their devices. A run that would remove more than half of all users stops instead.
-      </p>
-      <Toggle checked={form.enabled} disabled={!canEdit} label="Sync from Google Workspace" onChange={(enabled) => setForm({ ...form, enabled })} />
-      <Field label="Service account key (JSON)" hint={s.googleSync.hasServiceAccount ? "A key is stored. Paste a new one to replace it." : "Create a service account, enable domain-wide delegation, and download a JSON key."}>
-        <textarea rows={3} className="mono small" placeholder={s.googleSync.hasServiceAccount ? "•••• stored ••••" : '{"type": "service_account", ...}'} value={form.serviceAccountJson} disabled={!canEdit} onChange={(e) => setForm({ ...form, serviceAccountJson: e.target.value })} />
-      </Field>
-      <div className="grid-2">
-        <Field label="Admin to impersonate" hint="A Workspace admin email; reads are made as this admin.">
-          <input value={form.adminEmail} disabled={!canEdit} onChange={(e) => setForm({ ...form, adminEmail: e.target.value })} placeholder="admin@example.com" />
-        </Field>
-        <Field label="Customer ID" hint="my_customer means the admin's own organization.">
-          <input value={form.customer} disabled={!canEdit} onChange={(e) => setForm({ ...form, customer: e.target.value })} />
-        </Field>
-      </div>
-      <Field label="Sync every (minutes)">
-        <input type="number" min={5} max={1440} value={form.intervalMinutes} disabled={!canEdit} onChange={(e) => setForm({ ...form, intervalMinutes: Number(e.target.value) })} />
-      </Field>
-      <SyncStatus status={s.googleSync.status} />
+    <div>
+      <Group note="A run that would remove more than 25 users, or more than half of all users, stops instead.">
+        <PRow label="Sync from Google Workspace" sub="Suspended, archived or deleted accounts are removed here with their devices.">
+          <Toggle checked={form.enabled} disabled={!canEdit} label="" onChange={(enabled) => setForm({ ...form, enabled })} />
+        </PRow>
+        <PRow label="Service account key" sub={s.googleSync.hasServiceAccount ? "A key is stored. Paste a new one to replace it." : "JSON key of a service account with domain-wide delegation."} block>
+          <textarea rows={3} className="mono small" placeholder={s.googleSync.hasServiceAccount ? "•••• stored ••••" : '{"type": "service_account", ...}'} value={form.serviceAccountJson} disabled={!canEdit} onChange={(e) => setForm({ ...form, serviceAccountJson: e.target.value })} />
+        </PRow>
+        <PRow label="Admin to impersonate" sub="Reads are made as this Workspace super admin.">
+          <input style={{ width: 260 }} value={form.adminEmail} disabled={!canEdit} onChange={(e) => setForm({ ...form, adminEmail: e.target.value })} placeholder="admin@example.com" />
+        </PRow>
+        <PRow label="Customer ID" sub="my_customer means the admin's own organization.">
+          <input style={{ width: 260 }} value={form.customer} disabled={!canEdit} onChange={(e) => setForm({ ...form, customer: e.target.value })} />
+        </PRow>
+        <PRow label="Sync every" sub="Minutes between runs.">
+          <input style={{ width: 90 }} type="number" min={5} max={1440} value={form.intervalMinutes} disabled={!canEdit} onChange={(e) => setForm({ ...form, intervalMinutes: Number(e.target.value) })} />
+        </PRow>
+        <PRow label="Last run">
+          <SyncStatus status={s.googleSync.status} />
+        </PRow>
+      </Group>
       {canEdit && (
-        <div className="row">
-          <Button
-            variant="primary"
-            busy={busy === "save"}
-            onClick={async () => {
-              setBusy("save");
-              try {
-                await put("/admin/api/settings/google-sync", form);
-                toast.ok("Google sync saved");
-                setForm({ ...form, serviceAccountJson: "" });
-                onChanged();
-              } catch (e) {
-                toast.error(e);
-              } finally {
-                setBusy("");
-              }
-            }}
-          >
-            Save
-          </Button>
+        <div className="savebar">
           <Button
             busy={busy === "run"}
             disabled={!cur.enabled}
@@ -367,9 +310,28 @@ function Google({ s, onChanged }: { s: Settings; onChanged: () => void }) {
           >
             Sync now
           </Button>
+          <Button
+            variant="primary"
+            busy={busy === "save"}
+            onClick={async () => {
+              setBusy("save");
+              try {
+                await put("/admin/api/settings/google-sync", form);
+                toast.ok("Google sync saved");
+                setForm({ ...form, serviceAccountJson: "" });
+                onChanged();
+              } catch (e) {
+                toast.error(e);
+              } finally {
+                setBusy("");
+              }
+            }}
+          >
+            Save
+          </Button>
         </div>
       )}
-      <details className="mt">
+      <details className="disclosure">
         <summary>Setup steps</summary>
         <ol className="small">
           <li>Google Cloud console: create a project, enable the <b>Admin SDK API</b>, create a service account and a JSON key.</li>
@@ -386,53 +348,98 @@ function Google({ s, onChanged }: { s: Settings; onChanged: () => void }) {
 
 // ---------- page ----------
 
+const sections = [
+  { id: "sso", label: "Single sign-on", tile: "tile-blue", icon: "sso", text: "Your identity provider and the redirect URLs to register with it." },
+  { id: "signin", label: "Who can sign in", tile: "tile-green", icon: "user", text: "Email domains, people and groups allowed to join the network." },
+  { id: "console", label: "Console access", tile: "tile-violet", icon: "key", text: "Who can use this console, as an admin or read-only." },
+  { id: "directory", label: "SCIM provisioning", tile: "tile-teal", icon: "link", text: "Okta, Microsoft Entra ID, OneLogin, JumpCloud and Authentik push users and groups here." },
+  { id: "google", label: "Google Workspace", tile: "tile-orange", icon: "sync", text: "Read users and groups from Google Workspace on a schedule." },
+] as const;
+
+type SectionId = (typeof sections)[number]["id"];
+
 export default function SettingsPage() {
   const { data, error, loading, reload, setData } = useAsync(() => get<Settings>("/admin/api/settings"));
-
-  useEffect(() => {
-    if (data && window.location.hash) document.getElementById(window.location.hash.slice(1))?.scrollIntoView();
-  }, [data]);
+  const [params, setParams] = useSearchParams();
+  const current = (sections.find((x) => x.id === params.get("section"))?.id ?? "sso") as SectionId;
+  const sec = sections.find((x) => x.id === current)!;
 
   if (loading && !data) return <Spinner />;
   if (error) return <ErrorBox error={error} onRetry={reload} />;
   if (!data) return null;
 
+  const status: Partial<Record<SectionId, string>> = {
+    directory: data.scim.enabled ? "On" : "Off",
+    google: data.googleSync.settings.enabled ? "On" : "Off",
+  };
+
   return (
     <>
-      <PageHeader title="Settings" description="Sign-in, console access, device visibility and directory sync. Changes here take effect without restarting orgscale." />
+      <PageHeader title="Settings" description="Changes take effect immediately, without restarting orgscale." />
+      <div className="split">
+        <nav className="split-nav" aria-label="Settings sections">
+          <div className="nav-group">Identity</div>
+          {sections.slice(0, 3).map((x) => (
+            <button key={x.id} className={current === x.id ? "active" : ""} onClick={() => setParams({ section: x.id })}>
+              <span className={`nav-tile ${x.tile}`}>
+                <Icon name={x.icon} />
+              </span>
+              {x.label}
+            </button>
+          ))}
+          <div className="nav-group">Directory sync</div>
+          {sections.slice(3).map((x) => (
+            <button key={x.id} className={current === x.id ? "active" : ""} onClick={() => setParams({ section: x.id })}>
+              <span className={`nav-tile ${x.tile}`}>
+                <Icon name={x.icon} />
+              </span>
+              <span className="grow">{x.label}</span>
+              <span className="small" style={{ opacity: 0.7 }}>
+                {status[x.id]}
+              </span>
+            </button>
+          ))}
+        </nav>
 
-      <section className="card section">
-        <h2>Single sign-on</h2>
-        {data.sso.issuer ? (
-          <>
-            <div className="kv">
-              <div>Identity provider</div>
-              <div className="mono">{data.sso.issuer}</div>
-              <div>Client ID</div>
-              <div className="mono">{data.sso.clientId}</div>
+        <div>
+          <div className="split-head">
+            <span className={`nav-tile ${sec.tile}`}>
+              <Icon name={sec.icon} />
+            </span>
+            <div>
+              <h2 style={{ margin: 0, fontSize: 17 }}>{sec.label}</h2>
+              <p className="muted">{sec.text}</p>
             </div>
-            <Field label="Redirect URLs to register with your identity provider">
-              {data.sso.redirectUrls.map((u) => (
-                <CopyText key={u} value={u} />
-              ))}
-            </Field>
-            <p className="small muted">The provider, client ID and secret are set in the configuration file (oidc.*).</p>
-          </>
-        ) : (
-          <div className="callout callout-warn">No identity provider is configured. Set oidc.issuer, oidc.client_id and oidc.client_secret in the configuration file.</div>
-        )}
-      </section>
+          </div>
 
-      <LoginRules key={JSON.stringify(data.sso)} s={data} onSaved={setData} />
-      <Visibility s={data} onChanged={reload} />
-      <Roles key={JSON.stringify(data.roles)} s={data} onSaved={setData} />
-
-      <section className="card section" id="directory">
-        <h2>Directory sync</h2>
-        <p className="muted">Keep users and groups in step with your identity provider, so new people get their groups' access and people who leave lose access automatically. Use SCIM or Google Workspace.</p>
-        <SCIM s={data} onChanged={reload} />
-        <Google key={JSON.stringify(data.googleSync.settings)} s={data} onChanged={reload} />
-      </section>
+          {current === "sso" &&
+            (data.sso.issuer ? (
+              <>
+                <Group>
+                  <PRow label="Identity provider">
+                    <span className="mono ellipsis">{data.sso.issuer}</span>
+                  </PRow>
+                  <PRow label="Client ID">
+                    <span className="mono ellipsis">{data.sso.clientId}</span>
+                  </PRow>
+                </Group>
+                <Group title="Redirect URLs" note="Register both with your identity provider: the first for devices, the second for this console. The provider, client ID and secret are set in the configuration file (oidc.*).">
+                  {data.sso.redirectUrls.map((u) => (
+                    <PRow key={u} label={u.endsWith("/admin/auth/callback") ? "Console" : "Devices"} block>
+                      <CopyText value={u} />
+                    </PRow>
+                  ))}
+                </Group>
+              </>
+            ) : (
+              <div className="callout callout-warn">No identity provider is configured. Set oidc.issuer, oidc.client_id and oidc.client_secret in the configuration file.</div>
+            ))}
+          {current === "signin" && <LoginRules key={JSON.stringify(data.sso)} s={data} onSaved={setData} />}
+          {current === "console" && <Roles key={JSON.stringify(data.roles)} s={data} onSaved={setData} />}
+          {current === "directory" && <SCIM s={data} onChanged={reload} />}
+          {current === "google" && <Google key={JSON.stringify(data.googleSync.settings)} s={data} onChanged={reload} />}
+        </div>
+      </div>
     </>
   );
 }
