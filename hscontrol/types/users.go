@@ -311,6 +311,14 @@ type OIDCClaims struct {
 	EmailVerified     FlexibleBoolean     `json:"email_verified,omitempty"`
 	ProfilePictureURL string              `json:"picture,omitempty"`
 	Username          string              `json:"preferred_username,omitempty"`
+
+	// Microsoft Entra ID: the signing tenant, the account's own identity
+	// provider when it is not the tenant (guests, personal accounts), the
+	// optional account type (0 member, 1 guest) and sign-in name.
+	TenantID string `json:"tid,omitempty"`
+	IDP      string `json:"idp,omitempty"`
+	Acct     *int   `json:"acct,omitempty"`
+	UPN      string `json:"upn,omitempty"`
 }
 
 // Identifier returns a unique identifier string combining the [OIDCClaims.Iss] and [OIDCClaims.Sub] claims.

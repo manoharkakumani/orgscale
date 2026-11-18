@@ -1,6 +1,7 @@
 package hscontrol
 
 import (
+	"cmp"
 	"errors"
 	"net/http"
 	"net/url"
@@ -127,26 +128,28 @@ func (a *AuthProviderOIDC) afterOIDCLogin(user *types.User, claims *types.OIDCCl
 // entraConsumerTenant is the tenant of personal Microsoft accounts.
 const entraConsumerTenant = "9188040d-6c67-4c5b-b112-36a304b66dad"
 
-// entraTenantIssuer reports whether iss is one organization's Microsoft
-// Entra ID tenant, as opposed to the multi-tenant endpoints that accept any
-// organization or personal accounts.
-func entraTenantIssuer(iss string) bool {
+// entraTenant returns the tenant ID of iss when it is one organization's
+// Microsoft Entra ID tenant, as opposed to the multi-tenant endpoints that
+// accept any organization or personal accounts.
+func entraTenant(iss string) (string, bool) {
 	u, err := url.Parse(iss)
 	if err != nil {
-		return false
+		return "", false
 	}
 
 	if u.Host != "login.microsoftonline.com" && u.Host != "sts.windows.net" {
-		return false
+		return "", false
 	}
 
 	tenant, _, _ := strings.Cut(strings.TrimPrefix(u.Path, "/"), "/")
-	switch strings.ToLower(tenant) {
+	tenant = strings.ToLower(tenant)
+
+	switch tenant {
 	case "", "common", "organizations", "consumers", entraConsumerTenant:
-		return false
+		return "", false
 	}
 
-	return true
+	return tenant, true
 }
 
 // applyProviderEmail fills in a verified email for identity providers that
@@ -154,19 +157,31 @@ func entraTenantIssuer(iss string) bool {
 //
 // Microsoft Entra ID never sends email_verified, and its email claim can be
 // edited, so it must not be trusted (the "nOAuth" problem). A member's
-// sign-in name (UPN, preferred_username) is set only by the tenant's
-// administrators and uses one of the tenant's verified domains, so for a
-// single tenant it is used as the verified email. Guests (#EXT#) are not.
+// sign-in name (UPN) is set only by the tenant's administrators and uses one
+// of the tenant's verified domains, so it is used as the verified email, but
+// only for a member of the issuer's own tenant: the token's tid must be that
+// tenant, the account must have no other identity provider (idp, set for
+// guests and personal accounts), and acct, when sent, must say member.
+// Anything else, or missing claims, leaves the email unverified.
 func applyProviderEmail(claims *types.OIDCClaims) {
 	if claims.Email != "" && bool(claims.EmailVerified) {
 		return
 	}
 
-	if !entraTenantIssuer(claims.Iss) {
+	tenant, ok := entraTenant(claims.Iss)
+	if !ok || !strings.EqualFold(claims.TenantID, tenant) {
 		return
 	}
 
-	upn := strings.ToLower(strings.TrimSpace(claims.Username))
+	if claims.IDP != "" && !strings.EqualFold(strings.TrimSuffix(claims.IDP, "/"), strings.TrimSuffix(claims.Iss, "/")) {
+		return
+	}
+
+	if claims.Acct != nil && *claims.Acct != 0 {
+		return
+	}
+
+	upn := strings.ToLower(strings.TrimSpace(cmp.Or(claims.UPN, claims.Username)))
 	if !strings.Contains(upn, "@") || strings.Contains(upn, "#ext#") {
 		return
 	}
