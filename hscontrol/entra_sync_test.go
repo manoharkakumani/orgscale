@@ -70,6 +70,8 @@ func (f *fakeGraph) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		page([]any{}, "/groups/delta?$deltatoken=g1")
 	case r.URL.Path == "/groups/delta":
 		page([]any{}, "/groups/delta?$deltatoken=g2")
+	case r.URL.Path == "/organization":
+		page([]any{map[string]any{"verifiedDomains": []any{map[string]any{"name": "stayx.ai"}, map[string]any{"name": "acquired.example"}}}}, "")
 	case r.URL.Path == "/users":
 		page(f.users, "")
 	case r.URL.Path == "/groups":
@@ -132,7 +134,7 @@ func TestEntraSync(t *testing.T) {
 	assert.Equal(t, 2, st.Users, "guests are not synced")
 	assert.Equal(t, 2, st.Created)
 	assert.Equal(t, 1, st.Groups)
-	assert.Equal(t, 5, fg.calls())
+	assert.Equal(t, 6, fg.calls())
 
 	users, err := app.state.ListAllUsers()
 	require.NoError(t, err)
@@ -188,6 +190,16 @@ func TestEntraSync(t *testing.T) {
 	}
 
 	assert.ElementsMatch(t, []string{"alice@stayx.ai", "carol@stayx.ai"}, emails)
+
+	// Someone who signed in with SSO on a verified domain nobody else uses
+	// is removed once they are gone from Entra.
+	_, _, err = app.state.CreateUser(types.User{Name: "dan", Email: "dan@acquired.example", Provider: "oidc"})
+	require.NoError(t, err)
+
+	st = app.entraSync.RunNow(ctx, true)
+	require.True(t, st.OK, st.Error)
+	assert.Equal(t, 1, st.Disabled)
+	assert.Empty(t, st.Warning)
 }
 
 func TestEntraSyncReusesSSOApp(t *testing.T) {

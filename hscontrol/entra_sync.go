@@ -227,7 +227,7 @@ func (g *graph) get(ctx context.Context, u string, out any) error {
 
 			msg := cmp.Or(ge.Error.Message, resp.Status)
 			if resp.StatusCode == http.StatusForbidden || ge.Error.Code == "Authorization_RequestDenied" {
-				msg += " (grant the app registration the Microsoft Graph application permissions User.Read.All, Group.Read.All and GroupMember.Read.All, with admin consent)"
+				msg += " (grant the app registration the Microsoft Graph application permissions User.Read.All, Group.Read.All, GroupMember.Read.All and Organization.Read.All, with admin consent)"
 			}
 
 			return fmt.Errorf("Microsoft Graph: %s", msg)
@@ -268,6 +268,12 @@ type entraUser struct {
 	UserPrincipalName string `json:"userPrincipalName"`
 	AccountEnabled    *bool  `json:"accountEnabled"`
 	UserType          string `json:"userType"`
+}
+
+type entraOrganization struct {
+	VerifiedDomains []struct {
+		Name string `json:"name"`
+	} `json:"verifiedDomains"`
 }
 
 type entraGroup struct {
@@ -372,6 +378,22 @@ func (e *entraSyncer) sync(ctx context.Context, full bool, status *types.EntraSy
 		return err
 	}
 
+	// The tenant's verified domains, so a deleted account is recognised as
+	// gone even when nobody else uses its domain. Without
+	// Organization.Read.All the domains of current members are used.
+	var domains []string
+
+	orgs, _, orgErr := graphList[entraOrganization](ctx, g, "/organization?$select=verifiedDomains")
+	if orgErr == nil {
+		for _, o := range orgs {
+			for _, d := range o.VerifiedDomains {
+				domains = append(domains, strings.ToLower(d.Name))
+			}
+		}
+	} else {
+		status.Warning = "Grant Organization.Read.All so people deleted from Entra are always removed: " + orgErr.Error()
+	}
+
 	members := make(map[string][]string, len(groups))
 
 	for _, gr := range groups {
@@ -386,7 +408,7 @@ func (e *entraSyncer) sync(ctx context.Context, full bool, status *types.EntraSy
 		}
 	}
 
-	err = e.apply(users, groups, members, &status.GoogleSyncStatus)
+	err = e.apply(users, groups, members, domains, &status.GoogleSyncStatus)
 	if err != nil {
 		return err
 	}
@@ -411,7 +433,7 @@ func entraEmail(u entraUser) string {
 
 // apply makes orgscale match the Entra directory. Split from sync so tests
 // can drive it without Graph.
-func (e *entraSyncer) apply(users []entraUser, groups []entraGroup, members map[string][]string, status *types.GoogleSyncStatus) error {
+func (e *entraSyncer) apply(users []entraUser, groups []entraGroup, members map[string][]string, tenantDomains []string, status *types.GoogleSyncStatus) error {
 	h := e.h
 
 	active := make(map[string]entraUser)
@@ -419,6 +441,10 @@ func (e *entraSyncer) apply(users []entraUser, groups []entraGroup, members map[
 	known := make(map[string]bool)
 	domains := make(map[string]bool)
 	byEntraID := make(map[string]string)
+
+	for _, d := range tenantDomains {
+		domains[d] = true
+	}
 
 	for _, u := range users {
 		if !strings.EqualFold(u.UserType, "Member") && u.UserType != "" {

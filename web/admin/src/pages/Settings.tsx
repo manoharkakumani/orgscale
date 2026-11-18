@@ -484,7 +484,7 @@ function Sessions() {
 
 // ---------- Microsoft Entra ID ----------
 
-const graphPermissions = ["User.Read.All", "Group.Read.All", "GroupMember.Read.All"];
+const graphPermissions = ["User.Read.All", "Group.Read.All", "GroupMember.Read.All", "Organization.Read.All"];
 
 function EntraStatus({ s }: { s: EntraSyncStatus }) {
   if (!s?.lastRun || s.lastRun.startsWith("0001")) return <span className="muted">Never</span>;
@@ -498,6 +498,7 @@ function EntraStatus({ s }: { s: EntraSyncStatus }) {
     <span className="small">
       <Badge tone="green">OK</Badge> checked {timeAgo(s.lastRun)}
       {s.unchanged ? " · no changes" : ` · ${s.users} users, ${s.groups} groups, ${s.created} added, ${s.disabled} removed`}
+      {s.warning && <div className="text-danger small">{s.warning}</div>}
     </span>
   );
 }

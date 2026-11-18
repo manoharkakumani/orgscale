@@ -209,6 +209,7 @@ export interface EntraSyncSettings {
 
 export interface EntraSyncStatus extends GoogleSyncStatus {
   unchanged: boolean;
+  warning?: string;
   lastFull: string;
   requests: number;
 }

@@ -203,6 +203,8 @@ type EntraSyncStatus struct {
 
 	// Unchanged is set when the change check found nothing to do.
 	Unchanged bool      `json:"unchanged"`
+	// Warning is a problem that did not stop the sync.
+	Warning string `json:"warning,omitempty"`
 	LastFull  time.Time `json:"lastFull"`
 	Requests  int       `json:"requests"`
 }

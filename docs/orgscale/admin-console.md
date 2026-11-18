@@ -191,8 +191,11 @@ single sign-on app registration (or another one you enter):
 
 1. In entra.microsoft.com → **App registrations** → your orgscale app →
    **API permissions** → **Add a permission → Microsoft Graph → Application
-   permissions**: `User.Read.All`, `Group.Read.All`, `GroupMember.Read.All`.
-   Then **Grant admin consent**.
+   permissions**: `User.Read.All`, `Group.Read.All`, `GroupMember.Read.All`
+   and `Organization.Read.All`. Then **Grant admin consent**.
+   (`Organization.Read.All` lets orgscale see the tenant's verified domains,
+   so people deleted from Entra are removed even when nobody else uses their
+   domain. Without it the sync works but warns.)
 2. **Settings → Microsoft Entra ID**: turn sync on, **Save**, **Sync now**.
 
 Each check asks Graph only what changed since the last one (delta queries):
