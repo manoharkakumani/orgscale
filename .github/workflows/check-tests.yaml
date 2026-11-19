@@ -10,6 +10,11 @@ defaults:
   run:
     shell: nix develop --fallback --command bash -e {0}
 
+permissions:
+  contents: read
+  packages: read
+  pull-requests: read
+
 jobs:
   check-tests:
     runs-on: ubuntu-latest
