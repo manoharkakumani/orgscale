@@ -2334,13 +2334,18 @@ details.disclosure.drawer-section {
 }
 .sheet-actions {
   display: flex;
-  flex-direction: column;
+  justify-content: flex-end;
   gap: 8px;
   margin-top: 16px;
 }
-.sheet-actions .btn {
-  height: 44px;
-  font-size: 16px;
+@media (max-width: 760px) {
+  .sheet-actions {
+    flex-direction: column;
+  }
+  .sheet-actions .btn {
+    height: 44px;
+    font-size: 16px;
+  }
 }
 
 @media (max-width: 760px) {
@@ -2460,4 +2465,15 @@ details.disclosure.drawer-section {
 }
 .prow-label {
   min-width: 0;
+}
+
+/* Group members: a scrolling list, so a group of hundreds stays usable. */
+.member-list {
+  max-height: min(52vh, 480px);
+  overflow-y: auto;
+  margin-top: 8px;
+}
+.member-list .prow {
+  padding-top: 7px;
+  padding-bottom: 7px;
 }

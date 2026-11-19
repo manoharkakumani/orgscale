@@ -413,6 +413,14 @@ WHERE auth_key_id IN (
 				},
 				Rollback: func(db *gorm.DB) error { return nil },
 			},
+			{
+				// orgscale: temporary access granted by an administrator.
+				ID: "202611190100-orgscale-access-grants",
+				Migrate: func(tx *gorm.DB) error {
+					return tx.Transaction(ensureAccessRequests)
+				},
+				Rollback: func(db *gorm.DB) error { return nil },
+			},
 		},
 	)
 

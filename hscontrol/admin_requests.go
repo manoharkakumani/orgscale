@@ -1,6 +1,7 @@
 package hscontrol
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -34,6 +35,7 @@ const (
 
 func (aa *adminAuth) requestRoutes(r chi.Router) {
 	r.Get("/requests", aa.handleListRequests)
+	r.Post("/requests/grant", aa.handleGrantAccess)
 	r.Post("/requests/{id}/approve", aa.handleDecideRequest(types.AccessRequestApproved))
 	r.Post("/requests/{id}/deny", aa.handleDecideRequest(types.AccessRequestDenied))
 	r.Post("/requests/{id}/revoke", aa.handleDecideRequest(types.AccessRequestRevoked))
@@ -60,6 +62,9 @@ type adminRequest struct {
 	DecidedAt    *time.Time `json:"decidedAt,omitempty"`
 	DecisionNote string     `json:"decisionNote,omitempty"`
 	ExpiresAt    *time.Time `json:"expiresAt,omitempty"`
+	// Granted is set for access an administrator gave directly.
+	Granted   bool   `json:"granted"`
+	GrantKind string `json:"grantKind,omitempty"`
 }
 
 func sshUsersOf(t types.ServerTag) []string {
@@ -89,6 +94,7 @@ func (aa *adminAuth) requestViews(rows []types.AccessRequest) ([]adminRequest, e
 			Minutes: r.Minutes, SSH: r.SSH, Status: r.Status, Active: r.Active(now),
 			CreatedAt: r.CreatedAt, DecidedBy: r.DecidedBy, DecidedAt: r.DecidedAt,
 			DecisionNote: r.DecisionNote, ExpiresAt: r.ExpiresAt,
+			Granted: r.GrantKind != "", GrantKind: r.GrantKind,
 		}
 		if r.SSH {
 			v.SSHUsers = sshUsersOf(byName[r.Tag])
@@ -220,6 +226,120 @@ func (aa *adminAuth) handleDecideRequest(to string) http.HandlerFunc {
 
 		w.WriteHeader(http.StatusNoContent)
 	}
+}
+
+// handleGrantAccess gives people or directory groups temporary access to a
+// tag directly, without a request. The tag need not allow requests.
+func (aa *adminAuth) handleGrantAccess(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		To      []adminPrincipal `json:"to"`
+		Tag     string           `json:"tag"`
+		Minutes int              `json:"minutes"`
+		Reason  string           `json:"reason"`
+		SSH     bool             `json:"ssh"`
+	}
+
+	if !decodeJSON(w, r, &body) {
+		return
+	}
+
+	if len(body.To) == 0 || len(body.To) > 50 {
+		adminJSONError(w, http.StatusBadRequest, "choose between 1 and 50 people or groups")
+
+		return
+	}
+
+	if body.Minutes < 15 || body.Minutes > accessRequestMaxMinutes {
+		adminJSONError(w, http.StatusBadRequest, "access can last from 15 minutes to 7 days")
+
+		return
+	}
+
+	reason := strings.TrimSpace(truncateString(body.Reason, 500))
+
+	tags, err := aa.h.state.ListServerTags()
+	if err != nil {
+		adminJSONError(w, http.StatusInternalServerError, err.Error())
+
+		return
+	}
+
+	i := slices.IndexFunc(tags, func(t types.ServerTag) bool { return t.Name == body.Tag })
+	if i < 0 {
+		adminJSONError(w, http.StatusBadRequest, "choose a server tag made on the Servers page")
+
+		return
+	}
+
+	if body.SSH && len(sshUsersOf(tags[i])) == 0 {
+		adminJSONError(w, http.StatusBadRequest, "set SSH accounts on this tag first (Servers → edit tag)")
+
+		return
+	}
+
+	ps, err := aa.parsePrincipals(body.To, types.PrincipalUser, types.PrincipalDirectoryGroup)
+	if err != nil {
+		adminJSONError(w, http.StatusBadRequest, err.Error())
+
+		return
+	}
+
+	label, err := aa.principalLabeler()
+	if err != nil {
+		adminJSONError(w, http.StatusInternalServerError, err.Error())
+
+		return
+	}
+
+	sess := sessionFrom(r)
+	now := time.Now().UTC()
+	exp := now.Add(time.Duration(body.Minutes) * time.Minute)
+
+	var (
+		ids    []uint64
+		labels []string
+	)
+
+	for _, p := range ps {
+		var uid uint
+		if p.Kind == types.PrincipalUser {
+			n, _ := strconv.ParseUint(p.Principal, 10, 64)
+			uid = uint(n)
+		}
+
+		who := label(p.Kind, p.Principal)
+
+		id, err := aa.h.state.CreateAccessRequest(types.AccessRequest{
+			UserID: uid, Requester: who, Tag: body.Tag, Reason: cmp.Or(reason, "granted by an administrator"),
+			Minutes: body.Minutes, SSH: body.SSH, Status: types.AccessRequestPending, CreatedAt: now,
+			GrantKind: p.Kind, GrantPrincipal: p.Principal,
+		})
+		if err != nil {
+			adminJSONError(w, http.StatusInternalServerError, err.Error())
+
+			return
+		}
+
+		changes, err := aa.h.state.DecideAccessRequest(types.AccessRequest{
+			ID: id, Minutes: body.Minutes, Status: types.AccessRequestApproved,
+			DecidedBy: sess.label(), DecidedAt: &now, ExpiresAt: &exp,
+		}, types.AccessRequestPending)
+		aa.h.Change(changes...)
+
+		if err != nil {
+			adminJSONError(w, http.StatusBadRequest, err.Error())
+
+			return
+		}
+
+		ids = append(ids, id)
+		labels = append(labels, who)
+	}
+
+	aa.auditReq(r, "access_request.grant", body.Tag, fmt.Sprintf("%s for %s%s", strings.Join(labels, ", "),
+		time.Duration(body.Minutes)*time.Minute, map[bool]string{true: ": " + reason, false: ""}[reason != ""]))
+
+	adminJSON(w, http.StatusCreated, map[string][]uint64{"ids": ids})
 }
 
 type adminRequestTarget struct {

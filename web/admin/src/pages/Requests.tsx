@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { get, post, type AccessRequest, type RequestTarget } from "../api";
+import { get, post, type AccessRequest, type Principal, type RequestTarget, type ServerTag } from "../api";
+import { PrincipalPicker } from "../components/principals";
 import { useCanEdit, useMe } from "../App";
 import { Badge, Button, Empty, ErrorBox, Field, Icon, Modal, PageHeader, Segmented, Spinner, Toggle, timeAgo, useAsync, useToast } from "../components/ui";
 
@@ -144,19 +145,19 @@ function RequestRow({ r, now, children, showWho }: { r: AccessRequest; now: numb
       <div className="request-head">
         <div className="cell-stack grow">
           <span>
-            {showWho && <b>{r.requester} </b>}
-            {showWho ? (r.active ? "has " : r.status === "pending" ? "wants " : "asked for ") : ""}
+            {r.granted && <Badge tone="violet">Granted</Badge>} {showWho && <b>{r.requester} </b>}
+            {showWho ? (r.active ? "has " : r.status === "pending" ? "wants " : r.granted ? "had " : "asked for ") : ""}
             <code>{r.tag}</code> for {duration(r.minutes)}
             {r.ssh && r.sshUsers?.length ? <> · SSH as {r.sshUsers.join(", ")}</> : null}
           </span>
-          <span className="muted small">Asked {timeAgo(r.createdAt)}</span>
+          <span className="muted small">{r.granted ? `Granted ${timeAgo(r.createdAt)}` : `Asked ${timeAgo(r.createdAt)}`}</span>
         </div>
         <StatusBadge r={r} now={now} />
       </div>
-      <p className="request-reason">“{r.reason}”</p>
+      {!(r.granted && r.reason === "granted by an administrator") && <p className="request-reason">“{r.reason}”</p>}
       {r.decidedBy && r.status !== "pending" && (
         <p className="muted small">
-          {r.status === "denied" ? "Denied" : r.status === "cancelled" ? "Withdrawn" : r.status === "revoked" ? "Ended" : "Approved"} by {r.decidedBy} {timeAgo(r.decidedAt)}
+          {r.status === "denied" ? "Denied" : r.status === "cancelled" ? "Withdrawn" : r.status === "revoked" ? "Ended" : r.granted ? "Granted" : "Approved"} by {r.decidedBy} {timeAgo(r.decidedAt)}
           {r.decisionNote ? ` — ${r.decisionNote}` : ""}
         </p>
       )}
@@ -297,6 +298,111 @@ function Decide({ r, kind, onClose, onDone }: { r: AccessRequest; kind: "approve
   );
 }
 
+function GrantForm({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
+  const toast = useToast();
+  const tags = useAsync(() => get<ServerTag[]>("/admin/api/tags"));
+  const managed = (tags.data ?? []).filter((t) => t.managed);
+  const [to, setTo] = useState<Principal[]>([]);
+  const [tag, setTag] = useState("");
+  const [minutes, setMinutes] = useState(60);
+  const [ssh, setSSH] = useState(false);
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const chosen = managed.find((t) => t.name === (tag || managed[0]?.name));
+
+  return (
+    <Modal
+      title="Grant temporary access"
+      onClose={onClose}
+      wide
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            busy={busy}
+            disabled={!to.length || !chosen}
+            onClick={async () => {
+              setBusy(true);
+              try {
+                await post("/admin/api/requests/grant", {
+                  to: to.map(({ kind, principal }) => ({ kind, principal })),
+                  tag: chosen!.name,
+                  minutes,
+                  reason: reason.trim(),
+                  ssh: ssh && !!chosen?.requestSSHUsers.length,
+                });
+                toast.ok(`Access granted for ${duration(minutes)}`);
+                onDone();
+                onClose();
+              } catch (e) {
+                toast.error(e);
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            Grant access
+          </Button>
+        </>
+      }
+    >
+      <Field label="Who" hint="People, or groups: everyone in a group at the time gets access, including people added during it.">
+        <PrincipalPicker kinds={["directory_group", "user"]} value={to} onChange={setTo} placeholder="Search people and groups" height={220} />
+      </Field>
+      <div className="grid-2">
+        <Field label="Servers">
+          {tags.loading && !tags.data ? (
+            <Spinner />
+          ) : managed.length ? (
+            <select value={chosen?.name ?? ""} onChange={(e) => setTag(e.target.value)}>
+              {managed.map((t) => (
+                <option key={t.name} value={t.name}>
+                  {t.name}
+                  {t.description ? ` — ${t.description}` : ""}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span className="muted">Create a server tag on the Servers page first.</span>
+          )}
+        </Field>
+        <Field label="For how long" hint="Access ends on its own.">
+          <select value={minutes} onChange={(e) => setMinutes(Number(e.target.value))}>
+            {durationChoices.map((d) => (
+              <option key={d.minutes} value={d.minutes}>
+                {d.label}
+              </option>
+            ))}
+          </select>
+        </Field>
+      </div>
+      <Field label="Reason (optional)" hint="Kept in the audit log.">
+        <input value={reason} maxLength={500} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Incident INC-311" />
+      </Field>
+      <div className="group">
+        <div className="prow">
+          <div className="prow-label">
+            <div>Also SSH in</div>
+            <div className="muted small">
+              {chosen?.requestSSHUsers.length ? (
+                <>As {chosen.requestSSHUsers.join(" or ")}. No keys needed.</>
+              ) : (
+                <>Set SSH accounts on this tag first (Servers → edit tag → Temporary access).</>
+              )}
+            </div>
+          </div>
+          <div className="prow-control">
+            <Toggle hideLabel label="Also SSH in" checked={ssh && !!chosen?.requestSSHUsers.length} disabled={!chosen?.requestSSHUsers.length} onChange={setSSH} />
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 type Filter = "open" | "all";
 
 /** RequestsPage is where administrators decide on access requests. */
@@ -311,6 +417,7 @@ export default function RequestsPage() {
   }, [data]);
   const [filter, setFilter] = useState<Filter>("open");
   const [deciding, setDeciding] = useState<{ r: AccessRequest; kind: "approve" | "deny" | "revoke" } | null>(null);
+  const [granting, setGranting] = useState(false);
 
   useEffect(() => {
     const id = window.setInterval(() => void reload(), 20000);
@@ -327,15 +434,26 @@ export default function RequestsPage() {
     <>
       <PageHeader
         title="Access requests"
-        description="People ask for temporary access to servers whose tag allows it (Servers → edit tag → Temporary access on request). Approved access ends on its own; every step is in the audit log."
-        actions={<Segmented value={filter} onChange={setFilter} options={[{ value: "open", label: `Open (${pending.length + active.length})` }, { value: "all", label: "History" }]} />}
+        description="Temporary access to servers: people request it for tags that allow requests, or you grant it directly to people and groups. It ends on its own; every step is in the audit log."
+        actions={
+          <>
+            <Segmented value={filter} onChange={setFilter} options={[{ value: "open", label: `Open (${pending.length + active.length})` }, { value: "all", label: "History" }]} />
+            {canEdit && (
+              <Button variant="primary" onClick={() => setGranting(true)}>
+                <Icon name="plus" /> Grant access
+              </Button>
+            )}
+          </>
+        }
       />
       {error && <ErrorBox error={error} onRetry={reload} />}
       {loading && !data ? (
         <Spinner />
       ) : filter === "open" ? (
         pending.length + active.length === 0 ? (
-          <Empty title="Nothing waiting">New requests show up here. People request access from the console when they sign in.</Empty>
+          <Empty title="Nothing waiting">
+            New requests show up here. People request access by signing in at <code>/admin/</code> with single sign-on; you can also grant access directly with Grant access.
+          </Empty>
         ) : (
           <>
             {pending.length > 0 && <div className="group-title">Waiting for a decision</div>}
@@ -379,6 +497,7 @@ export default function RequestsPage() {
           ))}
         </div>
       )}
+      {granting && <GrantForm onClose={() => setGranting(false)} onDone={() => void reload()} />}
       {deciding && <Decide r={deciding.r} kind={deciding.kind} onClose={() => setDeciding(null)} onDone={() => void reload()} />}
     </>
   );

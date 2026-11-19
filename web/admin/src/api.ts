@@ -152,6 +152,8 @@ export interface AccessRequest {
   decidedAt?: string;
   decisionNote?: string;
   expiresAt?: string;
+  granted: boolean;
+  grantKind?: string;
 }
 
 export interface RequestTarget {

@@ -242,6 +242,8 @@ CREATE TABLE access_requests(
   decided_by text,
   decided_at datetime,
   decision_note text,
-  expires_at datetime
+  expires_at datetime,
+  grant_kind text,
+  grant_principal text
 );
 CREATE INDEX idx_access_requests_status ON access_requests(status);

@@ -973,4 +973,55 @@ func TestAdminConsoleAccessRequests(t *testing.T) {
 	assert.Contains(t, policy(), `"src":["alice@example.com"]`)
 	require.Equal(t, http.StatusNoContent, alice.do(t, http.MethodPost, fmt.Sprintf("/admin/api/my/requests/%d/cancel", id), nil, nil))
 	assert.NotContains(t, policy(), `"src":["alice@example.com"]`)
+
+	// An administrator grants access directly: to a group (resolved to its
+	// members) and to a person, on a tag that need not allow requests.
+	require.Equal(t, http.StatusNoContent, boss.do(t, http.MethodPut, "/admin/api/tags/tag:web", map[string]any{"access": []any{}}, nil))
+
+	var users []adminUser
+	require.Equal(t, http.StatusOK, boss.do(t, http.MethodGet, "/admin/api/users", nil, &users))
+
+	var aliceID uint64
+	for _, u := range users {
+		if u.Email == "alice@example.com" {
+			aliceID = uint64(u.ID)
+		}
+	}
+	require.NotZero(t, aliceID)
+
+	var g map[string]any
+	require.Equal(t, http.StatusOK, boss.do(t, http.MethodPost, "/admin/api/groups", map[string]any{"name": "On call", "memberIds": []uint64{aliceID}}, &g))
+	gid := fmt.Sprint(g["id"])
+
+	webGranted := func() bool { return strings.Contains(policy(), "tag:web:*") }
+	assert.False(t, webGranted())
+
+	assert.Equal(t, http.StatusForbidden, alice.do(t, http.MethodPost, "/admin/api/requests/grant", map[string]any{}, nil), "members cannot grant")
+	assert.Equal(t, http.StatusBadRequest, boss.do(t, http.MethodPost, "/admin/api/requests/grant", map[string]any{
+		"to": []map[string]string{{"kind": "directory_group", "principal": gid}}, "tag": "tag:web", "minutes": 60, "ssh": true,
+	}, nil), "the tag has no SSH accounts")
+
+	var granted map[string][]uint64
+	require.Equal(t, http.StatusCreated, boss.do(t, http.MethodPost, "/admin/api/requests/grant", map[string]any{
+		"to": []map[string]string{{"kind": "directory_group", "principal": gid}}, "tag": "tag:web", "minutes": 60, "reason": "incident 42",
+	}, &granted))
+	require.Len(t, granted["ids"], 1)
+	assert.True(t, webGranted(), "the group's members reach the tag")
+
+	var all []adminRequest
+	require.Equal(t, http.StatusOK, boss.do(t, http.MethodGet, "/admin/api/requests", nil, &all))
+	assert.True(t, all[0].Granted)
+	assert.True(t, all[0].Active)
+
+	require.Equal(t, http.StatusNoContent, boss.do(t, http.MethodPost, fmt.Sprintf("/admin/api/requests/%d/revoke", granted["ids"][0]), nil, nil))
+	assert.False(t, webGranted())
+
+	require.Equal(t, http.StatusCreated, boss.do(t, http.MethodPost, "/admin/api/requests/grant", map[string]any{
+		"to": []map[string]string{{"kind": "user", "principal": fmt.Sprint(aliceID)}}, "tag": "tag:web", "minutes": 15,
+	}, &granted))
+	assert.True(t, webGranted())
+
+	mine = nil
+	require.Equal(t, http.StatusOK, alice.do(t, http.MethodGet, "/admin/api/my/requests", nil, &mine))
+	assert.True(t, mine[0].Granted, "a person sees access granted to them")
 }

@@ -220,24 +220,33 @@ func managedPolicy(db *hsdb.HSDatabase, users []types.User, nodes views.Slice[ty
 	}
 
 	for _, r := range requests {
-		who, ok := tokens[types.UserID(r.UserID)]
 		t, tagOK := tagByName[r.Tag]
+		if !tagOK {
+			continue
+		}
 
-		if !ok || !tagOK {
+		var who []string
+		if r.GrantKind != "" {
+			who = resolve(r.GrantKind, r.GrantPrincipal)
+		} else if tok, ok := tokens[types.UserID(r.UserID)]; ok {
+			who = []string{tok}
+		}
+
+		if len(who) == 0 {
 			continue
 		}
 
 		comment := fmt.Sprintf("access request #%d (%s)", r.ID, r.Requester)
 
 		if m.RestrictDevices {
-			m.Rules = append(m.Rules, managed.Rule{Comment: comment, Src: []string{who}, Dst: []string{t.Name}})
+			m.Rules = append(m.Rules, managed.Rule{Comment: comment, Src: who, Dst: []string{t.Name}})
 		}
 
 		var sshUsers []string
 		_ = json.Unmarshal([]byte(t.RequestSSHUsers), &sshUsers)
 
 		if r.SSH && len(sshUsers) > 0 {
-			m.SSH = append(m.SSH, managed.SSHRule{Comment: comment, Src: []string{who}, Dst: []string{t.Name}, Users: sshUsers})
+			m.SSH = append(m.SSH, managed.SSHRule{Comment: comment, Src: who, Dst: []string{t.Name}, Users: sshUsers})
 		}
 	}
 

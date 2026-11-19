@@ -70,6 +70,14 @@ func Connect(url string) *elem.Element {
 			P(elem.Text("Run this; it installs Tailscale if needed and starts sign-in:")),
 			codeBlockText("curl -fsSL "+url+"/connect/linux.sh | sh"),
 		),
+		H2(elem.Text("Need a server you can't reach?")),
+		P(
+			elem.Text("Sign in at "),
+			A("/admin/", elem.Text(url+"/admin/")),
+			elem.Text(" with your work account and choose "),
+			strong("Request access"),
+			elem.Text(". An administrator approves it, and the access ends on its own."),
+		),
 		P(elem.Text("Your device belongs to the account you sign in with. Signed in already on another network? Log out of that account in Tailscale first, or add this one as a second account.")),
 	)
 }

@@ -65,12 +65,59 @@ function GroupEditor({ group, onClose, onSaved }: { group?: AdminGroup; onClose:
   );
 }
 
+/** GroupSheet shows a group's members, searchable, however many there are. */
+function GroupSheet({ group, canEdit, onClose, onEdit, onDelete }: { group: AdminGroup; canEdit: boolean; onClose: () => void; onEdit: () => void; onDelete: () => void }) {
+  const [q, setQ] = useState("");
+  const info = sourceInfo[group.source] ?? sourceInfo.policy;
+  const members = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    return [...group.members].sort((a, b) => a.localeCompare(b)).filter((m) => !needle || m.toLowerCase().includes(needle));
+  }, [group.members, q]);
+
+  return (
+    <Modal title={group.source === "policy" ? `group:${group.name}` : group.displayName} onClose={onClose} wide>
+      <p className="muted">
+        <Badge tone={info.tone}>{info.label}</Badge> Used in rules as <code>group:{group.name}</code>
+      </p>
+      <div className="row-between mt">
+        <div className="group-title" style={{ margin: 0 }}>
+          {group.members.length} member{group.members.length === 1 ? "" : "s"}
+        </div>
+        {group.members.length > 8 && <SearchBox value={q} onChange={setQ} placeholder="Search members" />}
+      </div>
+      {group.members.length === 0 ? (
+        <p className="muted">No members.</p>
+      ) : (
+        <div className="group member-list">
+          {members.map((m) => (
+            <div className="prow" key={m}>
+              <div className="cell-user">
+                <span className="avatar avatar-fallback">{m.slice(0, 1).toUpperCase()}</span>
+                <span className="ellipsis">{m}</span>
+              </div>
+            </div>
+          ))}
+          {members.length === 0 && <div className="prow muted">Nobody matches “{q}”.</div>}
+        </div>
+      )}
+      {group.source !== "console" && group.source !== "policy" && <p className="muted small mt">Membership comes from your identity provider; change it there.</p>}
+      {canEdit && group.source === "console" && (
+        <div className="sheet-actions">
+          <Button onClick={onEdit}>Edit group</Button>
+          <Button variant="danger" onClick={onDelete}>
+            Delete group
+          </Button>
+        </div>
+      )}
+    </Modal>
+  );
+}
+
 export default function GroupsPage() {
   const canEdit = useCanEdit();
   const toast = useToast();
   const { data, error, loading, reload } = useAsync(() => get<AdminGroup[]>("/admin/api/groups"));
   const [q, setQ] = useState("");
-  const [open, setOpen] = useState<string | null>(null);
   const [editing, setEditing] = useState<AdminGroup | "new" | null>(null);
   const [deleting, setDeleting] = useState<AdminGroup | null>(null);
   const [sheet, setSheet] = useState<AdminGroup | null>(null);
@@ -134,10 +181,9 @@ export default function GroupsPage() {
             <tbody>
               {rows.map((g) => {
                 const key = `${g.source}:${g.id ?? g.name}`;
-                const isOpen = open === key;
                 return (
                   <Fragment key={key}>
-                    <tr className="row-click" onClick={() => setOpen(isOpen ? null : key)}>
+                    <tr className="row-click" onClick={() => setSheet(g)}>
                       <td>
                         <div className="cell-stack">
                           <span>{g.source === "policy" ? `group:${g.name}` : g.displayName}</span>
@@ -159,15 +205,6 @@ export default function GroupsPage() {
                         )}
                       </td>
                     </tr>
-                    {isOpen && (
-                      <tr className="row-detail">
-                        <td colSpan={4}>
-                          <div className="chip-row">
-                            {g.members.length ? g.members.map((m) => <span key={m} className="chip chip-static">{m}</span>) : <span className="muted">No members.</span>}
-                          </div>
-                        </td>
-                      </tr>
-                    )}
                   </Fragment>
                 );
               })}
@@ -177,20 +214,19 @@ export default function GroupsPage() {
         </>
       )}
       {sheet && (
-        <Modal title={sheet.source === "policy" ? `group:${sheet.name}` : sheet.displayName} onClose={() => setSheet(null)}>
-          <p className="muted">
-            {(sourceInfo[sheet.source] ?? sourceInfo.policy).label} · used in rules as <code>group:{sheet.name}</code>
-          </p>
-          <div className="group-title">Members</div>
-          <div className="chip-row">{sheet.members.length ? sheet.members.map((m) => <span key={m} className="chip chip-static">{m}</span>) : <span className="muted">No members.</span>}</div>
-          {sheet.source !== "console" && sheet.source !== "policy" && <p className="muted small mt">Membership comes from your identity provider; change it there.</p>}
-          {canEdit && sheet.source === "console" && (
-            <div className="sheet-actions">
-              <Button onClick={() => { setEditing(sheet); setSheet(null); }}>Edit group</Button>
-              <Button variant="danger" onClick={() => { setDeleting(sheet); setSheet(null); }}>Delete group</Button>
-            </div>
-          )}
-        </Modal>
+        <GroupSheet
+          group={sheet}
+          canEdit={canEdit}
+          onClose={() => setSheet(null)}
+          onEdit={() => {
+            setEditing(sheet);
+            setSheet(null);
+          }}
+          onDelete={() => {
+            setDeleting(sheet);
+            setSheet(null);
+          }}
+        />
       )}
       {editing && <GroupEditor group={editing === "new" ? undefined : editing} onClose={() => setEditing(null)} onSaved={() => void reload()} />}
       {deleting && (

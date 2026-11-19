@@ -172,6 +172,14 @@ customer environments), let them ask instead of giving standing access:
    is up (checked every 20 seconds). The requester or an administrator can
    end it early. Requests nobody decides within a day lapse.
 
+Administrators can also give access directly, without a request:
+**Requests → Grant access**, pick people or groups, a tag (it need not allow
+requests) and a duration. A group's access covers whoever is in the group
+while it lasts. It ends on its own like approved requests.
+
+People find the request page from the `/connect` page too ("Need a server
+you can't reach?").
+
 Every step is in the audit log. With access control off everyone reaches
 everything anyway, so only the SSH part of a request then makes a
 difference.

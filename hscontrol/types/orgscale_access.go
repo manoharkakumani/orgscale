@@ -76,6 +76,12 @@ type AccessRequest struct {
 	DecidedAt    *time.Time `gorm:"column:decided_at"`
 	DecisionNote string     `gorm:"column:decision_note"`
 	ExpiresAt    *time.Time `gorm:"column:expires_at"`
+
+	// GrantKind and GrantPrincipal, when set, mark access an administrator
+	// gave directly, to a user or a directory group, instead of a person's
+	// own request. Requester then names the grantee.
+	GrantKind      string `gorm:"column:grant_kind"`
+	GrantPrincipal string `gorm:"column:grant_principal"`
 }
 
 // TableName pins the gorm table name.
