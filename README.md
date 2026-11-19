@@ -1,6 +1,6 @@
-# orgscale
+# Orgscale
 
-orgscale is a self-hosted control server for the official
+Orgscale is a self-hosted control server for the official
 [Tailscale](https://tailscale.com) apps, built for running **one
 organization's private network** with no hand-managed users, keys or policy
 files.
@@ -10,7 +10,7 @@ reach only what they have been given. When someone leaves, your directory
 removes them, and their devices go with them. Everything is managed from a
 web console; nobody needs to write policy files.
 
-orgscale is a fork of [Headscale](https://github.com/juanfont/headscale).
+Orgscale is a fork of [Headscale](https://github.com/juanfont/headscale).
 See [Credits](#credits).
 
 ## Features
@@ -195,7 +195,7 @@ device must join again.
 
 ## Building from source
 
-orgscale is written in Go; the console is React and TypeScript, built into
+Orgscale is written in Go; the console is React and TypeScript, built into
 the binary.
 
 ```bash
@@ -222,20 +222,20 @@ gives the exact toolchain CI uses. See [CONTRIBUTING.md](CONTRIBUTING.md) and
 
 ## Credits
 
-orgscale stands on the work of others.
+Orgscale stands on the work of others.
 
 - **[Headscale](https://github.com/juanfont/headscale)**, created by Juan
   Font and maintained with Kristoffer Dalby and
   [many contributors](https://github.com/juanfont/headscale/graphs/contributors).
-  orgscale is a fork of Headscale: the control server (node registration,
+  Orgscale is a fork of Headscale: the control server (node registration,
   the policy engine, the network map, DERP, the CLI and API) is theirs.
-  orgscale adds the admin console, single sign-on setup, directory sync,
+  Orgscale adds the admin console, single sign-on setup, directory sync,
   access management, temporary access, the device connection pages and
   container packaging. Headscale's history is kept in this repository, and
   its BSD 3-Clause license and copyright notice in [LICENSE](LICENSE).
 - **[Tailscale](https://tailscale.com)**, whose open-source client and
-  libraries orgscale talks to and builds on, and whose apps people use to
-  connect. orgscale is not affiliated with, endorsed by or supported by
+  libraries Orgscale talks to and builds on, and whose apps people use to
+  connect. Orgscale is not affiliated with, endorsed by or supported by
   Tailscale Inc.; "Tailscale" is a trademark of Tailscale Inc.
 - **[WireGuard](https://www.wireguard.com)**, the encrypted tunnel underneath
   everything. "WireGuard" is a registered trademark of Jason A. Donenfeld.
@@ -246,11 +246,11 @@ orgscale stands on the work of others.
   [go-oidc](https://github.com/coreos/go-oidc), [React](https://react.dev)
   and [Vite](https://vite.dev).
 
-Questions or problems about orgscale belong in this repository's issues, not
+Questions or problems about Orgscale belong in this repository's issues, not
 Headscale's or Tailscale's.
 
 ## License
 
 BSD 3-Clause, as Headscale. See [LICENSE](LICENSE). The original copyright
-notice is kept as the license requires; orgscale's changes are released
+notice is kept as the license requires; Orgscale's changes are released
 under the same terms.
