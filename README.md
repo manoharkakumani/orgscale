@@ -43,8 +43,9 @@ See [Credits](#credits).
 - Servers join with a one-line command from the console
 - DNS from the console: MagicDNS names, DNS servers, split DNS for internal
   domains, custom records; changes reach devices without a restart
-- Subnet routers and exit nodes for reaching private networks (AWS VPCs,
-  Azure VNets and so on)
+- Private networks: reach AWS VPCs, Azure VNets, GCP and office networks
+  through subnet routers, and name managed services such as RDS databases
+  so access rules and temporary access can point at them
 
 **The console**
 

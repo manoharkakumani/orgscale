@@ -29,6 +29,8 @@ const describe: Record<string, string> = {
   "setup.finished": "Finished setup",
   "tag.save": "Saved server tag",
   "temp_access.grant": "Granted temporary access",
+  "resource.save": "Saved private resource",
+  "resource.delete": "Deleted private resource",
   "temp_access.end": "Ended temporary access early",
   "temp_access.expire": "Temporary access ran out",
   "tag.delete": "Deleted server tag",

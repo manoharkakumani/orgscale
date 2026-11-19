@@ -272,3 +272,40 @@ func (s *State) ExpireAccessRequests(now time.Time, maxPending time.Duration) (i
 
 	return lapsed, changes, err
 }
+
+// ListNetworkResources returns the private resources by name.
+func (s *State) ListNetworkResources() ([]types.NetworkResource, error) {
+	return hsdb.Read(s.db.DB, hsdb.ListNetworkResources)
+}
+
+// SaveNetworkResource creates (ID 0) or updates a private resource. Rules
+// naming it follow its new address at once.
+func (s *State) SaveNetworkResource(r types.NetworkResource) (uint64, []change.Change, error) {
+	var id uint64
+
+	err := s.db.Write(func(tx *gorm.DB) error {
+		var err error
+
+		id, err = hsdb.SaveNetworkResource(tx, r)
+
+		return err
+	})
+	if err != nil {
+		return 0, nil, err
+	}
+
+	changes, err := s.ReloadPolicy()
+
+	return id, changes, err
+}
+
+// DeleteNetworkResource removes a private resource and the rule entries
+// naming it.
+func (s *State) DeleteNetworkResource(id uint64) ([]change.Change, error) {
+	err := s.db.Write(func(tx *gorm.DB) error { return hsdb.DeleteNetworkResource(tx, id) })
+	if err != nil {
+		return nil, err
+	}
+
+	return s.ReloadPolicy()
+}

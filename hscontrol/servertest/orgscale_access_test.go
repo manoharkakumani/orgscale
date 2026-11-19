@@ -1,6 +1,8 @@
 package servertest_test
 
 import (
+	"context"
+	"net/netip"
 	"slices"
 	"strconv"
 	"testing"
@@ -11,6 +13,7 @@ import (
 	"github.com/manoharkakumani/orgscale/hscontrol/types"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
+	"tailscale.com/tailcfg"
 	"tailscale.com/types/netmap"
 )
 
@@ -509,6 +512,103 @@ func TestOrgscaleTempAccessOneServer(t *testing.T) {
 	waitPeers(t, laptop, "db-1")
 
 	_, changes, err = st.ExpireAccessRequests(until.Add(time.Second), 24*time.Hour)
+	require.NoError(t, err)
+	srv.App.Change(changes...)
+
+	waitPeers(t, laptop)
+}
+
+// TestOrgscalePrivateResource checks a private resource behind a subnet
+// router: with access control on, a rule naming the resource lets the
+// person reach it through the router (the router's packet filter accepts
+// them for that address only), and deleting the resource takes it away.
+func TestOrgscalePrivateResource(t *testing.T) {
+	t.Parallel()
+
+	srv := servertest.NewServer(t)
+	st := srv.State()
+
+	alice := srv.CreateUser(t, "alice")
+
+	changes, err := st.SaveServerTag(types.ServerTag{Name: "tag:router"}, nil)
+	require.NoError(t, err)
+	srv.App.Change(changes...)
+
+	exp := time.Now().Add(time.Hour)
+	k, err := st.CreatePreAuthKey(nil, true, false, &exp, []string{"tag:router"})
+	require.NoError(t, err)
+
+	laptop := servertest.NewClient(t, srv, "alice-laptop", servertest.WithUser(alice))
+	router := servertest.NewClient(t, srv, "vpc-router", servertest.WithAuthKey(k.Key))
+
+	vpc := netip.MustParsePrefix("10.20.0.0/16")
+	router.Direct().SetHostinfo(&tailcfg.Hostinfo{BackendLogID: "servertest-vpc-router", Hostname: "vpc-router", RoutableIPs: []netip.Prefix{vpc}})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_ = router.Direct().SendUpdate(ctx)
+
+	_, routeChange, err := st.SetApprovedRoutes(nodeIDOf(t, router), []netip.Prefix{vpc})
+	require.NoError(t, err)
+	srv.App.Change(routeChange)
+
+	changes, err = st.SetDeviceRestriction(true, "test")
+	require.NoError(t, err)
+	srv.App.Change(changes...)
+
+	waitPeers(t, laptop)
+
+	db := "10.20.1.25/32"
+	id, changes, err := st.SaveNetworkResource(types.NetworkResource{Name: "orders-db", Address: db})
+	require.NoError(t, err)
+	srv.App.Change(changes...)
+
+	_, changes, err = st.SaveAccessRule(types.AccessRule{
+		Name: "alice to orders-db", Protocol: "tcp", Ports: "5432", Enabled: true,
+		Sources:      []types.RulePrincipal{{Kind: types.PrincipalUser, Principal: strconv.FormatUint(uint64(alice.ID), 10)}},
+		Destinations: []types.RulePrincipal{{Kind: types.PrincipalResource, Principal: strconv.FormatUint(id, 10)}},
+	})
+	require.NoError(t, err)
+	srv.App.Change(changes...)
+
+	// Alice now has the router as a peer, carrying the VPC route.
+	laptop.WaitForCondition(t, "alice reaches the VPC through the router", 15*time.Second, func(nm *netmap.NetworkMap) bool {
+		for _, p := range nm.Peers {
+			for i := range p.AllowedIPs().Len() {
+				if p.AllowedIPs().At(i) == vpc {
+					return true
+				}
+			}
+		}
+
+		return false
+	})
+
+	// The router lets her in to the database's address only.
+	routerAllows := func(nm *netmap.NetworkMap) (dbAllowed, otherAllowed bool) {
+		for _, m := range nm.PacketFilter {
+			for _, d := range m.Dsts {
+				if d.Net.String() == db && d.Ports.First <= 5432 && 5432 <= d.Ports.Last {
+					dbAllowed = true
+				} else if vpc.Overlaps(d.Net) {
+					otherAllowed = true
+				}
+			}
+		}
+
+		return dbAllowed, otherAllowed
+	}
+
+	router.WaitForCondition(t, "router accepts alice for the database", 15*time.Second, func(nm *netmap.NetworkMap) bool {
+		ok, _ := routerAllows(nm)
+		return ok
+	})
+
+	_, other := routerAllows(router.Netmap())
+	require.False(t, other, "only the database's address is open, not the whole VPC")
+
+	changes, err = st.DeleteNetworkResource(id)
 	require.NoError(t, err)
 	srv.App.Change(changes...)
 

@@ -42,6 +42,7 @@ func (aa *adminAuth) accessRoutes(r chi.Router) {
 	r.Post("/devices/bulk", aa.handleBulkDevices)
 
 	aa.tempAccessRoutes(r)
+	aa.networkRoutes(r)
 
 	r.Post("/groups", aa.handleSaveGroup)
 	r.Put("/groups/{id}", aa.handleSaveGroup)
@@ -218,6 +219,16 @@ func (aa *adminAuth) principalLabeler() (func(kind, principal string) string, er
 		nodeLabel[strconv.FormatUint(uint64(n.ID()), 10)] = n.GivenName()
 	}
 
+	resources, err := st.ListNetworkResources()
+	if err != nil {
+		return nil, err
+	}
+
+	resourceLabel := make(map[string]string, len(resources))
+	for _, r := range resources {
+		resourceLabel[strconv.FormatUint(r.ID, 10)] = r.Name + " (" + r.Address + ")"
+	}
+
 	return func(kind, p string) string {
 		switch kind {
 		case types.PrincipalUser:
@@ -234,6 +245,8 @@ func (aa *adminAuth) principalLabeler() (func(kind, principal string) string, er
 			return "Everyone"
 		case types.PrincipalSelf:
 			return "Their own devices"
+		case types.PrincipalResource:
+			return cmp.Or(resourceLabel[p], "deleted resource "+p)
 		}
 
 		return p
@@ -288,6 +301,20 @@ func (aa *adminAuth) parsePrincipals(in []adminPrincipal, allowed ...string) ([]
 
 			if _, ok := st.GetNodeByID(types.NodeID(id)); !ok {
 				return nil, fmt.Errorf("no device %s", p.Principal)
+			}
+		case types.PrincipalResource:
+			id, err := strconv.ParseUint(p.Principal, 10, 64)
+			if err != nil {
+				return nil, fmt.Errorf("invalid resource id %q", p.Principal)
+			}
+
+			resources, err := st.ListNetworkResources()
+			if err != nil {
+				return nil, err
+			}
+
+			if !slices.ContainsFunc(resources, func(r types.NetworkResource) bool { return r.ID == id }) {
+				return nil, fmt.Errorf("no private resource %s", p.Principal)
 			}
 		case types.PrincipalEveryone, types.PrincipalSelf:
 			p.Principal = ""
@@ -862,7 +889,7 @@ func (aa *adminAuth) handleSaveRule(w http.ResponseWriter, r *http.Request) {
 
 	req.Kind = cmp.Or(req.Kind, types.RuleKindNetwork)
 
-	srcKinds, dstKinds := ruleKinds, ruleKinds
+	srcKinds, dstKinds := ruleKinds, append(slices.Clone(ruleKinds), types.PrincipalResource)
 	sshUsers := ""
 
 	switch req.Kind {

@@ -119,6 +119,16 @@ func managedPolicy(db *hsdb.HSDatabase, users []types.User, nodes views.Slice[ty
 		m.Tags = append(m.Tags, t.Name)
 	}
 
+	resources, err := hsdb.Read(db.DB, hsdb.ListNetworkResources)
+	if err != nil {
+		return m, err
+	}
+
+	resourceAddr := make(map[string]string, len(resources))
+	for _, r := range resources {
+		resourceAddr[strconv.FormatUint(r.ID, 10)] = r.Address
+	}
+
 	nodeIPs := make(map[string][]string, nodes.Len())
 	for _, n := range nodes.All() {
 		nodeIPs[strconv.FormatUint(uint64(n.ID()), 10)] = n.IPsAsString()
@@ -154,6 +164,10 @@ func managedPolicy(db *hsdb.HSDatabase, users []types.User, nodes views.Slice[ty
 			return []string{"autogroup:member"}
 		case types.PrincipalSelf:
 			return []string{"autogroup:self"}
+		case types.PrincipalResource:
+			if a, ok := resourceAddr[principal]; ok {
+				return []string{a}
+			}
 		}
 
 		return nil
@@ -225,6 +239,8 @@ func managedPolicy(db *hsdb.HSDatabase, users []types.User, nodes views.Slice[ty
 		t, tagOK := tagByName[r.Tag]
 		if node, ok := r.AccessNodeTarget(); ok {
 			dst = nodeIPs[node]
+		} else if res, ok := r.AccessResourceTarget(); ok {
+			dst = resolve(types.PrincipalResource, res)
 		} else if tagOK {
 			dst = []string{t.Name}
 		}

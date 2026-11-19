@@ -188,6 +188,31 @@ Visibility is two-way: if a group may reach a server, the server also lists
 the group's devices as peers (it can't open connections to them unless a rule
 allows it).
 
+## Private networks (AWS, Azure, GCP, offices)
+
+Managed services such as RDS, Cloud SQL, Azure SQL or ElastiCache cannot run
+Tailscale. People reach them through a **subnet router**: one small Linux
+machine inside the private network that forwards traffic for its addresses.
+
+1. **Networks → Add subnet router**: name it and enter the network ranges it
+   serves (e.g. the VPC's `10.0.0.0/16`). Run the command shown on an EC2
+   instance in the VPC (an Azure VM in the VNet, a server in the office). It
+   joins with `tag:router`; the window then approves its routes. Let its
+   security group reach the databases on their ports.
+2. **Networks → Add resource**: name what people reach, e.g. *Orders
+   database* → `10.0.1.0/24`. For RDS, use the range of the database's
+   subnets, since its address can change on failover. Database names such
+   as `orders.abc123.eu-west-1.rds.amazonaws.com` resolve to the private
+   address from anywhere, so they keep working.
+3. Give access: an **Access** rule with the resource as destination (e.g.
+   *Engineering → Orders database, TCP 5432*), or **Temporary access →
+   A private resource**.
+
+With access control on, only the resource's addresses are opened through the
+router, not the whole network. Names in private DNS zones (Route 53 private
+zones, Azure private DNS) need **Settings → DNS → Split DNS** pointing the
+zone at the network's resolver (e.g. `10.0.0.2` in an AWS VPC).
+
 ## DNS
 
 **Settings → DNS** controls what devices get, live, with no restart:

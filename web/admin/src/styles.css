@@ -2484,3 +2484,7 @@ details.disclosure.drawer-section {
   vertical-align: -2px;
   color: var(--muted);
 }
+
+.text-warn {
+  color: var(--warn);
+}

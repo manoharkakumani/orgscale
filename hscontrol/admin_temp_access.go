@@ -38,6 +38,7 @@ type adminTempAccess struct {
 	Kind      string     `json:"kind"` // "user" or "directory_group"
 	Tag       string     `json:"tag"`  // the tag, or the server's name
 	Server    bool       `json:"server"`
+	Resource  bool       `json:"resource"`
 	Reason    string     `json:"reason"`
 	Minutes   int        `json:"minutes"`
 	SSH       bool       `json:"ssh"`
@@ -83,6 +84,14 @@ func (aa *adminAuth) handleListTempAccess(w http.ResponseWriter, _ *http.Request
 		byName[t.Name] = t
 	}
 
+	resourceNames := map[string]string{}
+
+	if rs, err := aa.h.state.ListNetworkResources(); err == nil {
+		for _, r := range rs {
+			resourceNames[strconv.FormatUint(r.ID, 10)] = r.Name
+		}
+	}
+
 	now := time.Now()
 	out := []adminTempAccess{}
 
@@ -105,6 +114,10 @@ func (aa *adminAuth) handleListTempAccess(w http.ResponseWriter, _ *http.Request
 			v.Status, v.EndedBy = "ended", r.DecisionNote
 		default:
 			v.Status = "expired"
+		}
+
+		if id, ok := r.AccessResourceTarget(); ok {
+			v.Resource, v.Tag = true, cmp.Or(resourceNames[id], "a removed resource")
 		}
 
 		if id, ok := r.AccessNodeTarget(); ok {
@@ -131,12 +144,13 @@ func (aa *adminAuth) handleListTempAccess(w http.ResponseWriter, _ *http.Request
 // a set time. A group's grant covers whoever is in it while it lasts.
 func (aa *adminAuth) handleGrantTempAccess(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		To      []adminPrincipal `json:"to"`
-		Tag     string           `json:"tag"`
-		Server  uint64           `json:"server"` // one server instead of a tag
-		Minutes int              `json:"minutes"`
-		Reason  string           `json:"reason"`
-		SSH     bool             `json:"ssh"`
+		To       []adminPrincipal `json:"to"`
+		Tag      string           `json:"tag"`
+		Server   uint64           `json:"server"`   // one server instead of a tag
+		Resource uint64           `json:"resource"` // or one private resource
+		Minutes  int              `json:"minutes"`
+		Reason   string           `json:"reason"`
+		SSH      bool             `json:"ssh"`
 	}
 
 	if !decodeJSON(w, r, &body) {
@@ -183,6 +197,29 @@ func (aa *adminAuth) handleGrantTempAccess(w http.ResponseWriter, r *http.Reques
 
 		target = types.AccessNodePrefix + strconv.FormatUint(body.Server, 10)
 		targetLabel = node.GivenName()
+	} else if body.Resource != 0 {
+		resources, err := aa.h.state.ListNetworkResources()
+		if err != nil {
+			adminJSONError(w, http.StatusInternalServerError, err.Error())
+
+			return
+		}
+
+		j := slices.IndexFunc(resources, func(r types.NetworkResource) bool { return r.ID == body.Resource })
+		if j < 0 {
+			adminJSONError(w, http.StatusBadRequest, "choose a private resource from the Networks page")
+
+			return
+		}
+
+		if body.SSH {
+			adminJSONError(w, http.StatusBadRequest, "keyless SSH works on devices running Tailscale, not on private resources")
+
+			return
+		}
+
+		target = types.AccessResourcePrefix + strconv.FormatUint(body.Resource, 10)
+		targetLabel = resources[j].Name
 	} else {
 		i := slices.IndexFunc(tags, func(t types.ServerTag) bool { return t.Name == body.Tag })
 		if i < 0 {

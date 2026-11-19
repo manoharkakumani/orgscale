@@ -248,3 +248,13 @@ CREATE TABLE access_requests(
   grant_principal text
 );
 CREATE INDEX idx_access_requests_status ON access_requests(status);
+
+-- orgscale private resources behind subnet routers (see hscontrol/db/orgscale_access.go).
+CREATE TABLE network_resources(
+  id integer PRIMARY KEY AUTOINCREMENT,
+  name text NOT NULL,
+  address text NOT NULL,
+  description text,
+  created_at datetime,
+  created_by text
+);

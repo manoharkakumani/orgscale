@@ -109,7 +109,7 @@ export interface AdminUser {
   roleFrom: "" | "console" | "config" | "group";
 }
 
-export type PrincipalKind = "user" | "directory_group" | "policy_group" | "tag" | "device" | "everyone" | "self";
+export type PrincipalKind = "user" | "directory_group" | "policy_group" | "tag" | "device" | "everyone" | "self" | "resource";
 
 export interface Principal {
   kind: PrincipalKind;
@@ -139,6 +139,7 @@ export interface TempAccess {
   kind: "user" | "directory_group";
   tag: string;
   server: boolean;
+  resource: boolean;
   reason: string;
   minutes: number;
   ssh: boolean;
@@ -358,4 +359,28 @@ export interface DNSSettings {
   baseDomain: string;
   source: "file" | "console";
   recordsFromFile: boolean;
+}
+
+export interface SubnetRouter {
+  id: number;
+  name: string;
+  online: boolean;
+  tags: string[];
+  announced: string[];
+  approved: string[];
+  pending: string[];
+}
+
+export interface PrivateResource {
+  id: number;
+  name: string;
+  address: string;
+  description: string;
+  createdAt: string;
+  coveredBy: string[];
+}
+
+export interface NetworksInfo {
+  routers: SubnetRouter[];
+  resources: PrivateResource[];
 }

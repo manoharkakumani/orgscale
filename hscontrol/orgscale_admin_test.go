@@ -957,3 +957,65 @@ func TestAdminConsoleTempAccess(t *testing.T) {
 	assert.Equal(t, "expired", list[0].Status)
 	assert.Equal(t, "ended", list[1].Status)
 }
+
+func TestAdminConsolePrivateResources(t *testing.T) {
+	h := newAdminHarness(t)
+
+	boss := h.browser(t)
+	require.Equal(t, http.StatusOK, boss.login(t, &mockoidc.MockUser{Subject: "boss", Email: "boss@example.com", EmailVerified: true}))
+
+	save := func(name, addr string) (int, uint64) {
+		var out map[string]uint64
+		code := boss.do(t, http.MethodPost, "/admin/api/resources", map[string]string{"name": name, "address": addr}, &out)
+
+		return code, out["id"]
+	}
+
+	for _, bad := range []string{"db.example.com", "0.0.0.0/0", "100.64.0.5", "fd7a:115c:a1e0::1"} {
+		code, _ := save("x", bad)
+		assert.Equal(t, http.StatusBadRequest, code, bad)
+	}
+
+	code, _ := save("", "10.0.0.1")
+	assert.Equal(t, http.StatusBadRequest, code, "a name is required")
+
+	code, id := save("orders-db", "10.20.1.25")
+	require.Equal(t, http.StatusOK, code)
+
+	code, _ = save("vpc", "10.20.7.9/16")
+	require.Equal(t, http.StatusOK, code)
+
+	var nets struct {
+		Resources []adminResource `json:"resources"`
+	}
+	require.Equal(t, http.StatusOK, boss.do(t, http.MethodGet, "/admin/api/networks", nil, &nets))
+	require.Len(t, nets.Resources, 2)
+	assert.Equal(t, "10.20.1.25/32", nets.Resources[0].Address, "an address becomes a /32")
+	assert.Equal(t, "10.20.0.0/16", nets.Resources[1].Address, "a range is masked")
+	assert.Empty(t, nets.Resources[0].CoveredBy, "no router yet")
+
+	// Usable as a rule destination, not as a source.
+	rid := fmt.Sprint(id)
+	assert.Equal(t, http.StatusBadRequest, boss.do(t, http.MethodPost, "/admin/api/rules", map[string]any{
+		"name": "bad", "ports": "*", "enabled": true,
+		"sources":      []map[string]string{{"kind": "resource", "principal": rid}},
+		"destinations": []map[string]string{{"kind": "everyone"}},
+	}, nil))
+	require.Equal(t, http.StatusOK, boss.do(t, http.MethodPost, "/admin/api/rules", map[string]any{
+		"name": "people to orders-db", "ports": "5432", "protocol": "tcp", "enabled": true,
+		"sources":      []map[string]string{{"kind": "everyone"}},
+		"destinations": []map[string]string{{"kind": "resource", "principal": rid}},
+	}, nil))
+
+	require.Equal(t, http.StatusOK, boss.do(t, http.MethodPut, "/admin/api/settings/device-restriction", map[string]bool{"enabled": true}, nil))
+
+	p, err := h.app.state.EffectivePolicy()
+	require.NoError(t, err)
+	assert.Contains(t, string(p), "10.20.1.25/32:5432")
+
+	require.Equal(t, http.StatusNoContent, boss.do(t, http.MethodDelete, "/admin/api/resources/"+rid, nil, nil))
+
+	p, err = h.app.state.EffectivePolicy()
+	require.NoError(t, err)
+	assert.NotContains(t, string(p), "10.20.1.25")
+}

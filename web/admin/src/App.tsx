@@ -13,6 +13,7 @@ import SettingsPage from "./pages/Settings";
 import SetupPage from "./pages/Setup";
 import AuditPage from "./pages/Audit";
 import TempAccessPage from "./pages/TempAccess";
+import NetworksPage from "./pages/Networks";
 
 const MeCtx = createContext<Me | null>(null);
 
@@ -33,6 +34,7 @@ const nav: { group: string; items: { to: string; label: string; icon: string; en
       { to: "/", label: "Overview", icon: "overview", end: true },
       { to: "/devices", label: "Devices", icon: "devices" },
       { to: "/servers", label: "Servers", icon: "server" },
+      { to: "/networks", label: "Networks", icon: "globe" },
       { to: "/access", label: "Access", icon: "shield" },
       { to: "/temporary-access", label: "Temporary access", icon: "clock" },
     ],
@@ -246,6 +248,7 @@ function Shell({ me, setMe, menuOpen, setMenuOpen, scrolled }: { me: Me; setMe: 
             <Routes>
               <Route path="/" element={<OverviewPage />} />
               <Route path="/temporary-access" element={<TempAccessPage />} />
+              <Route path="/networks" element={<NetworksPage />} />
               <Route path="/requests" element={<Navigate to="/temporary-access" replace />} />
               <Route path="/users" element={<UsersPage />} />
               <Route path="/devices" element={<DevicesPage />} />
