@@ -43,6 +43,10 @@ type ServerTag struct {
 	// RequestSSHUsers is a JSON array of the Linux accounts an approved
 	// request may also SSH in as, e.g. ["ubuntu"]; empty means no SSH.
 	RequestSSHUsers string `gorm:"column:request_ssh_users" json:"-"`
+	// RequestPrincipals is a JSON array of {kind, principal}: the users,
+	// directory groups or everyone who may see and request the tag. Nobody
+	// else learns it exists.
+	RequestPrincipals string `gorm:"column:request_principals" json:"-"`
 }
 
 // TableName pins the gorm table name.

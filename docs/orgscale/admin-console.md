@@ -159,12 +159,19 @@ their SSH access with everything else.
 For servers people should reach only now and then (production databases,
 customer environments), let them ask instead of giving standing access:
 
-1. **Servers → edit a tag → Temporary access on request**: turn it on, pick
-   the longest access allowed (1 hour to 7 days) and, optionally, the Linux
-   accounts people may also SSH in as (`ubuntu`).
+1. **Servers → edit a tag → Temporary access on request**: turn it on,
+   choose **who can ask** (people, groups, or everyone), the longest access
+   allowed (1 hour to 7 days) and, optionally, the Linux accounts people may
+   also SSH in as (`ubuntu`).
 2. People sign in to `https://vpn.example.com/admin/` with single sign-on.
    Anyone with an orgscale account who is not an administrator sees only a
-   **Request access** page: they pick the tag, a duration and write why.
+   **Request access** page listing the tags they may ask for: they pick one,
+   a duration and write why.
+
+   Requests reveal nothing about your network: a person sees only the tags
+   opened to them, by name and description, never their servers, counts or
+   addresses, and asking for any other tag gets the same answer as asking
+   for one that does not exist.
 3. Administrators see the request under **Requests** (with a count in the
    sidebar) and approve, approve for less time, or deny, with a note.
    Nobody can approve their own request.

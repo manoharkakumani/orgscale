@@ -176,7 +176,8 @@ CREATE TABLE server_tags(
   created_at datetime,
   created_by text,
   request_max_minutes integer NOT NULL DEFAULT 0,
-  request_ssh_users text
+  request_ssh_users text,
+  request_principals text
 );
 CREATE TABLE server_tag_access(
   tag text NOT NULL,

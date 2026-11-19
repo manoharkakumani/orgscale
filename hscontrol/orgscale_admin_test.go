@@ -870,12 +870,26 @@ func TestAdminConsoleAccessRequests(t *testing.T) {
 	h := newAdminHarness(t)
 
 	// Directory-synced people, as Entra sync creates them.
+	ids := map[string]string{}
+
 	for _, u := range []types.User{
 		{Name: "alice", Email: "alice@example.com", Provider: userProviderEntra},
 		{Name: "boss", Email: "boss@example.com", Provider: userProviderEntra},
+		{Name: "carol", Email: "carol@example.com", Provider: userProviderEntra},
 	} {
-		_, _, err := h.app.state.CreateUser(u)
+		made, _, err := h.app.state.CreateUser(u)
 		require.NoError(t, err)
+
+		ids[u.Name] = fmt.Sprint(made.ID)
+	}
+
+	who := func(names ...string) []map[string]string {
+		var out []map[string]string
+		for _, n := range names {
+			out = append(out, map[string]string{"kind": "user", "principal": ids[n]})
+		}
+
+		return out
 	}
 
 	boss := h.browser(t)
@@ -886,10 +900,16 @@ func TestAdminConsoleAccessRequests(t *testing.T) {
 
 	require.Equal(t, http.StatusNoContent, boss.do(t, http.MethodPut, "/admin/api/tags/tag:prod-db", map[string]any{
 		"description": "production databases", "access": []any{},
-		"requests": map[string]any{"maxMinutes": 120, "sshUsers": []string{"ubuntu"}},
+		"requests": map[string]any{"maxMinutes": 120, "sshUsers": []string{"ubuntu"}, "who": who("alice", "boss")},
 	}, nil))
 	assert.Equal(t, http.StatusBadRequest, boss.do(t, http.MethodPut, "/admin/api/tags/tag:prod-db", map[string]any{
-		"access": []any{}, "requests": map[string]any{"maxMinutes": 99999},
+		"access": []any{}, "requests": map[string]any{"maxMinutes": 99999, "who": who("alice")},
+	}, nil))
+	assert.Equal(t, http.StatusBadRequest, boss.do(t, http.MethodPut, "/admin/api/tags/tag:secret", map[string]any{
+		"access": []any{}, "requests": map[string]any{"maxMinutes": 60},
+	}, nil), "requests need a list of who may ask")
+	require.Equal(t, http.StatusNoContent, boss.do(t, http.MethodPut, "/admin/api/tags/tag:secret", map[string]any{
+		"access": []any{}, "requests": map[string]any{"maxMinutes": 60, "who": who("carol")},
 	}, nil))
 
 	require.Equal(t, http.StatusOK, boss.do(t, http.MethodPut, "/admin/api/settings/device-restriction", map[string]bool{"enabled": true}, nil))
@@ -911,8 +931,19 @@ func TestAdminConsoleAccessRequests(t *testing.T) {
 
 	var targets []adminRequestTarget
 	require.Equal(t, http.StatusOK, alice.do(t, http.MethodGet, "/admin/api/my/targets", nil, &targets))
-	require.Len(t, targets, 1)
+	require.Len(t, targets, 1, "alice does not learn tag:secret exists")
 	assert.Equal(t, "tag:prod-db", targets[0].Tag)
+
+	var aliceAsk map[string]any
+	assert.Equal(t, http.StatusBadRequest, alice.do(t, http.MethodPost, "/admin/api/my/requests", map[string]any{"tag": "tag:secret", "minutes": 30, "reason": "let me in"}, &aliceAsk))
+
+	carol := h.browser(t)
+	require.Equal(t, http.StatusOK, carol.login(t, &mockoidc.MockUser{Subject: "carol", Email: "carol@example.com", EmailVerified: true}))
+
+	var carolTargets []adminRequestTarget
+	require.Equal(t, http.StatusOK, carol.do(t, http.MethodGet, "/admin/api/my/targets", nil, &carolTargets))
+	require.Len(t, carolTargets, 1)
+	assert.Equal(t, "tag:secret", carolTargets[0].Tag)
 	assert.Equal(t, []string{"ubuntu"}, targets[0].SSHUsers)
 
 	ask := func(b *adminBrowser, minutes int, reason string) (int, uint64) {

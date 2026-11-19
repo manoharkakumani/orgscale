@@ -185,7 +185,7 @@ func (s *State) DeleteAdminSessions(ids ...string) error {
 
 // SetServerTagRequests changes a tag's access request settings. The SSH
 // accounts apply to requests already approved, so the policy is rebuilt.
-func (s *State) SetServerTagRequests(name string, maxMinutes int, sshUsers string) ([]change.Change, error) {
+func (s *State) SetServerTagRequests(name string, maxMinutes int, sshUsers, principals string) ([]change.Change, error) {
 	var prev types.ServerTag
 
 	err := s.ReadDirectory(func(rx *gorm.DB) error { return rx.Where("name = ?", name).Take(&prev).Error })
@@ -194,9 +194,9 @@ func (s *State) SetServerTagRequests(name string, maxMinutes int, sshUsers strin
 	}
 
 	return s.changePolicy(
-		func(tx *gorm.DB) error { return hsdb.SetServerTagRequests(tx, name, maxMinutes, sshUsers) },
+		func(tx *gorm.DB) error { return hsdb.SetServerTagRequests(tx, name, maxMinutes, sshUsers, principals) },
 		func(tx *gorm.DB) error {
-			return hsdb.SetServerTagRequests(tx, name, prev.RequestMaxMinutes, prev.RequestSSHUsers)
+			return hsdb.SetServerTagRequests(tx, name, prev.RequestMaxMinutes, prev.RequestSSHUsers, prev.RequestPrincipals)
 		},
 	)
 }

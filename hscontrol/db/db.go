@@ -421,6 +421,14 @@ WHERE auth_key_id IN (
 				},
 				Rollback: func(db *gorm.DB) error { return nil },
 			},
+			{
+				// orgscale: who may request each tag.
+				ID: "202611190200-orgscale-request-principals",
+				Migrate: func(tx *gorm.DB) error {
+					return tx.Transaction(ensureAccessRequests)
+				},
+				Rollback: func(db *gorm.DB) error { return nil },
+			},
 		},
 	)
 

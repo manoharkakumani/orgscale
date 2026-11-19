@@ -98,7 +98,7 @@ function RequestForm({ targets, onClose, onSent }: { targets: RequestTarget[]; o
         </>
       }
     >
-      <Field label="Servers" hint={target ? (target.devices.length ? `${target.devices.length} server${target.devices.length === 1 ? "" : "s"}: ${target.devices.slice(0, 6).join(", ")}${target.devices.length > 6 ? "…" : ""}` : "No servers have joined with this tag yet.") : undefined}>
+      <Field label="Servers" hint="Only the servers an administrator opened to you are listed.">
         <select value={tag} onChange={(e) => setTag(e.target.value)}>
           {targets.map((t) => (
             <option key={t.tag} value={t.tag}>

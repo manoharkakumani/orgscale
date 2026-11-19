@@ -25,6 +25,7 @@ function TagEditor({ tag, onClose, onSaved }: { tag?: ServerTag; onClose: () => 
   const [access, setAccess] = useState<Principal[]>(tag?.access ?? []);
   const [reqMax, setReqMax] = useState(tag?.requestMaxMinutes ?? 0);
   const [reqSSH, setReqSSH] = useState<string[]>(tag?.requestSSHUsers ?? []);
+  const [reqWho, setReqWho] = useState<Principal[]>(tag?.requestWho ?? []);
   const [busy, setBusy] = useState(false);
   const full = `tag:${slug(name)}`;
   const self: Option = { kind: "tag", principal: full, label: full, sub: "servers in this tag reach each other", key: `tag:${full}` };
@@ -42,14 +43,14 @@ function TagEditor({ tag, onClose, onSaved }: { tag?: ServerTag; onClose: () => 
           <Button
             variant="primary"
             busy={busy}
-            disabled={!slug(name)}
+            disabled={!slug(name) || (reqMax > 0 && reqWho.length === 0)}
             onClick={async () => {
               setBusy(true);
               try {
                 await put(`/admin/api/tags/${encodeURIComponent(full)}`, {
                   description,
                   access: access.map(({ kind, principal }) => ({ kind, principal })),
-                  requests: { maxMinutes: reqMax, sshUsers: reqMax > 0 ? reqSSH : [] },
+                  requests: { maxMinutes: reqMax, sshUsers: reqMax > 0 ? reqSSH : [], who: reqMax > 0 ? reqWho.map(({ kind, principal }) => ({ kind, principal })) : [] },
                 });
                 toast.ok(tag ? "Tag saved" : `${full} created`);
                 onSaved(full);
@@ -79,11 +80,14 @@ function TagEditor({ tag, onClose, onSaved }: { tag?: ServerTag; onClose: () => 
       </Field>
       <div className="group-title">Temporary access on request</div>
       <div className="group">
-        <PRow label="People can request access" sub="Anyone signed in can ask for time-limited access with a reason. Another administrator approves; access ends on its own.">
+        <PRow label="People can request access" sub="The people you choose can ask for time-limited access with a reason. Another administrator approves; access ends on its own. Nobody else sees this tag.">
           <Toggle hideLabel label="People can request access" checked={reqMax > 0} onChange={(v) => setReqMax(v ? 240 : 0)} />
         </PRow>
         {reqMax > 0 && (
           <>
+            <PRow block label="Who can ask" sub="Only they see this tag on their Request access page, with its description, never its servers.">
+              <PrincipalPicker kinds={["everyone", "directory_group", "user"]} value={reqWho} onChange={setReqWho} placeholder="Search people and groups" height={180} />
+            </PRow>
             <PRow label="Longest access">
               <select value={reqMax} onChange={(e) => setReqMax(Number(e.target.value))}>
                 {durationChoices.filter((d) => d.minutes >= 60).map((d) => (
@@ -368,7 +372,7 @@ function TagCard({ t, canEdit, onAdd, onEdit, onDelete }: { t: ServerTag; canEdi
         <PrincipalList items={t.access} empty="Nobody yet" max={5} />
         {t.requestMaxMinutes > 0 && (
           <div className="muted small mt">
-            Others can request access for up to {duration(t.requestMaxMinutes)}
+            {t.requestWho.map((p) => p.label ?? p.principal).join(", ")} can request access for up to {duration(t.requestMaxMinutes)}
             {t.requestSSHUsers.length ? `, with SSH as ${t.requestSSHUsers.join(", ")}` : ""}.
           </div>
         )}

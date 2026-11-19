@@ -20,7 +20,8 @@ CREATE TABLE server_tags(
   created_at datetime,
   created_by text,
   request_max_minutes integer NOT NULL DEFAULT 0,
-  request_ssh_users text
+  request_ssh_users text,
+  request_principals text
 );
 CREATE TABLE server_tag_access(
   tag text NOT NULL,
@@ -61,7 +62,8 @@ CREATE TABLE server_tags(
   created_at timestamptz,
   created_by text,
   request_max_minutes integer NOT NULL DEFAULT 0,
-  request_ssh_users text
+  request_ssh_users text,
+  request_principals text
 );
 CREATE TABLE server_tag_access(
   tag text NOT NULL,
@@ -183,6 +185,7 @@ func ensureAccessRequests(tx *gorm.DB) error {
 	cols := []struct{ name, ddl string }{
 		{"request_max_minutes", "ALTER TABLE server_tags ADD COLUMN request_max_minutes integer NOT NULL DEFAULT 0"},
 		{"request_ssh_users", "ALTER TABLE server_tags ADD COLUMN request_ssh_users text"},
+		{"request_principals", "ALTER TABLE server_tags ADD COLUMN request_principals text"},
 	}
 
 	for _, c := range cols {
@@ -524,12 +527,13 @@ func SaveServerTag(tx *gorm.DB, tag types.ServerTag, grants []types.ServerTagAcc
 }
 
 // SetServerTagRequests sets whether people may request temporary access to
-// a tag, for how long at most (0 turns requests off), and which Linux
-// accounts an approved request may SSH in as (a JSON array).
-func SetServerTagRequests(tx *gorm.DB, name string, maxMinutes int, sshUsers string) error {
+// a tag, for how long at most (0 turns requests off), which Linux accounts
+// an approved request may SSH in as, and who may ask (JSON arrays).
+func SetServerTagRequests(tx *gorm.DB, name string, maxMinutes int, sshUsers, principals string) error {
 	res := tx.Model(&types.ServerTag{}).Where("name = ?", name).Updates(map[string]any{
 		"request_max_minutes": maxMinutes,
 		"request_ssh_users":   sshUsers,
+		"request_principals":  principals,
 	})
 	if res.Error != nil {
 		return res.Error

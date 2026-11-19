@@ -132,6 +132,7 @@ export interface ServerTag {
   devices: { id: number; name: string; online: boolean; os: string }[];
   requestMaxMinutes: number;
   requestSSHUsers: string[];
+  requestWho: Principal[];
 }
 
 export type AccessRequestStatus = "pending" | "approved" | "denied" | "cancelled" | "revoked" | "expired";
@@ -161,7 +162,6 @@ export interface RequestTarget {
   description: string;
   maxMinutes: number;
   sshUsers: string[];
-  devices: string[];
 }
 
 export interface AccessRule {

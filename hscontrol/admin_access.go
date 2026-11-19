@@ -367,8 +367,9 @@ type adminTag struct {
 	Access      []adminPrincipal `json:"access"`
 	Devices     []adminTagDevice `json:"devices"`
 
-	RequestMaxMinutes int      `json:"requestMaxMinutes"`
-	RequestSSHUsers   []string `json:"requestSSHUsers"`
+	RequestMaxMinutes int              `json:"requestMaxMinutes"`
+	RequestSSHUsers   []string         `json:"requestSSHUsers"`
+	RequestWho        []adminPrincipal `json:"requestWho"`
 }
 
 func (aa *adminAuth) handleListTags(w http.ResponseWriter, r *http.Request) {
@@ -399,7 +400,7 @@ func (aa *adminAuth) handleListTags(w http.ResponseWriter, r *http.Request) {
 	get := func(name string) *adminTag {
 		t, ok := byName[name]
 		if !ok {
-			t = &adminTag{Name: name, Access: []adminPrincipal{}, Devices: []adminTagDevice{}, RequestSSHUsers: []string{}}
+			t = &adminTag{Name: name, Access: []adminPrincipal{}, Devices: []adminTagDevice{}, RequestSSHUsers: []string{}, RequestWho: []adminPrincipal{}}
 			byName[name] = t
 		}
 
@@ -410,6 +411,9 @@ func (aa *adminAuth) handleListTags(w http.ResponseWriter, r *http.Request) {
 		t := get(mt.Name)
 		t.Managed, t.Description = true, mt.Description
 		t.RequestMaxMinutes, t.RequestSSHUsers = mt.RequestMaxMinutes, sshUsersOf(mt)
+		for _, p := range requestPrincipalsOf(mt) {
+			t.RequestWho = append(t.RequestWho, adminPrincipal{Kind: p.Kind, Principal: p.Principal, Label: label(p.Kind, p.Principal)})
+		}
 		created := mt.CreatedAt
 		t.CreatedAt = &created
 	}
@@ -484,8 +488,9 @@ func (aa *adminAuth) handlePutTag(w http.ResponseWriter, r *http.Request) {
 		Access      []adminPrincipal `json:"access"`
 		// Requests, when present, sets who may ask for temporary access.
 		Requests *struct {
-			MaxMinutes int      `json:"maxMinutes"`
-			SSHUsers   []string `json:"sshUsers"`
+			MaxMinutes int              `json:"maxMinutes"`
+			SSHUsers   []string         `json:"sshUsers"`
+			Who        []adminPrincipal `json:"who"`
 		} `json:"requests"`
 	}
 
@@ -493,7 +498,7 @@ func (aa *adminAuth) handlePutTag(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var requestSSH string
+	var requestSSH, requestWho string
 
 	if q := req.Requests; q != nil {
 		if q.MaxMinutes < 0 || q.MaxMinutes > accessRequestMaxMinutes || (q.MaxMinutes > 0 && q.MaxMinutes < 15) {
@@ -517,6 +522,27 @@ func (aa *adminAuth) handlePutTag(w http.ResponseWriter, r *http.Request) {
 
 		b, _ := json.Marshal(users)
 		requestSSH = string(b)
+
+		who, err := aa.parsePrincipals(q.Who, types.PrincipalUser, types.PrincipalDirectoryGroup, types.PrincipalEveryone)
+		if err != nil {
+			adminJSONError(w, http.StatusBadRequest, err.Error())
+
+			return
+		}
+
+		if q.MaxMinutes > 0 && len(who) == 0 {
+			adminJSONError(w, http.StatusBadRequest, "choose who may request access to this tag; nobody else sees it")
+
+			return
+		}
+
+		stored := make([]requestPrincipal, 0, len(who))
+		for _, p := range who {
+			stored = append(stored, requestPrincipal{Kind: p.Kind, Principal: p.Principal})
+		}
+
+		b, _ = json.Marshal(stored)
+		requestWho = string(b)
 	}
 
 	// The tag being saved is a valid grantee too (servers reaching each
@@ -578,7 +604,7 @@ func (aa *adminAuth) handlePutTag(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if q := req.Requests; q != nil {
-		changes, err := aa.h.state.SetServerTagRequests(name, q.MaxMinutes, requestSSH)
+		changes, err := aa.h.state.SetServerTagRequests(name, q.MaxMinutes, requestSSH, requestWho)
 		aa.h.Change(changes...)
 
 		if err != nil {

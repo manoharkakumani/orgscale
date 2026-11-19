@@ -67,6 +67,57 @@ type adminRequest struct {
 	GrantKind string `json:"grantKind,omitempty"`
 }
 
+type requestPrincipal struct {
+	Kind      string `json:"kind"`
+	Principal string `json:"principal"`
+}
+
+func requestPrincipalsOf(t types.ServerTag) []requestPrincipal {
+	var ps []requestPrincipal
+	_ = json.Unmarshal([]byte(t.RequestPrincipals), &ps)
+
+	return ps
+}
+
+// mayRequest reports whether user uid may see and request tag t: requests
+// are on, and the user is listed, in a listed directory group, or everyone
+// is allowed.
+func (aa *adminAuth) mayRequest(t types.ServerTag, uid uint) bool {
+	if t.RequestMaxMinutes <= 0 || uid == 0 {
+		return false
+	}
+
+	var groups []types.DirectoryGroup
+
+	for _, p := range requestPrincipalsOf(t) {
+		switch p.Kind {
+		case types.PrincipalEveryone:
+			return true
+		case types.PrincipalUser:
+			if p.Principal == strconv.FormatUint(uint64(uid), 10) {
+				return true
+			}
+		case types.PrincipalDirectoryGroup:
+			if groups == nil {
+				var err error
+
+				groups, err = aa.h.state.ListDirectoryGroups()
+				if err != nil {
+					return false
+				}
+			}
+
+			for _, g := range groups {
+				if strconv.FormatUint(g.ID, 10) == p.Principal && slices.Contains(g.MemberIDs, types.UserID(uid)) {
+					return true
+				}
+			}
+		}
+	}
+
+	return false
+}
+
 func sshUsersOf(t types.ServerTag) []string {
 	var users []string
 	_ = json.Unmarshal([]byte(t.RequestSSHUsers), &users)
@@ -342,15 +393,16 @@ func (aa *adminAuth) handleGrantAccess(w http.ResponseWriter, r *http.Request) {
 	adminJSON(w, http.StatusCreated, map[string][]uint64{"ids": ids})
 }
 
+// adminRequestTarget is a tag as someone who may request it sees it: no
+// server names, counts or addresses.
 type adminRequestTarget struct {
 	Tag        string   `json:"tag"`
 	Desc       string   `json:"description"`
 	MaxMinutes int      `json:"maxMinutes"`
 	SSHUsers   []string `json:"sshUsers"`
-	Devices    []string `json:"devices"`
 }
 
-func (aa *adminAuth) handleMyTargets(w http.ResponseWriter, _ *http.Request) {
+func (aa *adminAuth) handleMyTargets(w http.ResponseWriter, r *http.Request) {
 	tags, err := aa.h.state.ListServerTags()
 	if err != nil {
 		adminJSONError(w, http.StatusInternalServerError, err.Error())
@@ -358,26 +410,17 @@ func (aa *adminAuth) handleMyTargets(w http.ResponseWriter, _ *http.Request) {
 		return
 	}
 
-	devices := map[string][]string{}
-
-	for _, n := range aa.h.state.ListNodes().All() {
-		for _, t := range n.Tags().All() {
-			devices[t] = append(devices[t], n.GivenName())
-		}
-	}
-
+	uid := sessionFrom(r).UserID
 	out := []adminRequestTarget{}
 
 	for _, t := range tags {
-		if t.RequestMaxMinutes <= 0 {
+		if !aa.mayRequest(t, uid) {
 			continue
 		}
 
-		ds := append([]string{}, devices[t.Name]...)
-		slices.Sort(ds)
 		out = append(out, adminRequestTarget{
 			Tag: t.Name, Desc: t.Description, MaxMinutes: t.RequestMaxMinutes,
-			SSHUsers: append([]string{}, sshUsersOf(t)...), Devices: ds,
+			SSHUsers: append([]string{}, sshUsersOf(t)...),
 		})
 	}
 
@@ -442,8 +485,10 @@ func (aa *adminAuth) handleCreateRequest(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	// The same answer whether the tag does not exist or the person may not
+	// ask for it, so requests reveal nothing.
 	i := slices.IndexFunc(tags, func(t types.ServerTag) bool { return t.Name == body.Tag })
-	if i < 0 || tags[i].RequestMaxMinutes <= 0 {
+	if i < 0 || !aa.mayRequest(tags[i], sess.UserID) {
 		adminJSONError(w, http.StatusBadRequest, "access to this tag cannot be requested")
 
 		return
