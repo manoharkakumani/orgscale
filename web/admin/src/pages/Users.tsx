@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { del, get, post, put, type AdminUser } from "../api";
 import { useCanEdit, useMe } from "../App";
 import { MList, MRow } from "../components/mlist";
-import { Badge, Button, Confirm, Empty, ErrorBox, Field, Group, Modal, PRow, PageHeader, SearchBox, Spinner, timeAgo, useAsync, useToast } from "../components/ui";
+import { Badge, Button, Confirm, Empty, ErrorBox, Field, Group, Modal, PRow, PageHeader, SearchBox, Spinner, timeAgo, useAsync, useToast, Avatar } from "../components/ui";
 
 const providerLabel: Record<string, string> = {
   oidc: "SSO",
@@ -175,7 +175,7 @@ export default function UsersPage() {
               key={u.id}
               muted={u.disabled}
               onClick={() => setOpenId(u.id)}
-              lead={u.picture ? <img className="avatar" src={u.picture} alt="" referrerPolicy="no-referrer" /> : <span className="avatar avatar-fallback">{(u.displayName || u.email || u.name).slice(0, 1).toUpperCase()}</span>}
+              lead={<Avatar src={u.picture} name={u.displayName || u.email || u.name} />}
               title={u.displayName || u.name}
               sub={[u.email || u.name, `${u.devices} device${u.devices === 1 ? "" : "s"}`].join(" · ")}
               trail={u.disabled ? <Badge tone="red">Disabled</Badge> : <RoleBadge u={u} />}
@@ -203,7 +203,7 @@ export default function UsersPage() {
                   <tr key={u.id} className={u.disabled ? "row-muted" : ""}>
                     <td>
                       <div className="cell-user">
-                        {u.picture ? <img className="avatar avatar-sm" src={u.picture} alt="" referrerPolicy="no-referrer" /> : <span className="avatar avatar-sm avatar-fallback">{(u.displayName || u.email || u.name).slice(0, 1).toUpperCase()}</span>}
+                        <Avatar small src={u.picture} name={u.displayName || u.email || u.name} />
                         <div>
                           <div>{u.displayName || u.name}</div>
                           <div className="muted small">{u.email || u.name}</div>
@@ -250,7 +250,7 @@ export default function UsersPage() {
       {open && (
         <Modal title={open.displayName || open.name} onClose={() => setOpenId(null)}>
           <div className="cell-user" style={{ marginBottom: 14 }}>
-            {open.picture ? <img className="avatar" src={open.picture} alt="" referrerPolicy="no-referrer" /> : <span className="avatar avatar-fallback">{(open.displayName || open.email || open.name).slice(0, 1).toUpperCase()}</span>}
+            <Avatar src={open.picture} name={open.displayName || open.email || open.name} />
             <div className="cell-stack">
               <span>{open.email || open.name}</span>
               <span className="muted small">{providerLabel[open.provider] ?? open.provider}</span>

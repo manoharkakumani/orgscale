@@ -529,3 +529,15 @@ export function ThemeSwitch() {
     </div>
   );
 }
+
+/**
+ * Avatar shows a person's picture, or the first letter of their name when
+ * there is none or it does not load (Microsoft Entra picture URLs need a
+ * Microsoft sign-in, so they never load here).
+ */
+export function Avatar({ src, name, small }: { src?: string; name: string; small?: boolean }) {
+  const [failed, setFailed] = useState(false);
+  const cls = `avatar${small ? " avatar-sm" : ""}`;
+  if (src && !failed) return <img className={cls} src={src} alt="" referrerPolicy="no-referrer" onError={() => setFailed(true)} />;
+  return <span className={`${cls} avatar-fallback`}>{(name.trim()[0] ?? "?").toUpperCase()}</span>;
+}

@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { NavLink, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { ApiError, post, setCSRFToken, type Me } from "./api";
-import { Badge, Button, Icon, Spinner, ThemeSwitch } from "./components/ui";
+import { Badge, Button, Icon, Spinner, ThemeSwitch, Avatar } from "./components/ui";
 import OverviewPage from "./pages/Overview";
 import UsersPage from "./pages/Users";
 import DevicesPage from "./pages/Devices";
@@ -200,7 +200,7 @@ function Shell({ me, setMe, menuOpen, setMenuOpen, scrolled }: { me: Me; setMe: 
           </nav>
           <div className="sidebar-account">
             <div className="cell-user">
-              {me.picture ? <img className="avatar" src={me.picture} alt="" referrerPolicy="no-referrer" /> : <span className="avatar avatar-fallback">{(me.name || me.email).slice(0, 1).toUpperCase()}</span>}
+              <Avatar src={me.picture} name={me.name || me.email} />
               <div className="cell-stack grow">
                 <span className="ellipsis">{me.name || me.email}</span>
                 <span className="muted small ellipsis">{roleLabel[me.role]}</span>
@@ -227,11 +227,11 @@ function Shell({ me, setMe, menuOpen, setMenuOpen, scrolled }: { me: Me; setMe: 
             <div className="muted topbar-server">{me.serverUrl}</div>
             <div className="topbar-title">{pageTitle(location.pathname, items)}</div>
             <button className="topbar-avatar" aria-label="Account" onClick={() => setMenuOpen(true)}>
-              {me.picture ? <img className="avatar" src={me.picture} alt="" referrerPolicy="no-referrer" /> : <span className="avatar avatar-fallback">{(me.name || me.email).slice(0, 1).toUpperCase()}</span>}
+              <Avatar src={me.picture} name={me.name || me.email} />
             </button>
             <div className="topbar-user">
               <ThemeSwitch />
-              {me.picture ? <img className="avatar" src={me.picture} alt="" referrerPolicy="no-referrer" /> : <span className="avatar avatar-fallback">{(me.name || me.email).slice(0, 1).toUpperCase()}</span>}
+              <Avatar src={me.picture} name={me.name || me.email} />
               <div className="topbar-who">
                 <div>{me.name || me.email}</div>
                 {me.name && me.name !== me.email && <div className="muted small">{me.email}</div>}
