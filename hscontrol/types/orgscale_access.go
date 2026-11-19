@@ -69,11 +69,13 @@ type AccessRequest struct {
 	ID        uint64 `gorm:"column:id;primaryKey"`
 	UserID    uint   `gorm:"column:user_id"`
 	Requester string `gorm:"column:requester"` // verified email
-	Tag       string `gorm:"column:tag"`
-	Reason    string `gorm:"column:reason"`
-	Minutes   int    `gorm:"column:minutes"`
-	SSH       bool   `gorm:"column:ssh"`
-	Status    string `gorm:"column:status"`
+	// Tag is the server tag granted ("tag:databases"), or one server as
+	// "node:<id>" (see [AccessNodeTarget]).
+	Tag     string `gorm:"column:tag"`
+	Reason  string `gorm:"column:reason"`
+	Minutes int    `gorm:"column:minutes"`
+	SSH     bool   `gorm:"column:ssh"`
+	Status  string `gorm:"column:status"`
 
 	CreatedAt    time.Time  `gorm:"column:created_at"`
 	DecidedBy    string     `gorm:"column:decided_by"`
@@ -90,6 +92,18 @@ type AccessRequest struct {
 
 // TableName pins the gorm table name.
 func (AccessRequest) TableName() string { return "access_requests" }
+
+// AccessNodePrefix marks an [AccessRequest.Tag] naming one server.
+const AccessNodePrefix = "node:"
+
+// AccessNodeTarget returns the node ID r grants, if it grants one server.
+func (r AccessRequest) AccessNodeTarget() (string, bool) {
+	if len(r.Tag) > len(AccessNodePrefix) && r.Tag[:len(AccessNodePrefix)] == AccessNodePrefix {
+		return r.Tag[len(AccessNodePrefix):], true
+	}
+
+	return "", false
+}
 
 // Active reports whether the request grants access at now.
 func (r AccessRequest) Active(now time.Time) bool {

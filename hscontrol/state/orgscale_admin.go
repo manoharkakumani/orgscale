@@ -220,8 +220,16 @@ func managedPolicy(db *hsdb.HSDatabase, users []types.User, nodes views.Slice[ty
 	}
 
 	for _, r := range requests {
+		var dst []string
+
 		t, tagOK := tagByName[r.Tag]
-		if !tagOK {
+		if node, ok := r.AccessNodeTarget(); ok {
+			dst = nodeIPs[node]
+		} else if tagOK {
+			dst = []string{t.Name}
+		}
+
+		if len(dst) == 0 {
 			continue
 		}
 
@@ -239,7 +247,13 @@ func managedPolicy(db *hsdb.HSDatabase, users []types.User, nodes views.Slice[ty
 		comment := fmt.Sprintf("access request #%d (%s)", r.ID, r.Requester)
 
 		if m.RestrictDevices {
-			m.Rules = append(m.Rules, managed.Rule{Comment: comment, Src: who, Dst: []string{t.Name}})
+			m.Rules = append(m.Rules, managed.Rule{Comment: comment, Src: who, Dst: dst})
+		}
+
+		// Keyless SSH rules can only name tags, so a single-server grant
+		// is network access only.
+		if !tagOK {
+			continue
 		}
 
 		var sshUsers []string

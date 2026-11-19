@@ -161,8 +161,12 @@ customer environments), give access for a while instead of for good:
 
 1. Optionally, **Servers → Edit access → Temporary access**: the Linux
    accounts temporary access may SSH in as (`ubuntu`).
-2. **Temporary access → Grant access**: pick people or groups, a server tag,
-   a duration (15 minutes to 7 days), optionally SSH, and a reason.
+2. **Temporary access → Grant access**: pick people or groups, then **a
+   whole tag** or **one server**, a duration (15 minutes to 7 days),
+   optionally SSH, and a reason. One server means every port on just that
+   machine. Keyless SSH is given per tag (SSH rules can only name tags), so
+   to SSH into a single machine without keys, give it its own tag; people's
+   own SSH keys still work on a one-server grant.
 3. Access starts at once and ends on its own (checked every 20 seconds).
    **End now** stops it early.
 

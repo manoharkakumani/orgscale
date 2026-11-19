@@ -460,3 +460,57 @@ func TestOrgscaleConsoleDNS(t *testing.T) {
 		return len(d.Resolvers) == 0 && len(d.Routes["corp.example.com"]) == 0 && len(d.ExtraRecords) == 0 && d.Proxied
 	})
 }
+
+// TestOrgscaleTempAccessOneServer checks temporary access to a single
+// server: of two servers sharing a tag, the person reaches only the one
+// granted, and loses it when the grant ends.
+func TestOrgscaleTempAccessOneServer(t *testing.T) {
+	t.Parallel()
+
+	srv := servertest.NewServer(t)
+	st := srv.State()
+
+	alice := srv.CreateUser(t, "alice")
+
+	changes, err := st.SaveServerTag(types.ServerTag{Name: "tag:db"}, nil)
+	require.NoError(t, err)
+	srv.App.Change(changes...)
+
+	exp := time.Now().Add(time.Hour)
+	k, err := st.CreatePreAuthKey(nil, true, false, &exp, []string{"tag:db"})
+	require.NoError(t, err)
+
+	laptop := servertest.NewClient(t, srv, "alice-laptop", servertest.WithUser(alice))
+	db1 := servertest.NewClient(t, srv, "db-1", servertest.WithAuthKey(k.Key))
+	servertest.NewClient(t, srv, "db-2", servertest.WithAuthKey(k.Key))
+
+	changes, err = st.SetDeviceRestriction(true, "test")
+	require.NoError(t, err)
+	srv.App.Change(changes...)
+
+	waitPeers(t, laptop)
+
+	now := time.Now().UTC()
+	until := now.Add(time.Hour)
+
+	id, err := st.CreateAccessRequest(types.AccessRequest{
+		UserID: uint(alice.ID), Requester: "alice", Tag: types.AccessNodePrefix + strconv.FormatUint(uint64(nodeIDOf(t, db1)), 10),
+		Minutes: 60, Status: types.AccessRequestPending, CreatedAt: now,
+		GrantKind: types.PrincipalUser, GrantPrincipal: strconv.FormatUint(uint64(alice.ID), 10),
+	})
+	require.NoError(t, err)
+
+	changes, err = st.DecideAccessRequest(types.AccessRequest{
+		ID: id, Minutes: 60, Status: types.AccessRequestApproved, DecidedBy: "test", DecidedAt: &now, ExpiresAt: &until,
+	}, types.AccessRequestPending)
+	require.NoError(t, err)
+	srv.App.Change(changes...)
+
+	waitPeers(t, laptop, "db-1")
+
+	_, changes, err = st.ExpireAccessRequests(until.Add(time.Second), 24*time.Hour)
+	require.NoError(t, err)
+	srv.App.Change(changes...)
+
+	waitPeers(t, laptop)
+}

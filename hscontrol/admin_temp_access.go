@@ -36,7 +36,8 @@ type adminTempAccess struct {
 	ID        uint64     `json:"id"`
 	Grantee   string     `json:"grantee"`
 	Kind      string     `json:"kind"` // "user" or "directory_group"
-	Tag       string     `json:"tag"`
+	Tag       string     `json:"tag"`  // the tag, or the server's name
+	Server    bool       `json:"server"`
 	Reason    string     `json:"reason"`
 	Minutes   int        `json:"minutes"`
 	SSH       bool       `json:"ssh"`
@@ -106,6 +107,16 @@ func (aa *adminAuth) handleListTempAccess(w http.ResponseWriter, _ *http.Request
 			v.Status = "expired"
 		}
 
+		if id, ok := r.AccessNodeTarget(); ok {
+			v.Server, v.Tag = true, "a removed server"
+
+			if n, err := strconv.ParseUint(id, 10, 64); err == nil {
+				if nv, ok := aa.h.state.GetNodeByID(types.NodeID(n)); ok {
+					v.Tag = nv.GivenName()
+				}
+			}
+		}
+
 		if r.SSH {
 			v.SSHUsers = sshUsersOf(byName[r.Tag])
 		}
@@ -122,6 +133,7 @@ func (aa *adminAuth) handleGrantTempAccess(w http.ResponseWriter, r *http.Reques
 	var body struct {
 		To      []adminPrincipal `json:"to"`
 		Tag     string           `json:"tag"`
+		Server  uint64           `json:"server"` // one server instead of a tag
 		Minutes int              `json:"minutes"`
 		Reason  string           `json:"reason"`
 		SSH     bool             `json:"ssh"`
@@ -152,15 +164,43 @@ func (aa *adminAuth) handleGrantTempAccess(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	i := slices.IndexFunc(tags, func(t types.ServerTag) bool { return t.Name == body.Tag })
-	if i < 0 {
-		adminJSONError(w, http.StatusBadRequest, "choose a server tag made on the Servers page")
+	// target is what the grant names: a tag, or one server as node:<id>.
+	target, targetLabel := body.Tag, body.Tag
 
-		return
+	if body.Server != 0 {
+		node, ok := aa.h.state.GetNodeByID(types.NodeID(body.Server))
+		if !ok || !node.IsTagged() {
+			adminJSONError(w, http.StatusBadRequest, "choose a server (a device that joined with a tag)")
+
+			return
+		}
+
+		if body.SSH {
+			adminJSONError(w, http.StatusBadRequest, "keyless SSH is given per tag, not per server; give this server its own tag to SSH into it alone")
+
+			return
+		}
+
+		target = types.AccessNodePrefix + strconv.FormatUint(body.Server, 10)
+		targetLabel = node.GivenName()
+	} else {
+		i := slices.IndexFunc(tags, func(t types.ServerTag) bool { return t.Name == body.Tag })
+		if i < 0 {
+			adminJSONError(w, http.StatusBadRequest, "choose a server tag made on the Servers page")
+
+			return
+		}
+
+		if body.SSH && len(sshUsersOf(tags[i])) == 0 {
+			adminJSONError(w, http.StatusBadRequest, "set SSH accounts on this tag first (Servers → Edit access)")
+
+			return
+		}
 	}
 
-	if body.SSH && len(sshUsersOf(tags[i])) == 0 {
-		adminJSONError(w, http.StatusBadRequest, "set SSH accounts on this tag first (Servers → Edit access)")
+	// Network access only matters while devices are restricted.
+	if !body.SSH && !aa.h.state.DeviceRestrictionEnabled() {
+		adminJSONError(w, http.StatusBadRequest, "access control is off, so everyone already reaches every server; turn it on under Access first")
 
 		return
 	}
@@ -210,7 +250,7 @@ func (aa *adminAuth) handleGrantTempAccess(w http.ResponseWriter, r *http.Reques
 		}
 
 		id, err := aa.h.state.CreateAccessRequest(types.AccessRequest{
-			UserID: uid, Requester: who, Tag: body.Tag, Reason: reason,
+			UserID: uid, Requester: who, Tag: target, Reason: reason,
 			Minutes: body.Minutes, SSH: body.SSH, Status: types.AccessRequestPending, CreatedAt: now,
 			GrantKind: p.Kind, GrantPrincipal: p.Principal,
 		})
@@ -236,7 +276,7 @@ func (aa *adminAuth) handleGrantTempAccess(w http.ResponseWriter, r *http.Reques
 		labels = append(labels, who)
 	}
 
-	detail := fmt.Sprintf("%s → %s for %s", strings.Join(labels, ", "), body.Tag, time.Duration(body.Minutes)*time.Minute)
+	detail := fmt.Sprintf("%s → %s for %s", strings.Join(labels, ", "), targetLabel, time.Duration(body.Minutes)*time.Minute)
 	if body.SSH {
 		detail += ", with SSH"
 	}
@@ -245,7 +285,7 @@ func (aa *adminAuth) handleGrantTempAccess(w http.ResponseWriter, r *http.Reques
 		detail += ": " + reason
 	}
 
-	aa.auditReq(r, "temp_access.grant", body.Tag, detail)
+	aa.auditReq(r, "temp_access.grant", targetLabel, detail)
 	adminJSON(w, http.StatusCreated, map[string][]uint64{"ids": ids})
 }
 
@@ -288,7 +328,16 @@ func (aa *adminAuth) handleEndTempAccess(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	aa.auditReq(r, "temp_access.end", g.Tag, g.Requester+" → "+g.Tag)
+	target := g.Tag
+	if id, ok := g.AccessNodeTarget(); ok {
+		if n, err := strconv.ParseUint(id, 10, 64); err == nil {
+			if nv, ok := aa.h.state.GetNodeByID(types.NodeID(n)); ok {
+				target = nv.GivenName()
+			}
+		}
+	}
+
+	aa.auditReq(r, "temp_access.end", target, g.Requester+" → "+target)
 	w.WriteHeader(http.StatusNoContent)
 }
 

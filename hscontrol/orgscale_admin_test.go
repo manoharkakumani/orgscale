@@ -923,6 +923,8 @@ func TestAdminConsoleTempAccess(t *testing.T) {
 	code, _ = grant(nil, "tag:prod-db", 60, false)
 	assert.Equal(t, http.StatusBadRequest, code, "nobody chosen")
 
+	assert.Equal(t, http.StatusBadRequest, boss.do(t, http.MethodPost, "/admin/api/temp-access", map[string]any{"to": person, "server": 999, "minutes": 60}, nil), "no such server")
+
 	assert.NotContains(t, policy(), "tag:prod-db:*")
 
 	code, ids := grant(group, "tag:prod-db", 60, true)

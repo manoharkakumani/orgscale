@@ -138,6 +138,7 @@ export interface TempAccess {
   grantee: string;
   kind: "user" | "directory_group";
   tag: string;
+  server: boolean;
   reason: string;
   minutes: number;
   ssh: boolean;

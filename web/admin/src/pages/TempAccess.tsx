@@ -54,12 +54,28 @@ function GrantForm({ onClose, onDone }: { onClose: () => void; onDone: () => voi
   const managed = (tags.data ?? []).filter((t) => t.managed);
   const [to, setTo] = useState<Principal[]>([]);
   const [tag, setTag] = useState("");
+  const [scope, setScope] = useState<"tag" | "server">("tag");
+  const [server, setServer] = useState(0);
   const [minutes, setMinutes] = useState(60);
   const [ssh, setSSH] = useState(false);
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const chosen = managed.find((t) => t.name === (tag || managed[0]?.name));
-  const sshUsers = chosen?.tempSSHUsers ?? [];
+  // Every server (tagged device), once, with the tags it carries.
+  const servers = useMemo(() => {
+    const byID = new Map<number, { id: number; name: string; tags: string[] }>();
+    for (const t of tags.data ?? []) {
+      for (const d of t.devices) {
+        const s = byID.get(d.id) ?? { id: d.id, name: d.name, tags: [] };
+        s.tags.push(t.name);
+        byID.set(d.id, s);
+      }
+    }
+    return [...byID.values()].sort((a, b) => a.name.localeCompare(b.name));
+  }, [tags.data]);
+  const serverID = server || servers[0]?.id || 0;
+  const sshUsers = scope === "tag" ? (chosen?.tempSSHUsers ?? []) : [];
+  const ready = scope === "tag" ? !!chosen : serverID > 0;
 
   return (
     <Modal
@@ -74,13 +90,13 @@ function GrantForm({ onClose, onDone }: { onClose: () => void; onDone: () => voi
           <Button
             variant="primary"
             busy={busy}
-            disabled={!to.length || !chosen}
+            disabled={!to.length || !ready}
             onClick={async () => {
               setBusy(true);
               try {
                 await post("/admin/api/temp-access", {
                   to: to.map(({ kind, principal }) => ({ kind, principal })),
-                  tag: chosen!.name,
+                  ...(scope === "tag" ? { tag: chosen!.name } : { server: serverID }),
                   minutes,
                   reason: reason.trim(),
                   ssh: ssh && sshUsers.length > 0,
@@ -103,23 +119,51 @@ function GrantForm({ onClose, onDone }: { onClose: () => void; onDone: () => voi
       <Field label="Who" hint="People, or groups: a group's access covers whoever is in it while it lasts.">
         <PrincipalPicker kinds={["directory_group", "user"]} value={to} onChange={setTo} placeholder="Search people and groups" height={220} />
       </Field>
+      <Field label="To">
+        <Segmented
+          value={scope}
+          onChange={setScope}
+          options={[
+            { value: "tag", label: "A whole tag" },
+            { value: "server", label: "One server" },
+          ]}
+        />
+      </Field>
       <div className="grid-2">
-        <Field label="Servers">
-          {tags.loading && !tags.data ? (
-            <Spinner />
-          ) : managed.length ? (
-            <select value={chosen?.name ?? ""} onChange={(e) => setTag(e.target.value)}>
-              {managed.map((t) => (
-                <option key={t.name} value={t.name}>
-                  {t.name}
-                  {t.description ? ` — ${t.description}` : ""}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <span className="muted">Create a server tag on the Servers page first.</span>
-          )}
-        </Field>
+        {scope === "tag" ? (
+          <Field label="Tag" hint="Every server with this tag, including ones added during the grant.">
+            {tags.loading && !tags.data ? (
+              <Spinner />
+            ) : managed.length ? (
+              <select value={chosen?.name ?? ""} onChange={(e) => setTag(e.target.value)}>
+                {managed.map((t) => (
+                  <option key={t.name} value={t.name}>
+                    {t.name}
+                    {t.description ? ` — ${t.description}` : ""}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span className="muted">Create a server tag on the Servers page first.</span>
+            )}
+          </Field>
+        ) : (
+          <Field label="Server" hint="Just this machine, on every port.">
+            {tags.loading && !tags.data ? (
+              <Spinner />
+            ) : servers.length ? (
+              <select value={serverID} onChange={(e) => setServer(Number(e.target.value))}>
+                {servers.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name} ({d.tags.join(", ")})
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span className="muted">No servers have joined yet.</span>
+            )}
+          </Field>
+        )}
         <Field label="For how long" hint="Access ends on its own.">
           <select value={minutes} onChange={(e) => setMinutes(Number(e.target.value))}>
             {durationChoices.map((d) => (
@@ -138,7 +182,13 @@ function GrantForm({ onClose, onDone }: { onClose: () => void; onDone: () => voi
           <div className="prow-label">
             <div>Also SSH in</div>
             <div className="muted small">
-              {sshUsers.length ? <>As {sshUsers.join(" or ")}. No keys needed.</> : <>Set SSH accounts on this tag first: Servers → Edit access.</>}
+              {scope === "server" ? (
+                <>Keyless SSH is given per tag. To SSH into just this server without keys, give it its own tag. Their own SSH keys still work.</>
+              ) : sshUsers.length ? (
+                <>As {sshUsers.join(" or ")}. No keys needed.</>
+              ) : (
+                <>Set SSH accounts on this tag first: Servers → Edit access.</>
+              )}
             </div>
           </div>
           <div className="prow-control">
@@ -156,7 +206,7 @@ function GrantRow({ g, now, onEnd }: { g: TempAccess; now: number; onEnd?: () =>
       <div className="request-head">
         <div className="cell-stack grow">
           <span>
-            <Icon name={g.kind === "directory_group" ? "users" : "user"} className="inline-icon" /> <b>{g.grantee}</b> → <code>{g.tag}</code> for {duration(g.minutes)}
+            <Icon name={g.kind === "directory_group" ? "users" : "user"} className="inline-icon" /> <b>{g.grantee}</b> → {g.server ? <><Icon name="server" className="inline-icon" /> {g.tag}</> : <code>{g.tag}</code>} for {duration(g.minutes)}
             {g.ssh && g.sshUsers.length ? <> · SSH as {g.sshUsers.join(", ")}</> : null}
           </span>
           <span className="muted small">
@@ -203,7 +253,7 @@ export default function TempAccessPage() {
     <>
       <PageHeader
         title="Temporary access"
-        description="Give people or groups access to a server tag for a set time, for an incident or a one-off task. It ends on its own, and every grant is in the audit log."
+        description="Give people or groups access to one server or a whole tag for a set time, for an incident or a one-off task. It ends on its own, and every grant is in the audit log."
         actions={
           <>
             <Segmented value={filter} onChange={setFilter} options={[{ value: "active", label: `Active (${active.length})` }, { value: "history", label: "History" }]} />
