@@ -40,8 +40,8 @@ func DefaultConfigEnv() map[string]string {
 		"ORGSCALE_DERP_SERVER_REGION_NAME":      "Orgscale Embedded DERP",
 		"ORGSCALE_DERP_SERVER_STUN_LISTEN_ADDR": "0.0.0.0:3478",
 		"ORGSCALE_DERP_SERVER_PRIVATE_KEY_PATH": "/tmp/derp.key",
-		"DERP_DEBUG_LOGS":                        "true",
-		"DERP_PROBER_DEBUG_LOGS":                 "true",
+		"DERP_DEBUG_LOGS":                       "true",
+		"DERP_PROBER_DEBUG_LOGS":                "true",
 
 		// a bunch of tests (ACL/Policy) rely on predictable IP alloc,
 		// so ensure the sequential alloc is used by default.

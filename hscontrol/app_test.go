@@ -12,10 +12,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/libdns/cloudflare"
 	"github.com/manoharkakumani/orgscale/hscontrol/config"
 	"github.com/manoharkakumani/orgscale/hscontrol/dns"
 	"github.com/manoharkakumani/orgscale/hscontrol/types"
-	"github.com/libdns/cloudflare"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

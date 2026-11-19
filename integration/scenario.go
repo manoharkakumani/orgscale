@@ -53,11 +53,11 @@ var usePostgresForTest = envknob.Bool("ORGSCALE_INTEGRATION_POSTGRES")
 
 var (
 	errNoOrgscaleAvailable        = errors.New("no orgscale available")
-	errNoUserAvailable             = errors.New("no user available")
-	errNoClientFound               = errors.New("client not found")
+	errNoUserAvailable            = errors.New("no user available")
+	errNoClientFound              = errors.New("client not found")
 	errInvalidOrgscaleImageFormat = errors.New("invalid ORGSCALE_INTEGRATION_ORGSCALE_IMAGE format, expected repository:tag")
-	errInvalidMockOIDCImage        = errors.New("invalid ORGSCALE_INTEGRATION_ORGSCALE_IMAGE format, expected repository:tag")
-	errMockOIDCImageRequiredInCI   = errors.New("ORGSCALE_INTEGRATION_ORGSCALE_IMAGE must be set for mock OIDC in CI")
+	errInvalidMockOIDCImage       = errors.New("invalid ORGSCALE_INTEGRATION_ORGSCALE_IMAGE format, expected repository:tag")
+	errMockOIDCImageRequiredInCI  = errors.New("ORGSCALE_INTEGRATION_ORGSCALE_IMAGE must be set for mock OIDC in CI")
 
 	// AllVersions represents a list of Tailscale versions the suite
 	// uses to test compatibility with the [ControlServer].

@@ -44,17 +44,12 @@ func AuthSuccess(result AuthSuccessResult) *elem.Element {
 	return page(
 		result.Title,
 		box,
-		H2(elem.Text("Getting started")),
-		P(elem.Text("Check out the documentation to learn more about orgscale and Tailscale:")),
-		Ul(
-			elem.Li(
-				nil,
-				externalLink("https://headscale.net/stable/", "Orgscale documentation"),
-			),
-			elem.Li(
-				nil,
-				externalLink("https://tailscale.com/docs", "Tailscale docs"),
-			),
+		H2(elem.Text("What's next")),
+		P(elem.Text("You can close this window. Open the Tailscale app to see the devices and servers you can reach; your administrator decides which ones.")),
+		P(
+			elem.Text("New to Tailscale? See "),
+			externalLink("https://tailscale.com/kb/1017/install", "how to use the Tailscale app"),
+			elem.Text("."),
 		),
 	)
 }

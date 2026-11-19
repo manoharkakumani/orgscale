@@ -841,7 +841,7 @@ func TestSSHActionHandler_RejectsRogueMachineKey(t *testing.T) {
 	require.NotEqual(t, dst.MachineKey, rogue, "test sanity: rogue key must differ from dst")
 
 	ns := &noiseServer{
-		orgscale:  app,
+		orgscale:   app,
 		machineKey: rogue,
 	}
 
@@ -867,7 +867,7 @@ func TestSSHActionHandler_RejectsUnknownDst(t *testing.T) {
 	src := putTestNodeInStore(t, app, user, "src-node")
 
 	ns := &noiseServer{
-		orgscale:  app,
+		orgscale:   app,
 		machineKey: key.NewMachine().Public(),
 	}
 
@@ -903,7 +903,7 @@ func TestSSHActionFollowUp_RejectsBindingMismatch(t *testing.T) {
 	// the outer machine-key check passes — only the binding check
 	// should reject it.
 	ns := &noiseServer{
-		orgscale:  app,
+		orgscale:   app,
 		machineKey: dstOther.MachineKey,
 	}
 

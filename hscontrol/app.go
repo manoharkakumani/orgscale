@@ -85,7 +85,7 @@ func init() {
 const (
 	updateInterval     = 5 * time.Second
 	privateKeyFileMode = 0o600
-	orgscaleDirPerm   = 0o700
+	orgscaleDirPerm    = 0o700
 )
 
 // Orgscale represents the base app of the service.
@@ -108,6 +108,22 @@ type Orgscale struct {
 	extraRecordMan *dns.ExtraRecordsMan
 	authProvider   AuthProvider
 	mapBatcher     *mapper.Batcher
+
+	// admin is the web admin console; nil unless admin.enabled and OIDC
+	// are configured.
+	admin *adminAuth
+	// googleSync pulls the Google Workspace directory when configured.
+	googleSync *googleSyncer
+
+	// entraSync pulls the Microsoft Entra ID directory when configured.
+	entraSync *entraSyncer
+
+	// adminInsecure is set when the console is enabled but not served
+	// because server_url is plain HTTP.
+	adminInsecure bool
+
+	// scimFailures limits failed SCIM authentications per client.
+	scimFailures *ipLimiter
 
 	// One per long-poll session, held through its Disconnect cleanup, so
 	// shutdown can close state after waiting on it.
@@ -184,6 +200,12 @@ func NewOrgscale(cfg *types.Config) (*Orgscale, error) {
 		return nil, fmt.Errorf("init state: %w", err)
 	}
 
+	// DNS settings made in the admin console override the file's.
+	var consoleDNS types.ConsoleDNS
+	if ok, err := s.GetSettingJSON(types.SettingDNS, &consoleDNS); err == nil && ok {
+		cfg.ApplyConsoleDNS(&consoleDNS)
+	}
+
 	app := Orgscale{
 		cfg:               cfg,
 		noisePrivateKey:   noisePrivateKey,
@@ -252,10 +274,25 @@ func NewOrgscale(cfg *types.Config) (*Orgscale, error) {
 	})
 	app.ephemeralGC = ephemeralGC
 
-	var authProvider AuthProvider
+	authSw := &authSwitch{web: NewAuthProviderWeb(cfg.ServerURL)}
 
-	authProvider = NewAuthProviderWeb(cfg.ServerURL)
-	if cfg.OIDC.Issuer != "" {
+	// Single sign-on comes from the configuration file, or else from the
+	// admin console's setup.
+	oidcCfg := &cfg.OIDC
+
+	var stored types.StoredOIDC
+	if cfg.OIDC.Issuer == "" {
+		ok, err := app.state.GetSettingJSON(types.SettingSSOOIDC, &stored)
+		if err != nil {
+			log.Warn().Err(err).Msg("reading single sign-on settings from the database")
+		}
+
+		if ok && stored.Issuer != "" {
+			oidcCfg, oidcClientSecret = storedOIDCConfig(cfg.OIDC, stored), stored.ClientSecret
+		}
+	}
+
+	if oidcCfg.Issuer != "" {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
@@ -263,7 +300,7 @@ func NewOrgscale(cfg *types.Config) (*Orgscale, error) {
 			ctx,
 			&app,
 			cfg.ServerURL,
-			&cfg.OIDC,
+			oidcCfg,
 			oidcClientSecret,
 		)
 		if err != nil {
@@ -273,11 +310,26 @@ func NewOrgscale(cfg *types.Config) (*Orgscale, error) {
 				log.Warn().Err(err).Msg("failed to set up OIDC provider, falling back to CLI based authentication")
 			}
 		} else {
-			authProvider = oidcProvider
+			authSw.oidc.Store(oidcProvider)
 		}
 	}
 
-	app.authProvider = authProvider
+	app.authProvider = authSw
+
+	app.googleSync = newGoogleSyncer(&app)
+	app.entraSync = newEntraSyncer(&app)
+	app.scimFailures = newIPLimiter(20, time.Minute)
+
+	if cfg.Admin.Enabled {
+		if consoleTransportOK(cfg) {
+			app.admin = newAdminAuth(&app)
+		} else {
+			app.adminInsecure = true
+
+			log.Error().Str("server_url", cfg.ServerURL).Msg(
+				"the admin console is off: it needs an https:// server_url. For a lab only, set admin.allow_insecure_http")
+		}
+	}
 
 	if cfg.DERP.Server.Enabled {
 		derpServerKey, err := readOrCreatePrivateKey(cfg.AbsPath(cfg.DERP.Server.PrivateKeyPath))
@@ -526,6 +578,8 @@ func (h *Orgscale) createRouter(apiV1Mux, apiV2Mux http.Handler) *chi.Mux {
 	r.Use(middleware.RequestLogger(&zerologRequestLogger{}))
 	r.Use(middleware.Recoverer)
 	r.Use(securityHeaders)
+	r.Use(h.hsts)
+	r.Use(collapseSlashes)
 
 	// TS2021 accepts both the native client's HTTP POST upgrade and the
 	// browser/WASM client's WebSocket GET upgrade; NoiseUpgradeHandler
@@ -541,15 +595,18 @@ func (h *Orgscale) createRouter(apiV1Mux, apiV2Mux http.Handler) *chi.Mux {
 	r.Get("/register/{auth_id}", h.authProvider.RegisterHandler)
 	r.Get("/auth/{auth_id}", h.authProvider.AuthHandler)
 
-	if provider, ok := h.authProvider.(*AuthProviderOIDC); ok {
-		r.Get("/oidc/callback", provider.OIDCCallbackHandler)
-		r.Get("/register/confirm/{auth_id}", provider.RegisterConfirmGetHandler)
-		r.Post("/register/confirm/{auth_id}", provider.RegisterConfirmHandler)
-	}
+	// Single sign-on can be configured while the server runs, so these
+	// routes always exist and answer 404 until it is.
+	r.Get("/oidc/callback", h.oidcHandler(func(p *AuthProviderOIDC) http.HandlerFunc { return p.OIDCCallbackHandler }))
+	r.Get("/register/confirm/{auth_id}", h.oidcHandler(func(p *AuthProviderOIDC) http.HandlerFunc { return p.RegisterConfirmGetHandler }))
+	r.Post("/register/confirm/{auth_id}", h.oidcHandler(func(p *AuthProviderOIDC) http.HandlerFunc { return p.RegisterConfirmHandler }))
 
 	r.Get("/apple", h.AppleConfigMessage)
 	r.Get("/apple/{platform}", h.ApplePlatformConfig)
 	r.Get("/windows", h.WindowsConfigMessage)
+	r.Get("/windows/orgscale.reg", h.WindowsRegistryFile)
+	r.Get("/connect", h.ConnectPage)
+	r.Get("/connect/linux.sh", h.LinuxConnectScript)
 
 	r.Post("/verify", h.VerifyHandler)
 
@@ -565,9 +622,38 @@ func (h *Orgscale) createRouter(apiV1Mux, apiV2Mux http.Handler) *chi.Mux {
 	// OpenAPI document and docs UI stay public. v1 is the orgscale-native admin
 	// API; v2 is Orgscale's v2 API, which ports some endpoints from Tailscale.
 	r.Route("/api", func(r chi.Router) {
+		// The admin console calls the APIs with its session; every change
+		// made through them is written to the audit log.
+		r.Use(h.auditAPIMiddleware)
+
+		if h.admin != nil {
+			r.Use(h.admin.APIMiddleware)
+		}
+
 		r.Handle("/v1/*", serveHumaMux(apiV1Mux))
 		r.Handle("/v2/*", serveHumaMux(apiV2Mux))
 	})
+
+	// SCIM provisioning from the identity provider. It answers 401 until a
+	// token is created in the admin console.
+	r.Route("/scim/v2", (&scimServer{h: h}).routes)
+
+	if h.adminInsecure {
+		r.Get("/admin", insecureConsoleHandler)
+		r.Get("/admin/*", insecureConsoleHandler)
+	}
+
+	if h.admin != nil {
+		r.With(h.admin.loginLimit.middleware).Get("/admin/auth/login", h.admin.LoginHandler)
+		r.With(h.admin.loginLimit.middleware).Get(adminCallbackPath, h.admin.CallbackHandler)
+		r.Route("/admin/setup/api", h.admin.setupRoutes)
+		r.Post("/admin/auth/logout", h.admin.LogoutHandler)
+		r.Route("/admin/api", h.admin.routes)
+		r.Get("/admin", func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, "/admin/", http.StatusMovedPermanently)
+		})
+		r.Get("/admin/*", adminConsoleHandler())
+	}
 	// Ping response endpoint: receives HEAD from clients responding
 	// to a [tailcfg.PingRequest]. The unguessable ping ID serves as authentication.
 	r.Head("/machine/ping-response", h.PingResponseHandler)
@@ -702,6 +788,13 @@ func (h *Orgscale) Serve(ctx context.Context) error {
 	// Start all scheduled tasks, e.g. expiring nodes, derp updates and
 	// records updates
 	go h.scheduledTasks(ctx)
+	go h.googleSync.Run(ctx)
+	go h.entraSync.Run(ctx)
+	go h.runAccessRequestExpiry(ctx)
+
+	if h.admin != nil {
+		h.admin.announceSetup()
+	}
 
 	//
 	//
@@ -757,6 +850,12 @@ func (h *Orgscale) Serve(ctx context.Context) error {
 	socketHandler := http.NewServeMux()
 	socketHandler.Handle("/api/v2/", apiv2.WithLocalTrust(humaV2Mux))
 	socketHandler.Handle("/", apiv1.WithLocalTrust(humaMux))
+
+	// A new setup link, for `orgscale admin setup-link`: only on the socket,
+	// so only someone with access to the server can make one.
+	if h.admin != nil {
+		socketHandler.HandleFunc("/orgscale/setup-link", h.admin.SetupLinkHandler)
+	}
 
 	socketServer := &http.Server{
 		Handler:     socketHandler,
@@ -1042,7 +1141,7 @@ func (h *Orgscale) Serve(ctx context.Context) error {
 				socketListener.Close()
 
 				// The OIDC state cache runs its own TTL sweeper goroutine.
-				if p, ok := h.authProvider.(*AuthProviderOIDC); ok {
+				if p := h.oidcProvider(); p != nil {
 					p.authCache.Close()
 				}
 

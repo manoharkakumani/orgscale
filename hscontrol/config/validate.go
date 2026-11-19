@@ -52,6 +52,14 @@ func Validate(c *types.Config) error {
 		}
 	}
 
+	if c.Admin.Enabled && c.Admin.SessionTimeout < 5*time.Minute {
+		v.Add(&types.ConfigError{
+			Reason:  "admin.session_timeout is too short",
+			Current: []types.KV{{Key: "admin.session_timeout", Value: c.Admin.SessionTimeout.String()}},
+			Hint:    "use at least 5m, e.g. 12h",
+		})
+	}
+
 	if len(c.DNSConfig.ExtraRecords) > 0 && c.DNSConfig.ExtraRecordsPath != "" {
 		v.Add(&types.ConfigError{
 			Reason: "dns.extra_records and dns.extra_records_path are mutually exclusive",

@@ -1,5 +1,6 @@
 ---
 version: 2
+project_name: orgscale
 before:
   hooks:
     - go mod vendor
@@ -63,7 +64,7 @@ nfpms:
     priority: optional
     vendor: orgscale
     maintainer: Kristoffer Dalby <kristoffer@dalby.cc>
-    homepage: https://github.com/juanfont/headscale
+    homepage: https://github.com/manoharkakumani/orgscale
     description: |-
       Open source implementation of the Tailscale control server.
       Orgscale aims to implement a self-hosted, open source alternative to the
@@ -102,17 +103,16 @@ nfpms:
 kos:
   - id: ghcr
     repositories:
-      - ghcr.io/juanfont/headscale
-      - orgscale/orgscale
+      - ghcr.io/manoharkakumani/orgscale
 
     # bare tells KO to only use the repository
     # for tagging and naming the container.
     bare: true
     base_image: gcr.io/distroless/base-debian13
     labels:
-      org.opencontainers.image.source: https://github.com/juanfont/headscale
+      org.opencontainers.image.source: https://github.com/manoharkakumani/orgscale
     annotations:
-      org.opencontainers.image.source: https://github.com/juanfont/headscale
+      org.opencontainers.image.source: https://github.com/manoharkakumani/orgscale
     build: orgscale
     main: ./cmd/orgscale
     env:
@@ -137,15 +137,14 @@ kos:
 
   - id: ghcr-debug
     repositories:
-      - ghcr.io/juanfont/headscale
-      - orgscale/orgscale
+      - ghcr.io/manoharkakumani/orgscale
 
     bare: true
     base_image: gcr.io/distroless/base-debian13:debug
     labels:
-      org.opencontainers.image.source: https://github.com/juanfont/headscale
+      org.opencontainers.image.source: https://github.com/manoharkakumani/orgscale
     annotations:
-      org.opencontainers.image.source: https://github.com/juanfont/headscale
+      org.opencontainers.image.source: https://github.com/manoharkakumani/orgscale
     build: orgscale
     main: ./cmd/orgscale
     env:

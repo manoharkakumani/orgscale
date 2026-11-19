@@ -47,12 +47,12 @@ type TailscaleRustInContainer struct {
 	container *dockertest.Resource
 	network   *dockertest.Network
 
-	caCerts      [][]byte
+	caCerts     [][]byte
 	orgscaleURL string
-	authKey      string
-	extraHosts   []string
-	repo         string
-	ref          string
+	authKey     string
+	extraHosts  []string
+	repo        string
+	ref         string
 }
 
 // Option represents optional settings for a TailscaleRustInContainer instance.

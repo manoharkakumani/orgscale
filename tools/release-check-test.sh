@@ -26,7 +26,7 @@ printf 'dist/\nvendor/\nrelease-assets/\n' > .gitignore
 git init -q
 git config user.name 'Release check test'
 git config user.email 'release-check@example.invalid'
-git remote add origin https://github.com/juanfont/headscale.git
+git remote add origin https://github.com/manoharkakumani/orgscale.git
 git add .
 git commit -qm 'Create release fixture'
 git tag v0.0.1

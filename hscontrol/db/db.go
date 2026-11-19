@@ -370,6 +370,65 @@ WHERE auth_key_id IN (
 				},
 				Rollback: func(db *gorm.DB) error { return nil },
 			},
+			{
+				// orgscale admin console: runtime settings, directory groups
+				// synced from the identity provider, user access state, device
+				// access grants and the audit log.
+				ID: "202611170000-orgscale-admin",
+				Migrate: func(tx *gorm.DB) error {
+					return tx.Transaction(ensureOrgscaleAdminTables)
+				},
+				Rollback: func(db *gorm.DB) error { return nil },
+			},
+			{
+				// orgscale: server tags and the access rules built in the
+				// console's rule editor.
+				ID: "202611180000-orgscale-access-rules",
+				Migrate: func(tx *gorm.DB) error {
+					return tx.Transaction(ensureOrgscaleAccessTables)
+				},
+				Rollback: func(db *gorm.DB) error { return nil },
+			},
+			{
+				// orgscale: admin console sessions, kept across restarts.
+				ID: "202611180100-orgscale-admin-sessions",
+				Migrate: func(tx *gorm.DB) error {
+					return tx.Transaction(ensureOrgscaleSessionsTable)
+				},
+				Rollback: func(db *gorm.DB) error { return nil },
+			},
+			{
+				// orgscale: SSH rules in the access rule editor.
+				ID: "202611180200-orgscale-ssh-rules",
+				Migrate: func(tx *gorm.DB) error {
+					return tx.Transaction(ensureSSHRuleColumns)
+				},
+				Rollback: func(db *gorm.DB) error { return nil },
+			},
+			{
+				// orgscale: just-in-time access requests.
+				ID: "202611190000-orgscale-access-requests",
+				Migrate: func(tx *gorm.DB) error {
+					return tx.Transaction(ensureAccessRequests)
+				},
+				Rollback: func(db *gorm.DB) error { return nil },
+			},
+			{
+				// orgscale: temporary access granted by an administrator.
+				ID: "202611190100-orgscale-access-grants",
+				Migrate: func(tx *gorm.DB) error {
+					return tx.Transaction(ensureAccessRequests)
+				},
+				Rollback: func(db *gorm.DB) error { return nil },
+			},
+			{
+				// orgscale: who may request each tag.
+				ID: "202611190200-orgscale-request-principals",
+				Migrate: func(tx *gorm.DB) error {
+					return tx.Transaction(ensureAccessRequests)
+				},
+				Rollback: func(db *gorm.DB) error { return nil },
+			},
 		},
 	)
 
@@ -427,7 +486,22 @@ WHERE auth_key_id IN (
 			}
 		}
 
-		return nil
+		err = ensureOrgscaleAdminTables(tx)
+		if err != nil {
+			return err
+		}
+
+		err = ensureOrgscaleAccessTables(tx)
+		if err != nil {
+			return err
+		}
+
+		err = ensureOrgscaleSessionsTable(tx)
+		if err != nil {
+			return err
+		}
+
+		return ensureAccessRequests(tx)
 	})
 
 	err = runMigrations(cfg.Database, dbConn, migrations)

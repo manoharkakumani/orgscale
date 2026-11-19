@@ -6,9 +6,9 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/libdns/cloudflare"
 	policyv2 "github.com/manoharkakumani/orgscale/hscontrol/policy/v2"
 	"github.com/manoharkakumani/orgscale/hscontrol/types"
-	"github.com/libdns/cloudflare"
 	"github.com/stretchr/testify/require"
 	"tailscale.com/types/key"
 )

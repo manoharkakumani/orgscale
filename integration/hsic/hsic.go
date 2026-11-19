@@ -48,10 +48,10 @@ const (
 	aclPolicyPath                 = "/etc/orgscale/acl.hujson"
 	tlsCertPath                   = "/etc/orgscale/tls.cert"
 	tlsKeyPath                    = "/etc/orgscale/tls.key"
-	orgscaleDefaultPort          = 8080
+	orgscaleDefaultPort           = 8080
 	IntegrationTestDockerFileName = "Dockerfile.integration"
 	defaultDirPerm                = 0o755
-	binOrgscale                  = "orgscale"
+	binOrgscale                   = "orgscale"
 	flagOutput                    = "--output"
 	acceptJSON                    = "Accept: application/json"
 )
@@ -60,7 +60,7 @@ var (
 	errOrgscaleStatusCodeNotOk    = errors.New("orgscale status code not ok")
 	errInvalidOrgscaleImageFormat = errors.New("invalid ORGSCALE_INTEGRATION_ORGSCALE_IMAGE format, expected repository:tag")
 	errOrgscaleImageRequiredInCI  = errors.New("ORGSCALE_INTEGRATION_ORGSCALE_IMAGE must be set in CI")
-	errInvalidPostgresImageFormat  = errors.New("invalid ORGSCALE_INTEGRATION_POSTGRES_IMAGE format, expected repository:tag")
+	errInvalidPostgresImageFormat = errors.New("invalid ORGSCALE_INTEGRATION_POSTGRES_IMAGE format, expected repository:tag")
 )
 
 type fileInContainer struct {

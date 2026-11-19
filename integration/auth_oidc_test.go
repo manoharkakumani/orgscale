@@ -54,7 +54,7 @@ func TestOIDCAuthenticationPingAll(t *testing.T) {
 	oidcMap := map[string]string{
 		"ORGSCALE_OIDC_ISSUER":        scenario.mockOIDC.Issuer(),
 		"ORGSCALE_OIDC_CLIENT_ID":     scenario.mockOIDC.ClientID(),
-		"CREDENTIALS_DIRECTORY_TEST":   "/tmp",
+		"CREDENTIALS_DIRECTORY_TEST":  "/tmp",
 		"ORGSCALE_OIDC_CLIENT_SECRET": oidcClientFileRef,
 	}
 
@@ -372,7 +372,7 @@ func TestOIDC024UserCreation(t *testing.T) {
 			oidcMap := map[string]string{
 				"ORGSCALE_OIDC_ISSUER":        scenario.mockOIDC.Issuer(),
 				"ORGSCALE_OIDC_CLIENT_ID":     scenario.mockOIDC.ClientID(),
-				"CREDENTIALS_DIRECTORY_TEST":   "/tmp",
+				"CREDENTIALS_DIRECTORY_TEST":  "/tmp",
 				"ORGSCALE_OIDC_CLIENT_SECRET": oidcClientFileRef,
 			}
 			maps.Copy(oidcMap, tt.config)
@@ -430,7 +430,7 @@ func TestOIDCAuthenticationWithPKCE(t *testing.T) {
 		"ORGSCALE_OIDC_ISSUER":        scenario.mockOIDC.Issuer(),
 		"ORGSCALE_OIDC_CLIENT_ID":     scenario.mockOIDC.ClientID(),
 		"ORGSCALE_OIDC_CLIENT_SECRET": oidcClientFileRef,
-		"CREDENTIALS_DIRECTORY_TEST":   "/tmp",
+		"CREDENTIALS_DIRECTORY_TEST":  "/tmp",
 		"ORGSCALE_OIDC_PKCE_ENABLED":  "1", // Enable PKCE
 	}
 
@@ -485,7 +485,7 @@ func TestOIDCReloginSameNodeNewUser(t *testing.T) {
 	oidcMap := map[string]string{
 		"ORGSCALE_OIDC_ISSUER":        scenario.mockOIDC.Issuer(),
 		"ORGSCALE_OIDC_CLIENT_ID":     scenario.mockOIDC.ClientID(),
-		"CREDENTIALS_DIRECTORY_TEST":   "/tmp",
+		"CREDENTIALS_DIRECTORY_TEST":  "/tmp",
 		"ORGSCALE_OIDC_CLIENT_SECRET": oidcClientFileRef,
 	}
 
@@ -891,7 +891,7 @@ func TestOIDCFollowUpUrl(t *testing.T) {
 	oidcMap := map[string]string{
 		"ORGSCALE_OIDC_ISSUER":        scenario.mockOIDC.Issuer(),
 		"ORGSCALE_OIDC_CLIENT_ID":     scenario.mockOIDC.ClientID(),
-		"CREDENTIALS_DIRECTORY_TEST":   "/tmp",
+		"CREDENTIALS_DIRECTORY_TEST":  "/tmp",
 		"ORGSCALE_OIDC_CLIENT_SECRET": oidcClientFileRef,
 		// smaller cache expiration time to quickly expire AuthURL
 		"ORGSCALE_TUNING_REGISTER_CACHE_EXPIRATION": "1m30s",
@@ -1004,7 +1004,7 @@ func TestOIDCMultipleOpenedLoginUrls(t *testing.T) {
 	oidcMap := map[string]string{
 		"ORGSCALE_OIDC_ISSUER":        scenario.mockOIDC.Issuer(),
 		"ORGSCALE_OIDC_CLIENT_ID":     scenario.mockOIDC.ClientID(),
-		"CREDENTIALS_DIRECTORY_TEST":   "/tmp",
+		"CREDENTIALS_DIRECTORY_TEST":  "/tmp",
 		"ORGSCALE_OIDC_CLIENT_SECRET": oidcClientFileRef,
 	}
 
@@ -1136,7 +1136,7 @@ func TestOIDCReloginSameNodeSameUser(t *testing.T) {
 	oidcMap := map[string]string{
 		"ORGSCALE_OIDC_ISSUER":        scenario.mockOIDC.Issuer(),
 		"ORGSCALE_OIDC_CLIENT_ID":     scenario.mockOIDC.ClientID(),
-		"CREDENTIALS_DIRECTORY_TEST":   "/tmp",
+		"CREDENTIALS_DIRECTORY_TEST":  "/tmp",
 		"ORGSCALE_OIDC_CLIENT_SECRET": oidcClientFileRef,
 	}
 
@@ -1360,7 +1360,7 @@ func TestOIDCExpiryAfterRestart(t *testing.T) {
 	oidcMap := map[string]string{
 		"ORGSCALE_OIDC_ISSUER":        scenario.mockOIDC.Issuer(),
 		"ORGSCALE_OIDC_CLIENT_ID":     scenario.mockOIDC.ClientID(),
-		"CREDENTIALS_DIRECTORY_TEST":   "/tmp",
+		"CREDENTIALS_DIRECTORY_TEST":  "/tmp",
 		"ORGSCALE_OIDC_CLIENT_SECRET": oidcClientFileRef,
 		"ORGSCALE_NODE_EXPIRY":        "72h",
 	}
@@ -1505,7 +1505,7 @@ func TestOIDCACLPolicyOnJoin(t *testing.T) {
 	oidcMap := map[string]string{
 		"ORGSCALE_OIDC_ISSUER":        scenario.mockOIDC.Issuer(),
 		"ORGSCALE_OIDC_CLIENT_ID":     scenario.mockOIDC.ClientID(),
-		"CREDENTIALS_DIRECTORY_TEST":   "/tmp",
+		"CREDENTIALS_DIRECTORY_TEST":  "/tmp",
 		"ORGSCALE_OIDC_CLIENT_SECRET": oidcClientFileRef,
 	}
 
@@ -1783,7 +1783,7 @@ func TestOIDCReloginSameUserRoutesPreserved(t *testing.T) {
 	oidcMap := map[string]string{
 		"ORGSCALE_OIDC_ISSUER":        scenario.mockOIDC.Issuer(),
 		"ORGSCALE_OIDC_CLIENT_ID":     scenario.mockOIDC.ClientID(),
-		"CREDENTIALS_DIRECTORY_TEST":   "/tmp",
+		"CREDENTIALS_DIRECTORY_TEST":  "/tmp",
 		"ORGSCALE_OIDC_CLIENT_SECRET": oidcClientFileRef,
 	}
 

@@ -56,10 +56,11 @@ func TestAuthErrorTemplate(t *testing.T) {
 			assert.Contains(t, html, tt.result.Heading)
 			assert.Contains(t, html, tt.result.Message)
 
-			// Verify Material for MkDocs design system CSS is present
-			assert.Contains(t, html, "Material for MkDocs")
-			assert.Contains(t, html, "Roboto")
+			// Verify the orgscale stylesheet is present and nothing is
+			// loaded from third parties.
+			assert.Contains(t, html, "orgscale: same look as the admin console")
 			assert.Contains(t, html, ".md-typeset")
+			assert.NotContains(t, html, "fonts.googleapis.com")
 
 			// Verify SVG elements are present
 			assert.Contains(t, html, "<svg")
@@ -121,10 +122,11 @@ func TestAuthSuccessTemplate(t *testing.T) {
 			assert.Contains(t, html, tt.result.User)
 			assert.Contains(t, html, tt.result.Message)
 
-			// Verify Material for MkDocs design system CSS is present
-			assert.Contains(t, html, "Material for MkDocs")
-			assert.Contains(t, html, "Roboto")
+			// Verify the orgscale stylesheet is present and nothing is
+			// loaded from third parties.
+			assert.Contains(t, html, "orgscale: same look as the admin console")
 			assert.Contains(t, html, ".md-typeset")
+			assert.NotContains(t, html, "fonts.googleapis.com")
 
 			// Verify SVG elements are present
 			assert.Contains(t, html, "<svg")

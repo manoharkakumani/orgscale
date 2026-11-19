@@ -46,7 +46,7 @@ func TestApplePlatformConfig_ServesProfilesViaChiRouter(t *testing.T) {
 	srv := httptest.NewServer(r)
 	t.Cleanup(srv.Close)
 
-	platforms := []string{"macos-app-store", "macos-standalone", "ios"}
+	platforms := []string{"macos", "macos-app-store", "macos-standalone", "ios"}
 	for _, platform := range platforms {
 		t.Run(platform, func(t *testing.T) {
 			t.Parallel()
@@ -105,6 +105,47 @@ func TestApplePlatformConfig_RejectsUnknownPlatform(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode,
 		"unknown platform must be rejected with 400")
 	assert.Contains(t, body,
-		"platform must be ios, macos-app-store or macos-standalone",
+		"platform must be ios, macos, macos-app-store or macos-standalone",
 		"error body must list the supported platforms")
+}
+
+func TestConnectDownloads(t *testing.T) {
+	t.Parallel()
+
+	h := &Orgscale{cfg: &types.Config{ServerURL: "https://vpn.example.com"}}
+	r := chi.NewRouter()
+	r.Get("/apple/{platform}", h.ApplePlatformConfig)
+	r.Get("/windows/orgscale.reg", h.WindowsRegistryFile)
+	r.Get("/connect", h.ConnectPage)
+	r.Get("/connect/linux.sh", h.LinuxConnectScript)
+
+	srv := httptest.NewServer(r)
+	t.Cleanup(srv.Close)
+
+	get := func(path string) string {
+		//nolint:noctx // test fixture
+		resp, err := http.Get(srv.URL + path)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		require.Equal(t, http.StatusOK, resp.StatusCode, path)
+		b, _ := io.ReadAll(resp.Body)
+
+		return string(b)
+	}
+
+	mac := get("/apple/macos")
+	assert.Contains(t, mac, "io.tailscale.ipn.macos<")
+	assert.Contains(t, mac, "io.tailscale.ipn.macsys<")
+
+	reg := get("/windows/orgscale.reg")
+	assert.Contains(t, reg, `[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Tailscale]`)
+	assert.Contains(t, reg, `"LoginURL"="https://vpn.example.com"`)
+
+	sh := get("/connect/linux.sh")
+	assert.Contains(t, sh, "tailscale up --login-server 'https://vpn.example.com'")
+
+	page := get("/connect")
+	assert.Contains(t, page, "Connect your device")
+	assert.Contains(t, page, `download="orgscale.mobileconfig"`)
+	assert.Contains(t, page, "/connect/linux.sh | sh")
 }

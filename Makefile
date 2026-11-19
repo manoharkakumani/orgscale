@@ -147,3 +147,10 @@ help:
 	@echo ""
 	@echo "Note: If not running in a nix shell, ensure dependencies are available:"
 	@echo "  nix develop"
+
+# Build the web admin console into hscontrol/adminui/dist, which the binary
+# embeds. Needs Node.js; the built files are committed so a plain `go build`
+# works without it.
+.PHONY: admin-ui
+admin-ui:
+	cd web/admin && npm ci && npm run build

@@ -1055,7 +1055,7 @@ func TestSSHOneUserToOneCheckModeOIDC(t *testing.T) {
 	oidcMap := map[string]string{
 		"ORGSCALE_OIDC_ISSUER":        scenario.mockOIDC.Issuer(),
 		"ORGSCALE_OIDC_CLIENT_ID":     scenario.mockOIDC.ClientID(),
-		"CREDENTIALS_DIRECTORY_TEST":   "/tmp",
+		"CREDENTIALS_DIRECTORY_TEST":  "/tmp",
 		"ORGSCALE_OIDC_CLIENT_SECRET": oidcClientFileRef,
 	}
 
@@ -1667,7 +1667,7 @@ func TestSSHLocalpart(t *testing.T) {
 			oidcMap := map[string]string{
 				"ORGSCALE_OIDC_ISSUER":        scenario.mockOIDC.Issuer(),
 				"ORGSCALE_OIDC_CLIENT_ID":     scenario.mockOIDC.ClientID(),
-				"CREDENTIALS_DIRECTORY_TEST":   "/tmp",
+				"CREDENTIALS_DIRECTORY_TEST":  "/tmp",
 				"ORGSCALE_OIDC_CLIENT_SECRET": oidcClientFileRef,
 			}
 

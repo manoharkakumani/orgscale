@@ -20,13 +20,13 @@ import (
 	"time"
 
 	"github.com/go-viper/mapstructure/v2"
-	hsdns "github.com/manoharkakumani/orgscale/hscontrol/dns"
-	"github.com/manoharkakumani/orgscale/hscontrol/types"
-	"github.com/manoharkakumani/orgscale/hscontrol/util"
 	"github.com/knadh/koanf/parsers/json"
 	"github.com/knadh/koanf/parsers/yaml"
 	"github.com/knadh/koanf/providers/confmap"
 	"github.com/knadh/koanf/v2"
+	hsdns "github.com/manoharkakumani/orgscale/hscontrol/dns"
+	"github.com/manoharkakumani/orgscale/hscontrol/types"
+	"github.com/manoharkakumani/orgscale/hscontrol/util"
 	"github.com/prometheus/common/model"
 	"github.com/tailscale/hujson"
 )

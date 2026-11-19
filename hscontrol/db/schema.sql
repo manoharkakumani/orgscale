@@ -118,3 +118,133 @@ CREATE TABLE database_versions(
   version text NOT NULL,
   updated_at datetime
 );
+
+-- orgscale admin console tables (see hscontrol/db/orgscale_admin.go).
+CREATE TABLE settings(
+  key text PRIMARY KEY,
+  value text NOT NULL,
+  updated_at datetime,
+  updated_by text
+);
+CREATE TABLE directory_groups(
+  id integer PRIMARY KEY AUTOINCREMENT,
+  source text NOT NULL,
+  external_id text NOT NULL,
+  name text NOT NULL,
+  display_name text,
+  created_at datetime,
+  updated_at datetime
+);
+CREATE UNIQUE INDEX idx_directory_groups_source_external_id ON directory_groups(source, external_id);
+CREATE TABLE directory_group_members(
+  group_id integer NOT NULL,
+  user_id integer NOT NULL,
+  PRIMARY KEY(group_id, user_id),
+  CONSTRAINT fk_directory_group_members_group FOREIGN KEY(group_id) REFERENCES directory_groups(id) ON DELETE CASCADE,
+  CONSTRAINT fk_directory_group_members_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+CREATE INDEX idx_directory_group_members_user_id ON directory_group_members(user_id);
+CREATE TABLE user_access(
+  user_id integer PRIMARY KEY,
+  disabled_at datetime,
+  disabled_by text,
+  CONSTRAINT fk_user_access_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+CREATE TABLE audit_events(
+  id integer PRIMARY KEY AUTOINCREMENT,
+  created_at datetime NOT NULL,
+  actor text NOT NULL,
+  actor_kind text NOT NULL,
+  action text NOT NULL,
+  target text,
+  detail text
+);
+CREATE INDEX idx_audit_events_created_at ON audit_events(created_at);
+CREATE TABLE device_access(
+  node_id integer NOT NULL,
+  principal_kind text NOT NULL,
+  principal text NOT NULL,
+  created_at datetime,
+  PRIMARY KEY(node_id, principal_kind, principal),
+  CONSTRAINT fk_device_access_node FOREIGN KEY(node_id) REFERENCES nodes(id) ON DELETE CASCADE
+);
+
+-- orgscale server tags and access rules (see hscontrol/db/orgscale_access.go).
+CREATE TABLE server_tags(
+  name text PRIMARY KEY,
+  description text,
+  created_at datetime,
+  created_by text,
+  request_max_minutes integer NOT NULL DEFAULT 0,
+  request_ssh_users text,
+  request_principals text
+);
+CREATE TABLE server_tag_access(
+  tag text NOT NULL,
+  principal_kind text NOT NULL,
+  principal text NOT NULL,
+  created_at datetime,
+  PRIMARY KEY(tag, principal_kind, principal),
+  CONSTRAINT fk_server_tag_access_tag FOREIGN KEY(tag) REFERENCES server_tags(name) ON DELETE CASCADE
+);
+CREATE TABLE access_rules(
+  id integer PRIMARY KEY AUTOINCREMENT,
+  name text NOT NULL,
+  protocol text NOT NULL DEFAULT '',
+  ports text NOT NULL DEFAULT '*',
+  position integer NOT NULL DEFAULT 0,
+  enabled numeric NOT NULL DEFAULT true,
+  kind text NOT NULL DEFAULT 'network',
+  ssh_users text,
+  ssh_check_period text,
+  created_at datetime,
+  updated_at datetime,
+  updated_by text
+);
+CREATE TABLE access_rule_principals(
+  rule_id integer NOT NULL,
+  side text NOT NULL,
+  principal_kind text NOT NULL,
+  principal text NOT NULL,
+  PRIMARY KEY(rule_id, side, principal_kind, principal),
+  CONSTRAINT fk_access_rule_principals_rule FOREIGN KEY(rule_id) REFERENCES access_rules(id) ON DELETE CASCADE
+);
+
+-- orgscale admin console sessions (see hscontrol/db/orgscale_access.go).
+CREATE TABLE admin_sessions(
+  id text PRIMARY KEY,
+  csrf text NOT NULL,
+  user_id integer,
+  email text,
+  name text,
+  picture text,
+  role_email text,
+  role_groups text,
+  subject text,
+  remote_addr text,
+  user_agent text,
+  created_at datetime,
+  last_seen_at datetime,
+  expires_at datetime NOT NULL
+);
+CREATE INDEX idx_admin_sessions_expires_at ON admin_sessions(expires_at);
+
+-- orgscale just-in-time access requests (see hscontrol/db/orgscale_access.go).
+CREATE TABLE access_requests(
+  id integer PRIMARY KEY AUTOINCREMENT,
+  user_id integer NOT NULL,
+  requester text NOT NULL,
+  tag text NOT NULL,
+  reason text NOT NULL,
+  minutes integer NOT NULL,
+  ssh numeric NOT NULL DEFAULT false,
+  status text NOT NULL,
+  created_at datetime NOT NULL,
+  decided_by text,
+  decided_at datetime,
+  decision_note text,
+  expires_at datetime,
+  grant_kind text,
+  grant_principal text
+);
+CREATE INDEX idx_access_requests_status ON access_requests(status);
