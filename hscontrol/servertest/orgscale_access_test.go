@@ -614,3 +614,34 @@ func TestOrgscalePrivateResource(t *testing.T) {
 
 	waitPeers(t, laptop)
 }
+
+// TestPeerCapabilityVersionIsThePeers checks that peers are described with
+// their own capability version, not the viewer's. Tailscale 1.105 and later
+// start hybrid post-quantum WireGuard handshakes with peers reported at 152
+// or above, so describing an older peer with a newer viewer's version left
+// the two unable to connect.
+func TestPeerCapabilityVersionIsThePeers(t *testing.T) {
+	t.Parallel()
+
+	srv := servertest.NewServer(t)
+	st := srv.State()
+
+	alice := srv.CreateUser(t, "alice")
+	a := servertest.NewClient(t, srv, "a", servertest.WithUser(alice))
+	servertest.NewClient(t, srv, "b", servertest.WithUser(alice))
+
+	a.WaitForPeers(t, 1, 15*time.Second)
+
+	peer, ok := st.GetNodeByID(nodeIDOf(t, a))
+	require.True(t, ok)
+
+	// A viewer much newer than the peer still sees the peer's own version.
+	require.Equal(t, tailcfg.CurrentCapabilityVersion, st.PeerCapabilityVersion(peer, 999))
+
+	// And the map a client receives carries each peer's own version, once
+	// the peer has told the server (a newly joined peer is announced first
+	// with a cautious version, then updated).
+	a.WaitForCondition(t, "peer b at its own capability version", 15*time.Second, func(nm *netmap.NetworkMap) bool {
+		return len(nm.Peers) == 1 && nm.Peers[0].Cap() == tailcfg.CurrentCapabilityVersion
+	})
+}

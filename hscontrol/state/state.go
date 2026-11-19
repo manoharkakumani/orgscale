@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/golang-lru/v2/expirable"
+	"github.com/manoharkakumani/orgscale/hscontrol/capver"
 	"github.com/manoharkakumani/orgscale/hscontrol/config"
 	hsdb "github.com/manoharkakumani/orgscale/hscontrol/db"
 	"github.com/manoharkakumani/orgscale/hscontrol/derp"
@@ -209,6 +210,11 @@ type sshCheckAuthRecord struct {
 type State struct {
 	// cfg holds the current Orgscale configuration
 	cfg *types.Config
+
+	// capVers holds each node's own capability version, from its latest
+	// map request (types.NodeID -> tailcfg.CapabilityVersion). Peers are
+	// described to each other with it; see [State.PeerCapabilityVersion].
+	capVers sync.Map
 
 	// nodeStore provides an in-memory cache for nodes.
 	nodeStore *NodeStore
@@ -953,6 +959,8 @@ func (s *State) SaveNode(node types.NodeView) (types.NodeView, change.Change, er
 // only the call that removed the row frees the addresses.
 func (s *State) DeleteNode(node types.NodeView) ([]change.Change, error) {
 	genBefore := s.polMan.NodesGeneration()
+
+	s.capVers.Delete(node.ID())
 
 	s.persistMu.Lock()
 
@@ -4267,6 +4275,19 @@ func (s *State) UpdateNodeFromMapRequest(id types.NodeID, req tailcfg.MapRequest
 	prevRoutes := s.nodeStore.PrimaryRoutes()
 	genBefore := s.polMan.NodesGeneration()
 
+	// Peers are described with this node's capability version (see
+	// [State.PeerCapabilityVersion]). When it differs from what they were
+	// last told, resend the node to them.
+	capVerChanged := false
+
+	if req.Version > 0 {
+		if prev, loaded := s.capVers.Swap(id, req.Version); loaded {
+			capVerChanged = prev != req.Version
+		} else if nv, ok := s.nodeStore.GetNode(id); ok {
+			capVerChanged = s.fallbackCapabilityVersion(nv) != req.Version
+		}
+	}
+
 	// We need to ensure we update the node as it is in the [NodeStore] at
 	// the time of the request.
 	updatedNode, ok := s.nodeStore.UpdateNode(id, func(currentNode *types.Node) {
@@ -4462,9 +4483,10 @@ func (s *State) UpdateNodeFromMapRequest(id types.NodeID, req tailcfg.MapRequest
 	// map responses.
 	c := buildMapRequestChangeResponse(id, updatedNode, delta)
 
-	// Approval moved no effective route; resend the node so peers hold
-	// its current state.
-	if routeChange {
+	// Approval moved no effective route, or peers hold an outdated
+	// capability version for the node; resend the node so peers hold its
+	// current state.
+	if routeChange || capVerChanged {
 		c = c.Merge(change.NodeAdded(id))
 	}
 
@@ -4630,4 +4652,40 @@ func peerChangePersistWorthy(peerChange tailcfg.PeerChange) bool {
 		peerChange.Endpoints != nil ||
 		peerChange.DERPRegion != 0 ||
 		peerChange.KeyExpiry != nil
+}
+
+// PeerCapabilityVersion is the capability version to describe peer with in
+// another node's map: the peer's own, never the viewer's. Clients use a
+// peer's version to decide what it supports; since Tailscale 1.105 they
+// start post-quantum hybrid WireGuard handshakes with peers at capability
+// version 152 or later, so reporting an older peer at the viewer's version
+// made the two unable to connect.
+//
+// It is the version from the peer's latest map request; for a peer that has
+// not sent one since the server started, the version of the Tailscale
+// release it last reported; failing that, the newest version Orgscale
+// knows that is no newer than the viewer's. Erring low only turns off
+// features both sides would otherwise use.
+func (s *State) PeerCapabilityVersion(peer types.NodeView, viewer tailcfg.CapabilityVersion) tailcfg.CapabilityVersion {
+	if v, ok := s.capVers.Load(peer.ID()); ok {
+		if cv, ok := v.(tailcfg.CapabilityVersion); ok && cv > 0 {
+			return cv
+		}
+	}
+
+	if cv := s.fallbackCapabilityVersion(peer); cv > 0 {
+		return cv
+	}
+
+	return min(viewer, capver.LatestCapabilityVersion())
+}
+
+// fallbackCapabilityVersion is the capability version of the Tailscale
+// release node last reported, or 0 when unknown.
+func (s *State) fallbackCapabilityVersion(node types.NodeView) tailcfg.CapabilityVersion {
+	if hi := node.Hostinfo(); hi.Valid() {
+		return capver.CapabilityVersion(hi.IPNVersion())
+	}
+
+	return 0
 }
