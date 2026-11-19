@@ -672,8 +672,10 @@ func TestOrgscalePostureCutsOff(t *testing.T) {
 	waitPeers(t, phone, "alice-laptop")
 
 	phoneID := nodeIDOf(t, phone)
+	laptopID := nodeIDOf(t, laptop)
 
-	srv.App.Change(st.SetPostureBlocked(map[types.NodeID]struct{}{phoneID: {}}))
+	// Enforced, and only the laptop passed: the phone is cut off.
+	srv.App.Change(st.SetPosture(true, map[types.NodeID]struct{}{laptopID: {}}))
 
 	waitPeers(t, laptop)
 	waitPeers(t, phone)
@@ -682,10 +684,17 @@ func TestOrgscalePostureCutsOff(t *testing.T) {
 	_, ok := st.GetNodeByID(phoneID)
 	require.True(t, ok, "a blocked device stays registered")
 
-	srv.App.Change(st.SetPostureBlocked(nil))
+	// A device that joins while posture is enforced has passed no check
+	// yet, so it starts cut off.
+	tablet := servertest.NewClient(t, srv, "alice-tablet", servertest.WithUser(alice))
+	require.True(t, st.PostureBlocked(nodeIDOf(t, tablet)))
+	waitPeers(t, tablet)
+	waitPeers(t, laptop)
 
-	waitPeers(t, laptop, "alice-phone")
-	waitPeers(t, phone, "alice-laptop")
+	srv.App.Change(st.SetPosture(false, nil))
+
+	waitPeers(t, laptop, "alice-phone", "alice-tablet")
+	waitPeers(t, phone, "alice-laptop", "alice-tablet")
 }
 
 // TestOrgscaleSSHRecording checks that with recording on, SSH servers are

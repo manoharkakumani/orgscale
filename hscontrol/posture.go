@@ -75,6 +75,10 @@ type postureChecker struct {
 	h    *Orgscale
 	kick chan struct{}
 
+	// checkMu makes checks run one at a time, so an older result never
+	// replaces a newer one.
+	checkMu sync.Mutex
+
 	mu        sync.Mutex
 	serials   map[types.NodeID]serialEntry
 	intune    []intuneDevice
@@ -97,17 +101,30 @@ func (p *postureChecker) Kick() {
 	}
 }
 
-func (p *postureChecker) rules() types.PostureRules {
+func (p *postureChecker) rules() (types.PostureRules, error) {
 	var r types.PostureRules
 
 	_, err := p.h.state.GetSettingJSON(types.SettingPosture, &r)
-	if err != nil {
-		log.Warn().Err(err).Msg("device posture: unreadable requirements; checking nothing")
 
-		return types.PostureRules{}
+	return r, err
+}
+
+// Prime cuts off every person-owned device when posture is enforced, until
+// the first check lets the passing ones back in. Call it before devices
+// connect.
+func (p *postureChecker) Prime() {
+	r, err := p.rules()
+	if err != nil {
+		// Unknown requirements: block rather than let everyone in.
+		log.Error().Err(err).Msg("device posture: unreadable requirements; person-owned devices stay cut off until they can be read")
+		p.h.state.SetPosture(true, nil)
+
+		return
 	}
 
-	return r
+	if r.Mode == types.PostureEnforce {
+		p.h.state.SetPosture(true, nil)
+	}
 }
 
 // Run checks devices until ctx ends.
@@ -130,14 +147,23 @@ func (p *postureChecker) Run(ctx context.Context) {
 // Check evaluates every person-owned device and applies the result;
 // refreshIntune asks Intune again even when its answer is recent.
 func (p *postureChecker) Check(ctx context.Context, refreshIntune bool) {
-	rules := p.rules()
+	p.checkMu.Lock()
+	defer p.checkMu.Unlock()
+
+	rules, err := p.rules()
+	if err != nil {
+		// Keep whatever is in force rather than lifting it.
+		log.Warn().Err(err).Msg("device posture: unreadable requirements; keeping the current decisions")
+
+		return
+	}
 
 	if !rules.Active() {
 		p.mu.Lock()
 		p.devices, p.checkedAt = nil, time.Now()
 		p.mu.Unlock()
 
-		p.apply(nil, nil)
+		p.apply(false, nil, nil)
 
 		return
 	}
@@ -148,14 +174,27 @@ func (p *postureChecker) Check(ctx context.Context, refreshIntune bool) {
 	}
 
 	p.mu.Lock()
-	defer p.mu.Unlock()
 
-	var (
-		devices []devicePosture
-		blocked = map[types.NodeID]struct{}{}
-	)
+	nodes := p.h.state.ListNodes()
 
-	for _, n := range p.h.state.ListNodes().All() {
+	// A serial number two devices report proves neither.
+	claims := map[string]int{}
+
+	for _, n := range nodes.All() {
+		if n.IsTagged() {
+			continue
+		}
+
+		for _, sn := range p.serials[n.ID()].serials {
+			claims[strings.ToLower(sn)]++
+		}
+	}
+
+	var devices []devicePosture
+
+	passed := map[types.NodeID]struct{}{}
+
+	for _, n := range nodes.All() {
 		if n.IsTagged() {
 			continue
 		}
@@ -175,7 +214,7 @@ func (p *postureChecker) Check(ctx context.Context, refreshIntune bool) {
 		}
 
 		if rules.RequireIntune {
-			facts.Intune = p.intuneStateLocked(p.serials[n.ID()].serials, n.Hostname(), email)
+			facts.Intune = p.intuneStateLocked(p.serials[n.ID()].serials, email, claims)
 		}
 
 		reasons := rules.Check(facts)
@@ -192,9 +231,10 @@ func (p *postureChecker) Check(ctx context.Context, refreshIntune bool) {
 			d.Reasons = []string{}
 		}
 
-		if !d.Passing && rules.Mode == types.PostureEnforce {
+		if d.Passing {
+			passed[n.ID()] = struct{}{}
+		} else if rules.Mode == types.PostureEnforce {
 			d.Blocked = true
-			blocked[n.ID()] = struct{}{}
 		}
 
 		devices = append(devices, d)
@@ -213,8 +253,9 @@ func (p *postureChecker) Check(ctx context.Context, refreshIntune bool) {
 	})
 
 	p.devices, p.checkedAt = devices, time.Now()
+	p.mu.Unlock()
 
-	p.apply(blocked, devices)
+	p.apply(rules.Mode == types.PostureEnforce, passed, devices)
 }
 
 func cmpOr(a, b string) string {
@@ -225,15 +266,17 @@ func cmpOr(a, b string) string {
 	return b
 }
 
-// apply cuts off blocked and restores the rest, recording each change.
-func (p *postureChecker) apply(blocked map[types.NodeID]struct{}, devices []devicePosture) {
+// apply puts a check into force, recording each device cut off or let back
+// in.
+func (p *postureChecker) apply(enforce bool, passed map[types.NodeID]struct{}, devices []devicePosture) {
+	nodes := p.h.state.ListNodes()
 	before := map[types.NodeID]bool{}
 
-	for _, n := range p.h.state.ListNodes().All() {
+	for _, n := range nodes.All() {
 		before[n.ID()] = p.h.state.PostureBlocked(n.ID())
 	}
 
-	c := p.h.state.SetPostureBlocked(blocked)
+	c := p.h.state.SetPosture(enforce, passed)
 	if c.IsEmpty() {
 		return
 	}
@@ -244,37 +287,45 @@ func (p *postureChecker) apply(blocked map[types.NodeID]struct{}, devices []devi
 		return
 	}
 
+	reasons := make(map[types.NodeID][]string, len(devices))
 	for _, d := range devices {
-		id := types.NodeID(d.ID)
-		if d.Blocked && !before[id] {
-			p.h.admin.audit(types.AuditEvent{
-				Actor: auditSystemActor, ActorKind: types.AuditActorSystem, Action: "posture.block",
-				Target: d.Name, Detail: strings.Join(d.Reasons, "; "),
-			})
-		}
-
-		delete(before, id)
+		reasons[types.NodeID(d.ID)] = d.Reasons
 	}
 
-	for id, was := range before {
-		if _, still := blocked[id]; was && !still {
-			name := fmt.Sprint(id)
-			if n, ok := p.h.state.GetNodeByID(id); ok {
-				name = n.GivenName()
-			}
+	for _, n := range nodes.All() {
+		was, now := before[n.ID()], p.h.state.PostureBlocked(n.ID())
 
+		switch {
+		case now && !was:
 			p.h.admin.audit(types.AuditEvent{
-				Actor: auditSystemActor, ActorKind: types.AuditActorSystem, Action: "posture.unblock", Target: name,
+				Actor: auditSystemActor, ActorKind: types.AuditActorSystem, Action: "posture.block",
+				Target: n.GivenName(), Detail: strings.Join(reasons[n.ID()], "; "),
+			})
+		case was && !now:
+			p.h.admin.audit(types.AuditEvent{
+				Actor: auditSystemActor, ActorKind: types.AuditActorSystem, Action: "posture.unblock", Target: n.GivenName(),
 			})
 		}
 	}
 }
 
-// intuneStateLocked is what Intune says about a device: matched on serial
-// number when the device reported one, else on its name and owner.
-func (p *postureChecker) intuneStateLocked(serials []string, hostname, email string) string {
+// intuneStateLocked is what Intune says about a device with serials owned
+// by email. Only the serial number identifies it: names are chosen by
+// whoever owns the device. The Intune record must belong to the same person
+// when it names one, and a serial claimed by two devices proves nothing.
+func (p *postureChecker) intuneStateLocked(serials []string, email string, claims map[string]int) string {
 	if p.intuneAt.IsZero() || time.Since(p.intuneAt) > intuneStale {
 		return types.IntuneUnavailable
+	}
+
+	if len(serials) == 0 {
+		return types.IntuneNoSerial
+	}
+
+	for _, sn := range serials {
+		if claims[strings.ToLower(sn)] > 1 {
+			return types.IntuneDuplicate
+		}
 	}
 
 	var match *intuneDevice
@@ -288,21 +339,12 @@ func (p *postureChecker) intuneStateLocked(serials []string, hostname, email str
 		}
 	}
 
-	if match == nil && email != "" {
-		for i := range p.intune {
-			d := &p.intune[i]
-			if strings.EqualFold(d.DeviceName, hostname) &&
-				(strings.EqualFold(d.UserPrincipalName, email) || strings.EqualFold(d.EmailAddress, email)) {
-				match = d
-
-				break
-			}
-		}
-	}
-
 	switch {
 	case match == nil:
 		return types.IntuneNotManaged
+	case (match.UserPrincipalName != "" || match.EmailAddress != "") &&
+		!strings.EqualFold(match.UserPrincipalName, email) && !strings.EqualFold(match.EmailAddress, email):
+		return types.IntuneOtherOwner
 	case match.ComplianceState == "compliant" || match.ComplianceState == "inGracePeriod":
 		return types.IntuneCompliant
 	}
@@ -442,9 +484,13 @@ type adminPosture struct {
 	Devices       []devicePosture    `json:"devices"`
 }
 
-func (aa *adminAuth) postureView() adminPosture {
+func (aa *adminAuth) postureView() (adminPosture, error) {
 	p := aa.h.posture
-	rules := p.rules()
+
+	rules, err := p.rules()
+	if err != nil {
+		return adminPosture{}, err
+	}
 
 	if rules.Mode == "" {
 		rules.Mode = types.PostureOff
@@ -477,11 +523,22 @@ func (aa *adminAuth) postureView() adminPosture {
 		v.CheckedAt = &checked
 	}
 
-	return v
+	return v, nil
+}
+
+func (aa *adminAuth) writePosture(w http.ResponseWriter) {
+	v, err := aa.postureView()
+	if err != nil {
+		adminJSONError(w, http.StatusInternalServerError, err.Error())
+
+		return
+	}
+
+	adminJSON(w, http.StatusOK, v)
 }
 
 func (aa *adminAuth) handleGetPosture(w http.ResponseWriter, _ *http.Request) {
-	adminJSON(w, http.StatusOK, aa.postureView())
+	aa.writePosture(w)
 }
 
 func cleanPostureRules(in types.PostureRules) (types.PostureRules, error) {
@@ -564,7 +621,7 @@ func (aa *adminAuth) handlePutPosture(w http.ResponseWriter, r *http.Request) {
 
 	aa.auditReq(r, "posture.save", "device posture", postureSummary(rules))
 	aa.h.posture.Check(r.Context(), rules.RequireIntune)
-	adminJSON(w, http.StatusOK, aa.postureView())
+	aa.writePosture(w)
 }
 
 func postureSummary(r types.PostureRules) string {
@@ -596,7 +653,7 @@ func postureSummary(r types.PostureRules) string {
 
 func (aa *adminAuth) handleCheckPosture(w http.ResponseWriter, r *http.Request) {
 	aa.h.posture.Check(r.Context(), true)
-	adminJSON(w, http.StatusOK, aa.postureView())
+	aa.writePosture(w)
 }
 
 // --- SSH session recording ---

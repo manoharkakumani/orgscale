@@ -71,6 +71,12 @@ const (
 	IntuneNotManaged = "notManaged"
 	// IntuneUnavailable is Intune not answering, e.g. a missing permission.
 	IntuneUnavailable = "unavailable"
+	// IntuneNoSerial is a device that reported no serial number to match.
+	IntuneNoSerial = "noSerial"
+	// IntuneDuplicate is a serial number more than one device reported.
+	IntuneDuplicate = "duplicate"
+	// IntuneOtherOwner is a device Intune lists under someone else.
+	IntuneOtherOwner = "otherOwner"
 )
 
 // PostureFacts is what a device reports, and what Intune says about it.
@@ -106,6 +112,12 @@ func (r PostureRules) Check(f PostureFacts) []string {
 			reasons = append(reasons, "Intune reports the device non-compliant")
 		case IntuneNotManaged:
 			reasons = append(reasons, "the device is not enrolled in Intune")
+		case IntuneNoSerial:
+			reasons = append(reasons, "the device reports no serial number to match in Intune (turn on posture checking)")
+		case IntuneDuplicate:
+			reasons = append(reasons, "another device reports the same serial number")
+		case IntuneOtherOwner:
+			reasons = append(reasons, "Intune lists the device under someone else")
 		default:
 			reasons = append(reasons, "Intune compliance is unknown")
 		}

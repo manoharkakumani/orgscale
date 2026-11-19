@@ -366,6 +366,7 @@ func (h *Orgscale) setUpIdentity(oidcClientSecret string) error {
 	h.googleSync = newGoogleSyncer(h)
 	h.entraSync = newEntraSyncer(h)
 	h.posture = newPostureChecker(h)
+	h.posture.Prime()
 	h.scimFailures = newIPLimiter(20, time.Minute)
 
 	if cfg.Admin.Enabled {

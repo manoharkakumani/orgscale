@@ -298,13 +298,19 @@ single sign-on: orgscale signs in to Microsoft Graph as that app.
 2. **Device posture** → turn on **Require Intune compliance** → **Save**.
 
 Intune is read every 10 minutes (**Check now** reads it at once). Devices are
-matched by serial number, which needs posture checking on in the Tailscale
-app: the profiles and the Windows registry file from **Connect** set
-`PostureChecking`, as can your MDM; on Linux run
-`sudo tailscale set --report-posture`. A device without a serial number is
-matched by its name and owner's email. If Intune cannot be read, the last
-answer is used for a day; after that every device counts as unknown, and is
-cut off in Cut off mode.
+matched by serial number only, never by name, since anyone can rename their
+device. The Intune record must belong to the device's owner, and a serial
+number two devices report counts for neither. Serial numbers need posture
+checking on in the Tailscale app: the profiles and the Windows registry file
+from **Connect** set `PostureChecking`, as can your MDM; on Linux run
+`sudo tailscale set --report-posture`. A device that reports none fails. If
+Intune cannot be read, the last answer is used for a day; after that every
+device counts as unknown, and is cut off in Cut off mode.
+
+In Cut off mode a device is cut off until it passes a check: one that has
+just joined waits for its first check (it runs as the device connects), and
+after a restart every person-owned device waits for the first round. If the
+requirements cannot be read from the database, the decisions in force stay.
 
 ## SSH session recording
 

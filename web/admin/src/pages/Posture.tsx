@@ -44,6 +44,9 @@ const intuneLabel: Record<string, string> = {
   noncompliant: "Intune non-compliant",
   notManaged: "Not in Intune",
   unavailable: "Intune unknown",
+  noSerial: "No serial number",
+  duplicate: "Serial number reported twice",
+  otherOwner: "Someone else's in Intune",
 };
 
 function sameRules(a: PostureRules, b: PostureRules): boolean {
@@ -266,7 +269,7 @@ export default function PosturePage() {
                 ) : data.intuneError ? (
                   <span className="text-warn">{data.intuneError}</span>
                 ) : data.intuneAt ? (
-                  `${data.intuneDevices} Intune device${data.intuneDevices === 1 ? "" : "s"}, read ${timeAgo(data.intuneAt)}. Devices are matched by serial number, or by name and owner.`
+                  `${data.intuneDevices} Intune device${data.intuneDevices === 1 ? "" : "s"}, read ${timeAgo(data.intuneAt)}. Devices are matched by serial number and owner.`
                 ) : (
                   "Only devices Intune reports compliant may connect. Grant the Entra app the application permission DeviceManagementManagedDevices.Read.All."
                 )
