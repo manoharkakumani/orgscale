@@ -93,12 +93,7 @@ func (aa *adminAuth) requireSession(next http.Handler) http.Handler {
 			return
 		}
 
-		kind := types.AuditActorAdmin
-		if sess.Role == AdminRoleMember {
-			kind = types.AuditActorUser
-		}
-
-		ctx := withAuditActor(r.Context(), auditActor{Name: sess.label(), Kind: kind})
+		ctx := withAuditActor(r.Context(), auditActor{Name: sess.label(), Kind: types.AuditActorAdmin})
 		ctx = contextWithSession(ctx, sess)
 
 		next.ServeHTTP(w, r.WithContext(ctx))

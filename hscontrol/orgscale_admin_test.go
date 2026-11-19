@@ -863,107 +863,38 @@ func TestAdminConsoleUserRoles(t *testing.T) {
 	}
 }
 
-// TestAdminConsoleAccessRequests covers just-in-time access: a member asks
-// for a tag, cannot see anything else or approve, another admin approves,
-// the access appears in the policy and leaves it when the time is up.
-func TestAdminConsoleAccessRequests(t *testing.T) {
+// TestAdminConsoleTempAccess covers temporary access: only administrators
+// sign in; an administrator grants a group or a person access to a tag for a
+// set time, the grant appears in the policy, and leaves it when ended or when
+// the time is up.
+func TestAdminConsoleTempAccess(t *testing.T) {
 	h := newAdminHarness(t)
 
-	// Directory-synced people, as Entra sync creates them.
-	ids := map[string]string{}
+	alice, _, err := h.app.state.CreateUser(types.User{Name: "alice", Email: "alice@example.com", Provider: userProviderEntra})
+	require.NoError(t, err)
 
-	for _, u := range []types.User{
-		{Name: "alice", Email: "alice@example.com", Provider: userProviderEntra},
-		{Name: "boss", Email: "boss@example.com", Provider: userProviderEntra},
-		{Name: "carol", Email: "carol@example.com", Provider: userProviderEntra},
-	} {
-		made, _, err := h.app.state.CreateUser(u)
-		require.NoError(t, err)
+	aliceID := fmt.Sprint(alice.ID)
 
-		ids[u.Name] = fmt.Sprint(made.ID)
-	}
-
-	who := func(names ...string) []map[string]string {
-		var out []map[string]string
-		for _, n := range names {
-			out = append(out, map[string]string{"kind": "user", "principal": ids[n]})
-		}
-
-		return out
-	}
+	// People who are not administrators cannot sign in, account or not.
+	assert.Equal(t, http.StatusForbidden, h.browser(t).login(t, &mockoidc.MockUser{Subject: "alice", Email: "alice@example.com", EmailVerified: true}))
 
 	boss := h.browser(t)
 	require.Equal(t, http.StatusOK, boss.login(t, &mockoidc.MockUser{Subject: "boss", Email: "boss@example.com", EmailVerified: true}))
 
-	ops := h.browser(t)
-	require.Equal(t, http.StatusOK, ops.login(t, &mockoidc.MockUser{Subject: "ops", Email: "ops@example.com", EmailVerified: true, Groups: []string{"it-admins"}}))
-
-	require.Equal(t, http.StatusNoContent, boss.do(t, http.MethodPut, "/admin/api/tags/tag:prod-db", map[string]any{
-		"description": "production databases", "access": []any{},
-		"requests": map[string]any{"maxMinutes": 120, "sshUsers": []string{"ubuntu"}, "who": who("alice", "boss")},
-	}, nil))
-	assert.Equal(t, http.StatusBadRequest, boss.do(t, http.MethodPut, "/admin/api/tags/tag:prod-db", map[string]any{
-		"access": []any{}, "requests": map[string]any{"maxMinutes": 99999, "who": who("alice")},
-	}, nil))
-	assert.Equal(t, http.StatusBadRequest, boss.do(t, http.MethodPut, "/admin/api/tags/tag:secret", map[string]any{
-		"access": []any{}, "requests": map[string]any{"maxMinutes": 60},
-	}, nil), "requests need a list of who may ask")
-	require.Equal(t, http.StatusNoContent, boss.do(t, http.MethodPut, "/admin/api/tags/tag:secret", map[string]any{
-		"access": []any{}, "requests": map[string]any{"maxMinutes": 60, "who": who("carol")},
-	}, nil))
-
 	require.Equal(t, http.StatusOK, boss.do(t, http.MethodPut, "/admin/api/settings/device-restriction", map[string]bool{"enabled": true}, nil))
 
-	// Someone with no orgscale account still cannot sign in.
-	assert.Equal(t, http.StatusForbidden, h.browser(t).login(t, &mockoidc.MockUser{Subject: "x", Email: "stranger@example.com", EmailVerified: true}))
+	// A tag made before SSH accounts existed lists none (not null).
+	require.Equal(t, http.StatusNoContent, boss.do(t, http.MethodPut, "/admin/api/tags/tag:web", map[string]any{"access": []any{}}, nil))
+	require.Equal(t, http.StatusNoContent, boss.do(t, http.MethodPut, "/admin/api/tags/tag:prod-db", map[string]any{
+		"description": "production databases", "access": []any{}, "tempSSHUsers": []string{"ubuntu"},
+	}, nil))
 
-	alice := h.browser(t)
-	require.Equal(t, http.StatusOK, alice.login(t, &mockoidc.MockUser{Subject: "alice", Email: "alice@example.com", EmailVerified: true}))
+	var tags []adminTag
+	require.Equal(t, http.StatusOK, boss.do(t, http.MethodGet, "/admin/api/tags", nil, &tags))
 
-	var me map[string]any
-	require.Equal(t, http.StatusOK, alice.do(t, http.MethodGet, "/admin/api/me", nil, &me))
-	assert.Equal(t, "member", me["role"])
-
-	// A member sees only their own requests.
-	for _, p := range []string{"/admin/api/users", "/admin/api/overview", "/admin/api/requests", "/api/v1/user", "/admin/api/settings"} {
-		assert.Equal(t, http.StatusForbidden, alice.do(t, http.MethodGet, p, nil, nil), p)
+	for _, tg := range tags {
+		require.NotNil(t, tg.TempSSHUsers, tg.Name)
 	}
-
-	var targets []adminRequestTarget
-	require.Equal(t, http.StatusOK, alice.do(t, http.MethodGet, "/admin/api/my/targets", nil, &targets))
-	require.Len(t, targets, 1, "alice does not learn tag:secret exists")
-	assert.Equal(t, "tag:prod-db", targets[0].Tag)
-
-	var aliceAsk map[string]any
-	assert.Equal(t, http.StatusBadRequest, alice.do(t, http.MethodPost, "/admin/api/my/requests", map[string]any{"tag": "tag:secret", "minutes": 30, "reason": "let me in"}, &aliceAsk))
-
-	carol := h.browser(t)
-	require.Equal(t, http.StatusOK, carol.login(t, &mockoidc.MockUser{Subject: "carol", Email: "carol@example.com", EmailVerified: true}))
-
-	var carolTargets []adminRequestTarget
-	require.Equal(t, http.StatusOK, carol.do(t, http.MethodGet, "/admin/api/my/targets", nil, &carolTargets))
-	require.Len(t, carolTargets, 1)
-	assert.Equal(t, "tag:secret", carolTargets[0].Tag)
-	assert.Equal(t, []string{"ubuntu"}, targets[0].SSHUsers)
-
-	ask := func(b *adminBrowser, minutes int, reason string) (int, uint64) {
-		var out map[string]uint64
-		code := b.do(t, http.MethodPost, "/admin/api/my/requests", map[string]any{"tag": "tag:prod-db", "minutes": minutes, "reason": reason, "ssh": true}, &out)
-
-		return code, out["id"]
-	}
-
-	code, _ := ask(alice, 600, "fix replication lag")
-	assert.Equal(t, http.StatusBadRequest, code, "longer than the tag allows")
-	code, _ = ask(alice, 60, "")
-	assert.Equal(t, http.StatusBadRequest, code, "a reason is required")
-	code, id := ask(alice, 60, "fix replication lag")
-	require.Equal(t, http.StatusCreated, code)
-	code, _ = ask(alice, 60, "again please")
-	assert.Equal(t, http.StatusConflict, code, "one waiting request per tag")
-
-	path := fmt.Sprintf("/admin/api/requests/%d", id)
-	assert.Equal(t, http.StatusForbidden, alice.do(t, http.MethodPost, path+"/approve", nil, nil), "members cannot approve")
 
 	policy := func() string {
 		p, err := h.app.state.EffectivePolicy()
@@ -971,88 +902,56 @@ func TestAdminConsoleAccessRequests(t *testing.T) {
 
 		return string(p)
 	}
-	assert.NotContains(t, policy(), `"src":["alice@example.com"]`)
 
-	// Nobody approves their own request.
-	code, own := ask(boss, 30, "check the backups")
+	var g map[string]any
+	require.Equal(t, http.StatusOK, boss.do(t, http.MethodPost, "/admin/api/groups", map[string]any{"name": "On call", "memberIds": []uint64{uint64(alice.ID)}}, &g))
+	gid := fmt.Sprint(g["id"])
+
+	grant := func(to []map[string]string, tag string, minutes int, ssh bool) (int, []uint64) {
+		var out map[string][]uint64
+		code := boss.do(t, http.MethodPost, "/admin/api/temp-access", map[string]any{"to": to, "tag": tag, "minutes": minutes, "ssh": ssh, "reason": "incident 42"}, &out)
+
+		return code, out["ids"]
+	}
+	group := []map[string]string{{"kind": "directory_group", "principal": gid}}
+	person := []map[string]string{{"kind": "user", "principal": aliceID}}
+
+	code, _ := grant(group, "tag:web", 60, true)
+	assert.Equal(t, http.StatusBadRequest, code, "tag:web has no SSH accounts")
+	code, _ = grant(group, "tag:prod-db", 99999, false)
+	assert.Equal(t, http.StatusBadRequest, code, "longer than a week")
+	code, _ = grant(nil, "tag:prod-db", 60, false)
+	assert.Equal(t, http.StatusBadRequest, code, "nobody chosen")
+
+	assert.NotContains(t, policy(), "tag:prod-db:*")
+
+	code, ids := grant(group, "tag:prod-db", 60, true)
 	require.Equal(t, http.StatusCreated, code)
-	assert.Equal(t, http.StatusForbidden, boss.do(t, http.MethodPost, fmt.Sprintf("/admin/api/requests/%d/approve", own), nil, nil))
-	require.Equal(t, http.StatusNoContent, ops.do(t, http.MethodPost, fmt.Sprintf("/admin/api/requests/%d/deny", own), map[string]string{"note": "not now"}, nil))
+	assert.Contains(t, policy(), "tag:prod-db:*", "the group's members reach the tag")
+	assert.Contains(t, policy(), `"users":["ubuntu"]`)
 
-	require.Equal(t, http.StatusNoContent, boss.do(t, http.MethodPost, path+"/approve", map[string]any{"minutes": 30}, nil))
-	assert.Equal(t, http.StatusConflict, ops.do(t, http.MethodPost, path+"/deny", nil, nil), "already decided")
-	assert.Contains(t, policy(), `"src":["alice@example.com"]`)
-	assert.Contains(t, policy(), "ubuntu")
-	assert.Contains(t, policy(), "tag:prod-db:*", "network access to the tag while devices are restricted")
+	var list []adminTempAccess
+	require.Equal(t, http.StatusOK, boss.do(t, http.MethodGet, "/admin/api/temp-access", nil, &list))
+	require.Len(t, list, 1)
+	assert.True(t, list[0].Active)
+	assert.Equal(t, []string{"ubuntu"}, list[0].SSHUsers)
+	assert.Equal(t, "directory_group", list[0].Kind)
 
-	var mine []adminRequest
-	require.Equal(t, http.StatusOK, alice.do(t, http.MethodGet, "/admin/api/my/requests", nil, &mine))
-	require.Len(t, mine, 1)
-	assert.True(t, mine[0].Active)
-	assert.Equal(t, 30, mine[0].Minutes, "the approver shortened it")
+	require.Equal(t, http.StatusNoContent, boss.do(t, http.MethodPost, fmt.Sprintf("/admin/api/temp-access/%d/end", ids[0]), nil, nil))
+	assert.NotContains(t, policy(), "tag:prod-db:*")
+	assert.Equal(t, http.StatusConflict, boss.do(t, http.MethodPost, fmt.Sprintf("/admin/api/temp-access/%d/end", ids[0]), nil, nil))
 
-	// Time runs out.
+	code, _ = grant(person, "tag:prod-db", 30, false)
+	require.Equal(t, http.StatusCreated, code)
+	assert.Contains(t, policy(), "tag:prod-db:*")
+
 	lapsed, _, err := h.app.state.ExpireAccessRequests(time.Now().Add(31*time.Minute), 24*time.Hour)
 	require.NoError(t, err)
 	assert.EqualValues(t, 1, lapsed)
-	assert.NotContains(t, policy(), `"src":["alice@example.com"]`)
+	assert.NotContains(t, policy(), "tag:prod-db:*", "access ends on its own")
 
-	// Ending access early works too.
-	code, id = ask(alice, 60, "one more look")
-	require.Equal(t, http.StatusCreated, code)
-	require.Equal(t, http.StatusNoContent, ops.do(t, http.MethodPost, fmt.Sprintf("/admin/api/requests/%d/approve", id), nil, nil))
-	assert.Contains(t, policy(), `"src":["alice@example.com"]`)
-	require.Equal(t, http.StatusNoContent, alice.do(t, http.MethodPost, fmt.Sprintf("/admin/api/my/requests/%d/cancel", id), nil, nil))
-	assert.NotContains(t, policy(), `"src":["alice@example.com"]`)
-
-	// An administrator grants access directly: to a group (resolved to its
-	// members) and to a person, on a tag that need not allow requests.
-	require.Equal(t, http.StatusNoContent, boss.do(t, http.MethodPut, "/admin/api/tags/tag:web", map[string]any{"access": []any{}}, nil))
-
-	var users []adminUser
-	require.Equal(t, http.StatusOK, boss.do(t, http.MethodGet, "/admin/api/users", nil, &users))
-
-	var aliceID uint64
-	for _, u := range users {
-		if u.Email == "alice@example.com" {
-			aliceID = uint64(u.ID)
-		}
-	}
-	require.NotZero(t, aliceID)
-
-	var g map[string]any
-	require.Equal(t, http.StatusOK, boss.do(t, http.MethodPost, "/admin/api/groups", map[string]any{"name": "On call", "memberIds": []uint64{aliceID}}, &g))
-	gid := fmt.Sprint(g["id"])
-
-	webGranted := func() bool { return strings.Contains(policy(), "tag:web:*") }
-	assert.False(t, webGranted())
-
-	assert.Equal(t, http.StatusForbidden, alice.do(t, http.MethodPost, "/admin/api/requests/grant", map[string]any{}, nil), "members cannot grant")
-	assert.Equal(t, http.StatusBadRequest, boss.do(t, http.MethodPost, "/admin/api/requests/grant", map[string]any{
-		"to": []map[string]string{{"kind": "directory_group", "principal": gid}}, "tag": "tag:web", "minutes": 60, "ssh": true,
-	}, nil), "the tag has no SSH accounts")
-
-	var granted map[string][]uint64
-	require.Equal(t, http.StatusCreated, boss.do(t, http.MethodPost, "/admin/api/requests/grant", map[string]any{
-		"to": []map[string]string{{"kind": "directory_group", "principal": gid}}, "tag": "tag:web", "minutes": 60, "reason": "incident 42",
-	}, &granted))
-	require.Len(t, granted["ids"], 1)
-	assert.True(t, webGranted(), "the group's members reach the tag")
-
-	var all []adminRequest
-	require.Equal(t, http.StatusOK, boss.do(t, http.MethodGet, "/admin/api/requests", nil, &all))
-	assert.True(t, all[0].Granted)
-	assert.True(t, all[0].Active)
-
-	require.Equal(t, http.StatusNoContent, boss.do(t, http.MethodPost, fmt.Sprintf("/admin/api/requests/%d/revoke", granted["ids"][0]), nil, nil))
-	assert.False(t, webGranted())
-
-	require.Equal(t, http.StatusCreated, boss.do(t, http.MethodPost, "/admin/api/requests/grant", map[string]any{
-		"to": []map[string]string{{"kind": "user", "principal": fmt.Sprint(aliceID)}}, "tag": "tag:web", "minutes": 15,
-	}, &granted))
-	assert.True(t, webGranted())
-
-	mine = nil
-	require.Equal(t, http.StatusOK, alice.do(t, http.MethodGet, "/admin/api/my/requests", nil, &mine))
-	assert.True(t, mine[0].Granted, "a person sees access granted to them")
+	require.Equal(t, http.StatusOK, boss.do(t, http.MethodGet, "/admin/api/temp-access", nil, &list))
+	require.Len(t, list, 2)
+	assert.Equal(t, "expired", list[0].Status)
+	assert.Equal(t, "ended", list[1].Status)
 }

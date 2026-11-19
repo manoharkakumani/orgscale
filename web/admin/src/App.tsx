@@ -12,8 +12,7 @@ import KeysPage from "./pages/Keys";
 import SettingsPage from "./pages/Settings";
 import SetupPage from "./pages/Setup";
 import AuditPage from "./pages/Audit";
-import RequestsPage, { MyAccessPage } from "./pages/Requests";
-import { get, type AccessRequest } from "./api";
+import TempAccessPage from "./pages/TempAccess";
 
 const MeCtx = createContext<Me | null>(null);
 
@@ -35,7 +34,7 @@ const nav: { group: string; items: { to: string; label: string; icon: string; en
       { to: "/devices", label: "Devices", icon: "devices" },
       { to: "/servers", label: "Servers", icon: "server" },
       { to: "/access", label: "Access", icon: "shield" },
-      { to: "/requests", label: "Requests", icon: "clock" },
+      { to: "/temporary-access", label: "Temporary access", icon: "clock" },
     ],
   },
   {
@@ -55,36 +54,12 @@ const nav: { group: string; items: { to: string; label: string; icon: string; en
   },
 ];
 
-// People who are not administrators only request access.
-const memberNav: typeof nav = [{ group: "You", items: [{ to: "/", label: "Request access", icon: "key", end: true }] }];
-
-function pageTitle(path: string, items: typeof nav): string {
+function pageTitle(path: string, items: typeof nav = nav): string {
   for (const g of items) for (const n of g.items) if (n.to !== "/" && path.startsWith(n.to)) return n.label;
   return items[0].items[0].label;
 }
 
-const roleLabel = { admin: "Admin", viewer: "Read-only", member: "Member" } as const;
-
-/** usePendingRequests counts requests waiting for a decision, for the nav. */
-function usePendingRequests(enabled: boolean): number {
-  const [n, setN] = useState(0);
-  useEffect(() => {
-    if (!enabled) return;
-    const load = () =>
-      get<AccessRequest[]>("/admin/api/requests")
-        .then((rs) => setN(rs.filter((r) => r.status === "pending").length))
-        .catch(() => undefined);
-    void load();
-    const id = window.setInterval(load, 30000);
-    const onChange = (e: Event) => setN((e as CustomEvent<number>).detail);
-    window.addEventListener("orgscale:requests", onChange);
-    return () => {
-      window.clearInterval(id);
-      window.removeEventListener("orgscale:requests", onChange);
-    };
-  }, [enabled]);
-  return n;
-}
+const roleLabel = { admin: "Admin", viewer: "Read-only" } as const;
 
 function SignIn({ error, setupRequired }: { error?: string; setupRequired?: boolean }) {
   return (
@@ -191,9 +166,7 @@ function Console() {
 
 function Shell({ me, setMe, menuOpen, setMenuOpen, scrolled }: { me: Me; setMe: (m: Me | null) => void; menuOpen: boolean; setMenuOpen: (v: boolean) => void; scrolled: boolean }) {
   const location = useLocation();
-  const member = me.role === "member";
-  const items = member ? memberNav : nav;
-  const pending = usePendingRequests(!member);
+  const items = nav;
 
   const signOut = async () => {
     try {
@@ -220,7 +193,6 @@ function Shell({ me, setMe, menuOpen, setMenuOpen, scrolled }: { me: Me; setMe: 
                   <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
                     <Icon name={n.icon} />
                     {n.label}
-                    {n.to === "/requests" && pending > 0 && <span className="nav-count">{pending}</span>}
                   </NavLink>
                 ))}
               </div>
@@ -271,15 +243,10 @@ function Shell({ me, setMe, menuOpen, setMenuOpen, scrolled }: { me: Me; setMe: 
             </div>
           </header>
           <main className="content">
-            {member ? (
-              <Routes>
-                <Route path="/" element={<MyAccessPage />} />
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            ) : (
             <Routes>
               <Route path="/" element={<OverviewPage />} />
-              <Route path="/requests" element={<RequestsPage />} />
+              <Route path="/temporary-access" element={<TempAccessPage />} />
+              <Route path="/requests" element={<Navigate to="/temporary-access" replace />} />
               <Route path="/users" element={<UsersPage />} />
               <Route path="/devices" element={<DevicesPage />} />
               <Route path="/groups" element={<GroupsPage />} />
@@ -291,7 +258,6 @@ function Shell({ me, setMe, menuOpen, setMenuOpen, scrolled }: { me: Me; setMe: 
               <Route path="/audit" element={<AuditPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
-            )}
           </main>
         </div>
       </div>

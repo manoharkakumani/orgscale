@@ -58,7 +58,7 @@ export const del = <T>(path: string, body?: unknown) => request<T>("DELETE", pat
 
 // Types returned by /admin/api.
 
-export type Role = "admin" | "viewer" | "member";
+export type Role = "admin" | "viewer";
 
 export interface Me {
   signedIn: boolean;
@@ -130,38 +130,24 @@ export interface ServerTag {
   createdAt?: string;
   access: Principal[];
   devices: { id: number; name: string; online: boolean; os: string }[];
-  requestMaxMinutes: number;
-  requestSSHUsers: string[];
-  requestWho: Principal[];
+  tempSSHUsers: string[];
 }
 
-export type AccessRequestStatus = "pending" | "approved" | "denied" | "cancelled" | "revoked" | "expired";
-
-export interface AccessRequest {
+export interface TempAccess {
   id: number;
-  userId: number;
-  requester: string;
+  grantee: string;
+  kind: "user" | "directory_group";
   tag: string;
   reason: string;
   minutes: number;
   ssh: boolean;
-  sshUsers?: string[];
-  status: AccessRequestStatus;
-  active: boolean;
-  createdAt: string;
-  decidedBy?: string;
-  decidedAt?: string;
-  decisionNote?: string;
-  expiresAt?: string;
-  granted: boolean;
-  grantKind?: string;
-}
-
-export interface RequestTarget {
-  tag: string;
-  description: string;
-  maxMinutes: number;
   sshUsers: string[];
+  status: "active" | "ended" | "expired";
+  active: boolean;
+  grantedBy: string;
+  grantedAt: string;
+  expiresAt?: string;
+  endedBy?: string;
 }
 
 export interface AccessRule {

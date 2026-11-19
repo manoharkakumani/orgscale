@@ -3,7 +3,6 @@ import { Link, useSearchParams } from "react-router-dom";
 import { del, get, post, put, type EnrollKey, type Principal, type ServerTag } from "../api";
 import { useCanEdit } from "../App";
 import { PrincipalList, PrincipalPicker, type Option } from "../components/principals";
-import { duration, durationChoices } from "./Requests";
 import { Badge, Button, ChipInput, CodeBlock, Confirm, Empty, ErrorBox, Field, Icon, Modal, PRow, PageHeader, Segmented, Spinner, Toggle, dateTime, useAsync, useToast } from "../components/ui";
 
 const granteeKinds = ["everyone", "directory_group", "policy_group", "user", "tag"] as const;
@@ -23,9 +22,7 @@ function TagEditor({ tag, onClose, onSaved }: { tag?: ServerTag; onClose: () => 
   const [name, setName] = useState(tag ? tag.name.replace(/^tag:/, "") : "");
   const [description, setDescription] = useState(tag?.description ?? "");
   const [access, setAccess] = useState<Principal[]>(tag?.access ?? []);
-  const [reqMax, setReqMax] = useState(tag?.requestMaxMinutes ?? 0);
-  const [reqSSH, setReqSSH] = useState<string[]>(tag?.requestSSHUsers ?? []);
-  const [reqWho, setReqWho] = useState<Principal[]>(tag?.requestWho ?? []);
+  const [tempSSH, setTempSSH] = useState<string[]>(tag?.tempSSHUsers ?? []);
   const [busy, setBusy] = useState(false);
   const full = `tag:${slug(name)}`;
   const self: Option = { kind: "tag", principal: full, label: full, sub: "servers in this tag reach each other", key: `tag:${full}` };
@@ -43,14 +40,14 @@ function TagEditor({ tag, onClose, onSaved }: { tag?: ServerTag; onClose: () => 
           <Button
             variant="primary"
             busy={busy}
-            disabled={!slug(name) || (reqMax > 0 && reqWho.length === 0)}
+            disabled={!slug(name)}
             onClick={async () => {
               setBusy(true);
               try {
                 await put(`/admin/api/tags/${encodeURIComponent(full)}`, {
                   description,
                   access: access.map(({ kind, principal }) => ({ kind, principal })),
-                  requests: { maxMinutes: reqMax, sshUsers: reqMax > 0 ? reqSSH : [], who: reqMax > 0 ? reqWho.map(({ kind, principal }) => ({ kind, principal })) : [] },
+                  tempSSHUsers: tempSSH,
                 });
                 toast.ok(tag ? "Tag saved" : `${full} created`);
                 onSaved(full);
@@ -78,30 +75,11 @@ function TagEditor({ tag, onClose, onSaved }: { tag?: ServerTag; onClose: () => 
       <Field label="Who can reach these servers" hint="Applies to every server with this tag, including ones added later. Groups follow your identity provider.">
         <PrincipalPicker kinds={[...granteeKinds]} value={access} onChange={setAccess} extra={[self]} height={240} />
       </Field>
-      <div className="group-title">Temporary access on request</div>
+      <div className="group-title">Temporary access</div>
       <div className="group">
-        <PRow label="People can request access" sub="The people you choose can ask for time-limited access with a reason. Another administrator approves; access ends on its own. Nobody else sees this tag.">
-          <Toggle hideLabel label="People can request access" checked={reqMax > 0} onChange={(v) => setReqMax(v ? 240 : 0)} />
+        <PRow block label="SSH accounts" sub="Linux accounts people may SSH in as when you give them temporary access to these servers (Temporary access → Grant access), e.g. ubuntu. Leave empty for network access only.">
+          <ChipInput values={tempSSH} onChange={setTempSSH} placeholder="ubuntu" />
         </PRow>
-        {reqMax > 0 && (
-          <>
-            <PRow block label="Who can ask" sub="Only they see this tag on their Request access page, with its description, never its servers.">
-              <PrincipalPicker kinds={["everyone", "directory_group", "user"]} value={reqWho} onChange={setReqWho} placeholder="Search people and groups" height={180} />
-            </PRow>
-            <PRow label="Longest access">
-              <select value={reqMax} onChange={(e) => setReqMax(Number(e.target.value))}>
-                {durationChoices.filter((d) => d.minutes >= 60).map((d) => (
-                  <option key={d.minutes} value={d.minutes}>
-                    {d.label}
-                  </option>
-                ))}
-              </select>
-            </PRow>
-            <PRow block label="SSH accounts" sub="Linux accounts people may also SSH in as with approved access, e.g. ubuntu. Leave empty for network access only.">
-              <ChipInput values={reqSSH} onChange={setReqSSH} placeholder="ubuntu" />
-            </PRow>
-          </>
-        )}
       </div>
     </Modal>
   );
@@ -370,12 +348,6 @@ function TagCard({ t, canEdit, onAdd, onEdit, onDelete }: { t: ServerTag; canEdi
       <div>
         <div className="muted small mb-xs">Who can reach them</div>
         <PrincipalList items={t.access} empty="Nobody yet" max={5} />
-        {t.requestMaxMinutes > 0 && (
-          <div className="muted small mt">
-            {t.requestWho.map((p) => p.label ?? p.principal).join(", ")} can request access for up to {duration(t.requestMaxMinutes)}
-            {t.requestSSHUsers.length ? `, with SSH as ${t.requestSSHUsers.join(", ")}` : ""}.
-          </div>
-        )}
       </div>
       {canEdit && (
         <div className="tag-card-foot">

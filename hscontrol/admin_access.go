@@ -41,7 +41,7 @@ func (aa *adminAuth) accessRoutes(r chi.Router) {
 
 	r.Post("/devices/bulk", aa.handleBulkDevices)
 
-	aa.requestRoutes(r)
+	aa.tempAccessRoutes(r)
 
 	r.Post("/groups", aa.handleSaveGroup)
 	r.Put("/groups/{id}", aa.handleSaveGroup)
@@ -367,9 +367,9 @@ type adminTag struct {
 	Access      []adminPrincipal `json:"access"`
 	Devices     []adminTagDevice `json:"devices"`
 
-	RequestMaxMinutes int              `json:"requestMaxMinutes"`
-	RequestSSHUsers   []string         `json:"requestSSHUsers"`
-	RequestWho        []adminPrincipal `json:"requestWho"`
+	// TempSSHUsers are the Linux accounts temporary access to the tag may
+	// SSH in as.
+	TempSSHUsers []string `json:"tempSSHUsers"`
 }
 
 func (aa *adminAuth) handleListTags(w http.ResponseWriter, r *http.Request) {
@@ -400,7 +400,7 @@ func (aa *adminAuth) handleListTags(w http.ResponseWriter, r *http.Request) {
 	get := func(name string) *adminTag {
 		t, ok := byName[name]
 		if !ok {
-			t = &adminTag{Name: name, Access: []adminPrincipal{}, Devices: []adminTagDevice{}, RequestSSHUsers: []string{}, RequestWho: []adminPrincipal{}}
+			t = &adminTag{Name: name, Access: []adminPrincipal{}, Devices: []adminTagDevice{}, TempSSHUsers: []string{}}
 			byName[name] = t
 		}
 
@@ -410,10 +410,7 @@ func (aa *adminAuth) handleListTags(w http.ResponseWriter, r *http.Request) {
 	for _, mt := range managedTags {
 		t := get(mt.Name)
 		t.Managed, t.Description = true, mt.Description
-		t.RequestMaxMinutes, t.RequestSSHUsers = mt.RequestMaxMinutes, sshUsersOf(mt)
-		for _, p := range requestPrincipalsOf(mt) {
-			t.RequestWho = append(t.RequestWho, adminPrincipal{Kind: p.Kind, Principal: p.Principal, Label: label(p.Kind, p.Principal)})
-		}
+		t.TempSSHUsers = sshUsersOf(mt)
 		created := mt.CreatedAt
 		t.CreatedAt = &created
 	}
@@ -486,33 +483,24 @@ func (aa *adminAuth) handlePutTag(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Description string           `json:"description"`
 		Access      []adminPrincipal `json:"access"`
-		// Requests, when present, sets who may ask for temporary access.
-		Requests *struct {
-			MaxMinutes int              `json:"maxMinutes"`
-			SSHUsers   []string         `json:"sshUsers"`
-			Who        []adminPrincipal `json:"who"`
-		} `json:"requests"`
+		// TempSSHUsers, when present, sets the Linux accounts temporary
+		// access to the tag may SSH in as.
+		TempSSHUsers *[]string `json:"tempSSHUsers"`
 	}
 
 	if !decodeJSON(w, r, &req) {
 		return
 	}
 
-	var requestSSH, requestWho string
+	var tempSSH string
 
-	if q := req.Requests; q != nil {
-		if q.MaxMinutes < 0 || q.MaxMinutes > accessRequestMaxMinutes || (q.MaxMinutes > 0 && q.MaxMinutes < 15) {
-			adminJSONError(w, http.StatusBadRequest, "requested access can last from 15 minutes to 7 days")
-
-			return
-		}
-
+	if req.TempSSHUsers != nil {
 		users := []string{}
 
-		if len(q.SSHUsers) > 0 {
+		if len(*req.TempSSHUsers) > 0 {
 			var err error
 
-			users, err = validSSHUsers(q.SSHUsers)
+			users, err = validSSHUsers(*req.TempSSHUsers)
 			if err != nil {
 				adminJSONError(w, http.StatusBadRequest, err.Error())
 
@@ -521,28 +509,7 @@ func (aa *adminAuth) handlePutTag(w http.ResponseWriter, r *http.Request) {
 		}
 
 		b, _ := json.Marshal(users)
-		requestSSH = string(b)
-
-		who, err := aa.parsePrincipals(q.Who, types.PrincipalUser, types.PrincipalDirectoryGroup, types.PrincipalEveryone)
-		if err != nil {
-			adminJSONError(w, http.StatusBadRequest, err.Error())
-
-			return
-		}
-
-		if q.MaxMinutes > 0 && len(who) == 0 {
-			adminJSONError(w, http.StatusBadRequest, "choose who may request access to this tag; nobody else sees it")
-
-			return
-		}
-
-		stored := make([]requestPrincipal, 0, len(who))
-		for _, p := range who {
-			stored = append(stored, requestPrincipal{Kind: p.Kind, Principal: p.Principal})
-		}
-
-		b, _ = json.Marshal(stored)
-		requestWho = string(b)
+		tempSSH = string(b)
 	}
 
 	// The tag being saved is a valid grantee too (servers reaching each
@@ -603,8 +570,8 @@ func (aa *adminAuth) handlePutTag(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if q := req.Requests; q != nil {
-		changes, err := aa.h.state.SetServerTagRequests(name, q.MaxMinutes, requestSSH, requestWho)
+	if req.TempSSHUsers != nil {
+		changes, err := aa.h.state.SetServerTagRequests(name, 0, tempSSH, "")
 		aa.h.Change(changes...)
 
 		if err != nil {

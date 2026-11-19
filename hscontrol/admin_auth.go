@@ -50,13 +50,7 @@ const (
 	AdminRoleAdmin AdminRole = "admin"
 	// AdminRoleViewer may read everything and change nothing.
 	AdminRoleViewer AdminRole = "viewer"
-	// AdminRoleMember is anyone else with an orgscale account. A member sees
-	// only their own access requests (/admin/api/my/...).
-	AdminRoleMember AdminRole = "member"
 )
-
-// memberAPIPrefix is the only part of the console API a member may use.
-const memberAPIPrefix = "/admin/api/my/"
 
 // adminSession is a signed-in administrator.
 type adminSession struct {
@@ -371,9 +365,6 @@ func (aa *adminAuth) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	role, ok := aa.roleFor(&claims)
-	if !ok && userID != 0 && aa.trustedEmail(&claims) != "" {
-		role, ok = AdminRoleMember, true
-	}
 
 	if !ok {
 		aa.audit(types.AuditEvent{
@@ -381,7 +372,7 @@ func (aa *adminAuth) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 			Action: "admin.login.denied",
 		})
 		adminLoginError(w, http.StatusForbidden,
-			"You signed in, but you have no orgscale account yet. Connect a device first (it creates your account), or ask an administrator.")
+			"You signed in, but you are not an orgscale administrator. Ask an administrator to add you.")
 
 		return
 	}
@@ -467,28 +458,10 @@ func (aa *adminAuth) trustedEmail(claims *types.OIDCClaims) string {
 	return ""
 }
 
-// sessionRole decides a session's role now: admin or viewer from the
-// current lists, else member while the session's user exists and is not
-// disabled.
+// sessionRole decides a session's role now, from the current admin and
+// viewer lists.
 func (aa *adminAuth) sessionRole(sess *adminSession) (AdminRole, bool) {
-	if role, ok := aa.roleForIdentity(sess.roleEmail, sess.roleGroups); ok {
-		return role, true
-	}
-
-	if sess.UserID == 0 || sess.roleEmail == "" {
-		return "", false
-	}
-
-	if _, err := aa.h.state.GetUserByID(types.UserID(sess.UserID)); err != nil {
-		return "", false
-	}
-
-	disabled, err := aa.h.state.IsUserDisabled(types.UserID(sess.UserID))
-	if err != nil || disabled {
-		return "", false
-	}
-
-	return AdminRoleMember, true
+	return aa.roleForIdentity(sess.roleEmail, sess.roleGroups)
 }
 
 func (aa *adminAuth) roleForIdentity(email string, groups []string) (AdminRole, bool) {
@@ -691,16 +664,8 @@ func (aa *adminAuth) authenticate(r *http.Request) (*adminSession, int, error) {
 		return nil, http.StatusForbidden, errAdminCSRF
 	}
 
-	switch role {
-	case AdminRoleAdmin:
-	case AdminRoleMember:
-		if !strings.HasPrefix(r.URL.Path, memberAPIPrefix) {
-			return nil, http.StatusForbidden, errors.New("only administrators can use this")
-		}
-	default:
-		if r.Method != http.MethodGet && r.Method != http.MethodHead {
-			return nil, http.StatusForbidden, errors.New("your role is read-only")
-		}
+	if role != AdminRoleAdmin && r.Method != http.MethodGet && r.Method != http.MethodHead {
+		return nil, http.StatusForbidden, errors.New("your role is read-only")
 	}
 
 	return sess, 0, nil

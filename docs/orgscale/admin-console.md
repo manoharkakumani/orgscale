@@ -154,41 +154,22 @@ otherwise. Under access control an SSH rule also opens port 22 to those
 servers for those people. Removing someone in your identity provider ends
 their SSH access with everything else.
 
-### Temporary access on request
+### Temporary access
 
 For servers people should reach only now and then (production databases,
-customer environments), let them ask instead of giving standing access:
+customer environments), give access for a while instead of for good:
 
-1. **Servers → edit a tag → Temporary access on request**: turn it on,
-   choose **who can ask** (people, groups, or everyone), the longest access
-   allowed (1 hour to 7 days) and, optionally, the Linux accounts people may
-   also SSH in as (`ubuntu`).
-2. People sign in to `https://vpn.example.com/admin/` with single sign-on.
-   Anyone with an orgscale account who is not an administrator sees only a
-   **Request access** page listing the tags they may ask for: they pick one,
-   a duration and write why.
+1. Optionally, **Servers → Edit access → Temporary access**: the Linux
+   accounts temporary access may SSH in as (`ubuntu`).
+2. **Temporary access → Grant access**: pick people or groups, a server tag,
+   a duration (15 minutes to 7 days), optionally SSH, and a reason.
+3. Access starts at once and ends on its own (checked every 20 seconds).
+   **End now** stops it early.
 
-   Requests reveal nothing about your network: a person sees only the tags
-   opened to them, by name and description, never their servers, counts or
-   addresses, and asking for any other tag gets the same answer as asking
-   for one that does not exist.
-3. Administrators see the request under **Requests** (with a count in the
-   sidebar) and approve, approve for less time, or deny, with a note.
-   Nobody can approve their own request.
-4. Approved access is added to the policy at once and removed when the time
-   is up (checked every 20 seconds). The requester or an administrator can
-   end it early. Requests nobody decides within a day lapse.
-
-Administrators can also give access directly, without a request:
-**Requests → Grant access**, pick people or groups, a tag (it need not allow
-requests) and a duration. A group's access covers whoever is in the group
-while it lasts. It ends on its own like approved requests.
-
-People find the request page from the `/connect` page too ("Need a server
-you can't reach?").
-
-Every step is in the audit log. With access control off everyone reaches
-everything anyway, so only the SSH part of a request then makes a
+A group's access covers whoever is in the group while it lasts. Only
+administrators grant temporary access; nobody else can sign in to the
+console. Every grant is in the audit log. With access control off everyone
+reaches everything anyway, so only the SSH part of a grant then makes a
 difference.
 
 ### Advanced: policy file

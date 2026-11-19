@@ -420,7 +420,7 @@ const paths: Record<string, ReactNode> = {
 
 export function Icon({ name, className }: { name: keyof typeof paths | string; className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <svg className={className} width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       {paths[name] ?? paths.overview}
     </svg>
   );
