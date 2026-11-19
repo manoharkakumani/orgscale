@@ -5,10 +5,34 @@ import { useCanEdit } from "../App";
 import { IconTile, MList, MRow } from "../components/mlist";
 import { ensureTags, newTagsHint, normalizeTag, validTag } from "../components/tags";
 import { PrincipalList, PrincipalPicker } from "../components/principals";
-import { Badge, Button, ChipInput, Confirm, Empty, ErrorBox, Field, Icon, Modal, PageHeader, SearchBox, Segmented, Spinner, dateTime, timeAgo, useAsync, useToast } from "../components/ui";
+import {
+  Badge,
+  Button,
+  ChipInput,
+  Confirm,
+  Empty,
+  ErrorBox,
+  Field,
+  Icon,
+  Modal,
+  PageHeader,
+  SearchBox,
+  Segmented,
+  Spinner,
+  dateTime,
+  timeAgo,
+  useAsync,
+  useToast,
+} from "../components/ui";
 
 function Status({ d }: { d: AdminDevice }) {
   if (d.expired) return <Badge tone="red">Expired</Badge>;
+  if (d.postureBlocked)
+    return (
+      <Badge tone="red" title="Fails the device posture requirements; it reaches nothing until it passes.">
+        Cut off
+      </Badge>
+    );
   return d.online ? <Badge tone="green">Online</Badge> : <Badge>Offline</Badge>;
 }
 
@@ -26,7 +50,9 @@ function AccessSection({ device, tags, onSaved }: { device: AdminDevice; tags: S
   const save = async () => {
     setBusy(true);
     try {
-      await put(`/admin/api/devices/${device.id}/access`, { access: selected.map(({ kind, principal }) => ({ kind, principal })) });
+      await put(`/admin/api/devices/${device.id}/access`, {
+        access: selected.map(({ kind, principal }) => ({ kind, principal })),
+      });
       toast.ok(selected.length ? "Sharing updated" : "No longer shared");
       setEditing(false);
       onSaved();
@@ -78,12 +104,23 @@ function AccessSection({ device, tags, onSaved }: { device: AdminDevice; tags: S
         </div>
       )}
 
-      {!editing && !isServer && device.access.length === 0 && <p className="muted small">Nobody else can see or reach this device.</p>}
+      {!editing && !isServer && device.access.length === 0 && (
+        <p className="muted small">Nobody else can see or reach this device.</p>
+      )}
 
       {editing && (
         <>
-          <p className="muted small mt">Share this device with people or groups. They can see and connect to it; group membership follows your identity provider.</p>
-          <PrincipalPicker kinds={["directory_group", "policy_group", "user"]} value={selected} onChange={setSelected} placeholder="Search people and groups" height={220} />
+          <p className="muted small mt">
+            Share this device with people or groups. They can see and connect to it; group membership follows your
+            identity provider.
+          </p>
+          <PrincipalPicker
+            kinds={["directory_group", "policy_group", "user"]}
+            value={selected}
+            onChange={setSelected}
+            placeholder="Search people and groups"
+            height={220}
+          />
           <div className="row-end">
             <Button variant="ghost" onClick={() => setEditing(false)}>
               Cancel
@@ -98,7 +135,15 @@ function AccessSection({ device, tags, onSaved }: { device: AdminDevice; tags: S
   );
 }
 
-function DeviceDrawer({ device, onClose, onChanged }: { device: AdminDevice; onClose: () => void; onChanged: () => void }) {
+function DeviceDrawer({
+  device,
+  onClose,
+  onChanged,
+}: {
+  device: AdminDevice;
+  onClose: () => void;
+  onChanged: () => void;
+}) {
   const canEdit = useCanEdit();
   const toast = useToast();
   const [name, setName] = useState(device.name);
@@ -132,7 +177,9 @@ function DeviceDrawer({ device, onClose, onChanged }: { device: AdminDevice; onC
           <Status d={device} />
         </div>
         <div>Owner</div>
-        <div>{device.owner === "tagged" ? <Badge tone="violet">Server ({device.tags.join(", ")})</Badge> : device.owner}</div>
+        <div>
+          {device.owner === "tagged" ? <Badge tone="violet">Server ({device.tags.join(", ")})</Badge> : device.owner}
+        </div>
         <div>Addresses</div>
         <div className="mono">{device.ips.join(", ")}</div>
         <div>OS / client</div>
@@ -155,7 +202,17 @@ function DeviceDrawer({ device, onClose, onChanged }: { device: AdminDevice; onC
             <h3>Name</h3>
             <div className="inline-form">
               <input value={name} onChange={(e) => setName(e.target.value)} />
-              <Button disabled={name === device.name || !name.trim()} busy={busy === "rename"} onClick={() => run("rename", () => post(`/api/v1/node/${device.id}/rename/${encodeURIComponent(name.trim())}`), "Renamed")}>
+              <Button
+                disabled={name === device.name || !name.trim()}
+                busy={busy === "rename"}
+                onClick={() =>
+                  run(
+                    "rename",
+                    () => post(`/api/v1/node/${device.id}/rename/${encodeURIComponent(name.trim())}`),
+                    "Renamed",
+                  )
+                }
+              >
                 Rename
               </Button>
             </div>
@@ -164,11 +221,33 @@ function DeviceDrawer({ device, onClose, onChanged }: { device: AdminDevice; onC
           {device.owner === "tagged" ? (
             <section className="drawer-section">
               <h3>Server tags</h3>
-              <p className="muted small">This server belongs to its tags; each tag's access list on the Servers page decides who can reach it.</p>
-              <ChipInput values={tags} onChange={setTags} placeholder="tag:servers" suggestions={(serverTags.data ?? []).map((t) => t.name)} normalize={normalizeTag} validate={validTag} />
+              <p className="muted small">
+                This server belongs to its tags; each tag's access list on the Servers page decides who can reach it.
+              </p>
+              <ChipInput
+                values={tags}
+                onChange={setTags}
+                placeholder="tag:servers"
+                suggestions={(serverTags.data ?? []).map((t) => t.name)}
+                normalize={normalizeTag}
+                validate={validTag}
+              />
               {newTagsHint(tags, known) && <div className="field-hint">{newTagsHint(tags, known)}</div>}
               <div className="row-end">
-                <Button disabled={!tags.length || JSON.stringify(tags) === JSON.stringify(device.tags)} busy={busy === "tags"} onClick={() => run("tags", async () => { await ensureTags(tags, known); await post(`/api/v1/node/${device.id}/tags`, { tags }); }, "Tags updated")}>
+                <Button
+                  disabled={!tags.length || JSON.stringify(tags) === JSON.stringify(device.tags)}
+                  busy={busy === "tags"}
+                  onClick={() =>
+                    run(
+                      "tags",
+                      async () => {
+                        await ensureTags(tags, known);
+                        await post(`/api/v1/node/${device.id}/tags`, { tags });
+                      },
+                      "Tags updated",
+                    )
+                  }
+                >
                   Save tags
                 </Button>
               </div>
@@ -177,12 +256,34 @@ function DeviceDrawer({ device, onClose, onChanged }: { device: AdminDevice; onC
             <details className="disclosure drawer-section">
               <summary>Turn into a server</summary>
               <p className="muted small">
-                For a shared machine that was set up with someone's account, such as a build box or a lab VM. It then belongs to a tag instead of {device.owner}, and the tag's access list decides who can reach it. {device.owner} keeps no special access.
+                For a shared machine that was set up with someone's account, such as a build box or a lab VM. It then
+                belongs to a tag instead of {device.owner}, and the tag's access list decides who can reach it.{" "}
+                {device.owner} keeps no special access.
               </p>
-              <ChipInput values={tags} onChange={setTags} placeholder="tag:servers" suggestions={(serverTags.data ?? []).map((t) => t.name)} normalize={normalizeTag} validate={validTag} />
+              <ChipInput
+                values={tags}
+                onChange={setTags}
+                placeholder="tag:servers"
+                suggestions={(serverTags.data ?? []).map((t) => t.name)}
+                normalize={normalizeTag}
+                validate={validTag}
+              />
               {newTagsHint(tags, known) && <div className="field-hint">{newTagsHint(tags, known)}</div>}
               <div className="row-end">
-                <Button disabled={!tags.length} busy={busy === "tags"} onClick={() => run("tags", async () => { await ensureTags(tags, known); await post(`/api/v1/node/${device.id}/tags`, { tags }); }, "Turned into a server")}>
+                <Button
+                  disabled={!tags.length}
+                  busy={busy === "tags"}
+                  onClick={() =>
+                    run(
+                      "tags",
+                      async () => {
+                        await ensureTags(tags, known);
+                        await post(`/api/v1/node/${device.id}/tags`, { tags });
+                      },
+                      "Turned into a server",
+                    )
+                  }
+                >
                   Turn into a server
                 </Button>
               </div>
@@ -194,14 +295,24 @@ function DeviceDrawer({ device, onClose, onChanged }: { device: AdminDevice; onC
               <h3>Subnet routes and exit node</h3>
               {allRoutes.map((r) => (
                 <label key={r} className="picker-row">
-                  <input type="checkbox" checked={routes.includes(r)} onChange={(e) => setRoutes((cur) => (e.target.checked ? [...cur, r] : cur.filter((x) => x !== r)))} />
+                  <input
+                    type="checkbox"
+                    checked={routes.includes(r)}
+                    onChange={(e) => setRoutes((cur) => (e.target.checked ? [...cur, r] : cur.filter((x) => x !== r)))}
+                  />
                   <span className="mono">{r}</span>
                   {(r === "0.0.0.0/0" || r === "::/0") && <Badge tone="blue">exit node</Badge>}
                   {!device.announcedRoutes.includes(r) && <Badge tone="amber">no longer advertised</Badge>}
                 </label>
               ))}
               <div className="row-end">
-                <Button busy={busy === "routes"} disabled={JSON.stringify([...routes].sort()) === JSON.stringify([...device.approvedRoutes].sort())} onClick={() => run("routes", () => post(`/api/v1/node/${device.id}/approve_routes`, { routes }), "Routes updated")}>
+                <Button
+                  busy={busy === "routes"}
+                  disabled={JSON.stringify([...routes].sort()) === JSON.stringify([...device.approvedRoutes].sort())}
+                  onClick={() =>
+                    run("routes", () => post(`/api/v1/node/${device.id}/approve_routes`, { routes }), "Routes updated")
+                  }
+                >
                   Save routes
                 </Button>
               </div>
@@ -231,21 +342,32 @@ function DeviceDrawer({ device, onClose, onChanged }: { device: AdminDevice; onC
       )}
 
       {confirm === "expire" && (
-        <Confirm title={`Expire ${device.name}?`} confirmLabel="Expire key" onClose={() => setConfirm(null)} onConfirm={async () => {
-          await post(`/api/v1/node/${device.id}/expire`, {});
-          toast.ok("Key expired");
-          onChanged();
-        }}>
+        <Confirm
+          title={`Expire ${device.name}?`}
+          confirmLabel="Expire key"
+          onClose={() => setConfirm(null)}
+          onConfirm={async () => {
+            await post(`/api/v1/node/${device.id}/expire`, {});
+            toast.ok("Key expired");
+            onChanged();
+          }}
+        >
           The device disconnects now and must sign in again to rejoin.
         </Confirm>
       )}
       {confirm === "delete" && (
-        <Confirm title={`Delete ${device.name}?`} confirmLabel="Delete device" danger onClose={() => setConfirm(null)} onConfirm={async () => {
-          await del(`/api/v1/node/${device.id}`);
-          toast.ok("Device deleted");
-          onClose();
-          onChanged();
-        }}>
+        <Confirm
+          title={`Delete ${device.name}?`}
+          confirmLabel="Delete device"
+          danger
+          onClose={() => setConfirm(null)}
+          onConfirm={async () => {
+            await del(`/api/v1/node/${device.id}`);
+            toast.ok("Device deleted");
+            onClose();
+            onChanged();
+          }}
+        >
           The device is removed from the network. This cannot be undone.
         </Confirm>
       )}
@@ -278,7 +400,11 @@ function BulkTags({ devices, onClose, onDone }: { devices: AdminDevice[]; onClos
               setBusy(true);
               try {
                 await ensureTags(chosen, known);
-                await post("/admin/api/devices/bulk", { ids: devices.map((d) => d.id), action: "set_tags", tags: chosen });
+                await post("/admin/api/devices/bulk", {
+                  ids: devices.map((d) => d.id),
+                  action: "set_tags",
+                  tags: chosen,
+                });
                 toast.ok(`Moved ${devices.length} device${devices.length === 1 ? "" : "s"} to ${chosen.join(", ")}`);
                 onDone();
                 onClose();
@@ -301,20 +427,38 @@ function BulkTags({ devices, onClose, onDone }: { devices: AdminDevice[]; onClos
           {(tags.data ?? []).length > 0 && (
             <div className="choice-grid">
               {(tags.data ?? []).map((t) => (
-                <button key={t.name} type="button" className={`choice ${chosen.includes(t.name) ? "active" : ""}`} onClick={() => setChosen((c) => (c.includes(t.name) ? c.filter((x) => x !== t.name) : [...c, t.name]))}>
+                <button
+                  key={t.name}
+                  type="button"
+                  className={`choice ${chosen.includes(t.name) ? "active" : ""}`}
+                  onClick={() =>
+                    setChosen((c) => (c.includes(t.name) ? c.filter((x) => x !== t.name) : [...c, t.name]))
+                  }
+                >
                   <b>{t.name}</b>
-                  <span className="muted small">{t.description || `${t.devices.length} server${t.devices.length === 1 ? "" : "s"}`}</span>
+                  <span className="muted small">
+                    {t.description || `${t.devices.length} server${t.devices.length === 1 ? "" : "s"}`}
+                  </span>
                 </button>
               ))}
             </div>
           )}
           <Field label={(tags.data ?? []).length ? "Or a new tag" : "Tag"} hint={newTagsHint(chosen, known)}>
-            <ChipInput values={chosen.filter((c) => !known.includes(c))} onChange={(fresh) => setChosen([...chosen.filter((c) => known.includes(c)), ...fresh])} placeholder="e.g. build-agents" normalize={normalizeTag} validate={validTag} />
+            <ChipInput
+              values={chosen.filter((c) => !known.includes(c))}
+              onChange={(fresh) => setChosen([...chosen.filter((c) => known.includes(c)), ...fresh])}
+              placeholder="e.g. build-agents"
+              normalize={normalizeTag}
+              validate={validTag}
+            />
           </Field>
           {personal.length > 0 && (
             <div className="callout callout-warn mt">
               <span>
-                {personal.length} of these belong to a person ({Array.from(new Set(personal.map((d) => d.owner))).join(", ")}). After moving they become servers owned by the tag, and the person no longer owns them. Use this for shared machines that were set up with someone's account.
+                {personal.length} of these belong to a person (
+                {Array.from(new Set(personal.map((d) => d.owner))).join(", ")}). After moving they become servers owned
+                by the tag, and the person no longer owns them. Use this for shared machines that were set up with
+                someone's account.
               </span>
             </div>
           )}
@@ -347,7 +491,11 @@ function BulkAccess({ devices, onClose, onDone }: { devices: AdminDevice[]; onCl
             onClick={async () => {
               setBusy(true);
               try {
-                await post("/admin/api/devices/bulk", { ids: devices.map((d) => d.id), action: mode, access: who.map(({ kind, principal }) => ({ kind, principal })) });
+                await post("/admin/api/devices/bulk", {
+                  ids: devices.map((d) => d.id),
+                  action: mode,
+                  access: who.map(({ kind, principal }) => ({ kind, principal })),
+                });
                 toast.ok("Access updated");
                 onDone();
                 onClose();
@@ -373,8 +521,16 @@ function BulkAccess({ devices, onClose, onDone }: { devices: AdminDevice[]; onCl
           onChange={setMode}
         />
       </Field>
-      <Field label="People and groups" hint="They can see and connect to the selected devices. Group membership follows your identity provider.">
-        <PrincipalPicker kinds={["directory_group", "policy_group", "user"]} value={who} onChange={setWho} height={260} />
+      <Field
+        label="People and groups"
+        hint="They can see and connect to the selected devices. Group membership follows your identity provider."
+      >
+        <PrincipalPicker
+          kinds={["directory_group", "policy_group", "user"]}
+          value={who}
+          onChange={setWho}
+          height={260}
+        />
       </Field>
     </Modal>
   );
@@ -399,7 +555,13 @@ export default function DevicesPage() {
   const rows = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return (data ?? [])
-      .filter((d) => !needle || [d.name, d.hostname, d.owner, d.os, ...d.ips, ...d.tags, ...d.access.map((a) => a.label)].some((s) => s?.toLowerCase().includes(needle)))
+      .filter(
+        (d) =>
+          !needle ||
+          [d.name, d.hostname, d.owner, d.os, ...d.ips, ...d.tags, ...d.access.map((a) => a.label)].some((s) =>
+            s?.toLowerCase().includes(needle),
+          ),
+      )
       .sort((a, b) => Number(b.online) - Number(a.online) || a.name.localeCompare(b.name));
   }, [data, q]);
 
@@ -431,109 +593,137 @@ export default function DevicesPage() {
       />
       <div className="toolbar">
         <SearchBox value={q} onChange={setQ} placeholder="Search name, owner, address, tag or grantee" />
-
       </div>
       {error && <ErrorBox error={error} onRetry={reload} />}
       {loading && !data ? (
         <Spinner />
       ) : rows.length === 0 ? (
-        <Empty title={q ? "No devices match" : "No devices yet"}>Devices appear when someone installs the Tailscale client and signs in with this server.</Empty>
+        <Empty title={q ? "No devices match" : "No devices yet"}>
+          Devices appear when someone installs the Tailscale client and signs in with this server.
+        </Empty>
       ) : (
         <>
-        <MList>
-          {rows.map((d) => {
-            const server = d.owner === "tagged";
-            return (
-              <MRow
-                key={d.id}
-                selected={selected.has(d.id)}
-                onClick={() => (selecting ? toggleSel(d.id) : setOpenId(d.id))}
-                lead={
-                  <>
-                    {selecting && <input type="checkbox" readOnly checked={selected.has(d.id)} aria-label={`Select ${d.name}`} />}
-                    <IconTile tone={server ? "violet" : "blue"}>
-                      <Icon name={server ? "server" : "devices"} />
-                    </IconTile>
-                  </>
-                }
-                title={d.name}
-                sub={server ? `${d.tags.join(", ")} · ${d.ips[0] ?? ""}` : `${d.owner} · ${d.os || "device"}`}
-                trail={
-                  d.expired ? (
-                    <Badge tone="red">Expired</Badge>
-                  ) : (
-                    <span className="row" style={{ margin: 0, gap: 6 }}>
-                      <span className={`dot ${d.online ? "dot-on" : ""}`} />
-                      {d.online ? "Online" : "Offline"}
-                    </span>
-                  )
-                }
-              />
-            );
-          })}
-        </MList>
-        <div className="table-wrap card desktop-only">
-          <table>
-            <thead>
-              <tr>
-                {canEdit && (
-                  <th className="check">
-                    <input type="checkbox" aria-label="Select all" checked={rows.length > 0 && rows.every((d) => selected.has(d.id))} onChange={(e) => setSelected(e.target.checked ? new Set(rows.map((d) => d.id)) : new Set())} />
-                  </th>
-                )}
-                <th>Device</th>
-                <th>Owner</th>
-                <th>Address</th>
-                <th>Access</th>
-                <th>Last seen</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((d) => (
-                <tr key={d.id} className={`row-click ${selected.has(d.id) ? "row-selected" : ""}`} onClick={() => setOpenId(d.id)} tabIndex={0} onKeyDown={(e) => e.key === "Enter" && setOpenId(d.id)}>
+          <MList>
+            {rows.map((d) => {
+              const server = d.owner === "tagged";
+              return (
+                <MRow
+                  key={d.id}
+                  selected={selected.has(d.id)}
+                  onClick={() => (selecting ? toggleSel(d.id) : setOpenId(d.id))}
+                  lead={
+                    <>
+                      {selecting && (
+                        <input type="checkbox" readOnly checked={selected.has(d.id)} aria-label={`Select ${d.name}`} />
+                      )}
+                      <IconTile tone={server ? "violet" : "blue"}>
+                        <Icon name={server ? "server" : "devices"} />
+                      </IconTile>
+                    </>
+                  }
+                  title={d.name}
+                  sub={server ? `${d.tags.join(", ")} · ${d.ips[0] ?? ""}` : `${d.owner} · ${d.os || "device"}`}
+                  trail={
+                    d.expired ? (
+                      <Badge tone="red">Expired</Badge>
+                    ) : d.postureBlocked ? (
+                      <Badge tone="red" title="Fails the device posture requirements">
+                        Cut off
+                      </Badge>
+                    ) : (
+                      <span className="row" style={{ margin: 0, gap: 6 }}>
+                        <span className={`dot ${d.online ? "dot-on" : ""}`} />
+                        {d.online ? "Online" : "Offline"}
+                      </span>
+                    )
+                  }
+                />
+              );
+            })}
+          </MList>
+          <div className="table-wrap card desktop-only">
+            <table>
+              <thead>
+                <tr>
                   {canEdit && (
-                    <td className="check" onClick={(e) => e.stopPropagation()}>
+                    <th className="check">
                       <input
                         type="checkbox"
-                        aria-label={`Select ${d.name}`}
-                        checked={selected.has(d.id)}
-                        onChange={(e) =>
-                          setSelected((cur) => {
-                            const next = new Set(cur);
-                            if (e.target.checked) next.add(d.id);
-                            else next.delete(d.id);
-                            return next;
-                          })
-                        }
+                        aria-label="Select all"
+                        checked={rows.length > 0 && rows.every((d) => selected.has(d.id))}
+                        onChange={(e) => setSelected(e.target.checked ? new Set(rows.map((d) => d.id)) : new Set())}
                       />
-                    </td>
+                    </th>
                   )}
-                  <td>
-                    <div>{d.name}</div>
-                    <div className="muted small">
-                      {d.os || "unknown OS"}
-                      {d.tags.length > 0 && " · " + d.tags.join(", ")}
-                      {d.announcedRoutes.length > d.approvedRoutes.length && <Badge tone="amber">routes pending</Badge>}
-                    </div>
-                  </td>
-                  <td>{d.owner === "tagged" ? <Badge tone="violet">server</Badge> : d.owner}</td>
-                  <td className="mono small">{d.ips[0]}</td>
-                  <td>
-                    <div className="chip-row">
-                      {d.access.length ? d.access.slice(0, 3).map((a) => <span key={a.kind + a.principal} className="chip chip-static">{a.label}</span>) : <span className="muted">owner only</span>}
-                      {d.access.length > 3 && <span className="muted small">+{d.access.length - 3}</span>}
-                    </div>
-                  </td>
-                  <td className="muted">{d.online ? "now" : timeAgo(d.lastSeen)}</td>
-                  <td>
-                    <Status d={d} />
-                  </td>
+                  <th>Device</th>
+                  <th>Owner</th>
+                  <th>Address</th>
+                  <th>Access</th>
+                  <th>Last seen</th>
+                  <th>Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {rows.map((d) => (
+                  <tr
+                    key={d.id}
+                    className={`row-click ${selected.has(d.id) ? "row-selected" : ""}`}
+                    onClick={() => setOpenId(d.id)}
+                    tabIndex={0}
+                    onKeyDown={(e) => e.key === "Enter" && setOpenId(d.id)}
+                  >
+                    {canEdit && (
+                      <td className="check" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          aria-label={`Select ${d.name}`}
+                          checked={selected.has(d.id)}
+                          onChange={(e) =>
+                            setSelected((cur) => {
+                              const next = new Set(cur);
+                              if (e.target.checked) next.add(d.id);
+                              else next.delete(d.id);
+                              return next;
+                            })
+                          }
+                        />
+                      </td>
+                    )}
+                    <td>
+                      <div>{d.name}</div>
+                      <div className="muted small">
+                        {d.os || "unknown OS"}
+                        {d.tags.length > 0 && " · " + d.tags.join(", ")}
+                        {d.announcedRoutes.length > d.approvedRoutes.length && (
+                          <Badge tone="amber">routes pending</Badge>
+                        )}
+                      </div>
+                    </td>
+                    <td>{d.owner === "tagged" ? <Badge tone="violet">server</Badge> : d.owner}</td>
+                    <td className="mono small">{d.ips[0]}</td>
+                    <td>
+                      <div className="chip-row">
+                        {d.access.length ? (
+                          d.access.slice(0, 3).map((a) => (
+                            <span key={a.kind + a.principal} className="chip chip-static">
+                              {a.label}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="muted">owner only</span>
+                        )}
+                        {d.access.length > 3 && <span className="muted small">+{d.access.length - 3}</span>}
+                      </div>
+                    </td>
+                    <td className="muted">{d.online ? "now" : timeAgo(d.lastSeen)}</td>
+                    <td>
+                      <Status d={d} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </>
       )}
       {selected.size > 0 && (
@@ -550,14 +740,19 @@ export default function DevicesPage() {
           </Button>
         </div>
       )}
-      {bulk && (() => {
-        const chosen = (data ?? []).filter((d) => selected.has(d.id));
-        const done = () => {
-          setSelected(new Set());
-          void reload();
-        };
-        return bulk === "tags" ? <BulkTags devices={chosen} onClose={() => setBulk(null)} onDone={done} /> : <BulkAccess devices={chosen} onClose={() => setBulk(null)} onDone={done} />;
-      })()}
+      {bulk &&
+        (() => {
+          const chosen = (data ?? []).filter((d) => selected.has(d.id));
+          const done = () => {
+            setSelected(new Set());
+            void reload();
+          };
+          return bulk === "tags" ? (
+            <BulkTags devices={chosen} onClose={() => setBulk(null)} onDone={done} />
+          ) : (
+            <BulkAccess devices={chosen} onClose={() => setBulk(null)} onDone={done} />
+          );
+        })()}
       {open && <DeviceDrawer device={open} onClose={() => setOpenId(null)} onChanged={reload} />}
     </>
   );

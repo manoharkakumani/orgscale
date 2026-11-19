@@ -1105,6 +1105,8 @@ type adminDevice struct {
 	AnnouncedRoutes []string           `json:"announcedRoutes"`
 	ApprovedRoutes  []string           `json:"approvedRoutes"`
 	Access          []adminDeviceGrant `json:"access"`
+	// PostureBlocked is set while device posture cuts the device off.
+	PostureBlocked bool `json:"postureBlocked"`
 }
 
 func (aa *adminAuth) handleListDevices(w http.ResponseWriter, r *http.Request) {
@@ -1167,7 +1169,8 @@ func (aa *adminAuth) handleListDevices(w http.ResponseWriter, r *http.Request) {
 			Tags: nonNil(n.Tags().AsSlice()), IPs: nonNil(n.IPsAsString()),
 			Expired: n.IsExpired(), CreatedAt: n.CreatedAt(),
 			AnnouncedRoutes: []string{}, ApprovedRoutes: []string{},
-			Access: byNode[n.ID()],
+			Access:         byNode[n.ID()],
+			PostureBlocked: st.PostureBlocked(n.ID()),
 		}
 
 		if d.Access == nil {

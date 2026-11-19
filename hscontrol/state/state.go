@@ -231,6 +231,9 @@ type State struct {
 	configDERPMap *tailcfg.DERPMap
 	// polMan handles policy evaluation and management
 	polMan policy.PolicyManager
+	// gate is orgscale's layer over the policy manager: device posture and
+	// SSH session recording. polMan is it, or a test wrapper around it.
+	gate *orgscaleGate
 
 	// policyMu makes storing, loading and installing a policy one step, so
 	// policies land in the database in the order they are installed.
@@ -434,10 +437,14 @@ func NewState(cfg *types.Config) (*State, error) {
 		return nil, err
 	}
 
-	polMan, err := policy.NewPolicyManager(pol, users, nodes.ViewSlice())
+	inner, err := policy.NewPolicyManager(pol, users, nodes.ViewSlice())
 	if err != nil {
 		return nil, fmt.Errorf("initializing policy manager: %w", err)
 	}
+
+	gate := newOrgscaleGate(inner)
+
+	var polMan policy.PolicyManager = gate
 
 	batchSize := cmp.Or(cfg.Tuning.NodeStoreBatchSize, defaults.NodeStoreBatchSize)
 
@@ -456,6 +463,7 @@ func NewState(cfg *types.Config) (*State, error) {
 		db:                  db,
 		ipAlloc:             ipAlloc,
 		polMan:              polMan,
+		gate:                gate,
 		authCacheMaxEntries: cacheMaxEntries,
 		authCacheExpiration: cacheExpiration,
 		nodeStore:           nodeStore,
@@ -463,6 +471,17 @@ func NewState(cfg *types.Config) (*State, error) {
 
 		sshCheckAuth:  make(map[sshCheckPair]sshCheckAuthRecord),
 		registerLocks: xsync.NewMap[key.MachinePublic, *registerLock](),
+	}
+
+	gate.recorders = func() []netip.AddrPort { return recorderAddrs(s.ListNodes()) }
+
+	var rec types.RecordingSettings
+
+	ok, err := s.GetSettingJSON(types.SettingRecording, &rec)
+	if err != nil {
+		log.Error().Err(err).Msg("loading SSH recording settings; recording stays off")
+	} else if ok {
+		s.SetRecording(rec)
 	}
 
 	// Last: NewLRU starts the TTL sweeper goroutine, which only Close stops.

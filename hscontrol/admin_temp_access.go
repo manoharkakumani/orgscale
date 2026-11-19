@@ -409,7 +409,7 @@ func (h *Orgscale) runAccessRequestExpiry(ctx context.Context) {
 
 			if h.admin != nil {
 				h.admin.audit(types.AuditEvent{
-					Actor: "orgscale", ActorKind: types.AuditActorSystem,
+					Actor: auditSystemActor, ActorKind: types.AuditActorSystem,
 					Action: "temp_access.expire", Detail: fmt.Sprintf("%d ended", lapsed),
 				})
 			}

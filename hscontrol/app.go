@@ -117,6 +117,7 @@ type Orgscale struct {
 
 	// entraSync pulls the Microsoft Entra ID directory when configured.
 	entraSync *entraSyncer
+	posture   *postureChecker
 
 	// adminInsecure is set when the console is enabled but not served
 	// because server_url is plain HTTP.
@@ -364,6 +365,7 @@ func (h *Orgscale) setUpIdentity(oidcClientSecret string) error {
 
 	h.googleSync = newGoogleSyncer(h)
 	h.entraSync = newEntraSyncer(h)
+	h.posture = newPostureChecker(h)
 	h.scimFailures = newIPLimiter(20, time.Minute)
 
 	if cfg.Admin.Enabled {
@@ -807,6 +809,7 @@ func (h *Orgscale) Serve(ctx context.Context) error {
 	go h.googleSync.Run(ctx)
 	go h.entraSync.Run(ctx)
 	go h.runAccessRequestExpiry(ctx)
+	go h.posture.Run(ctx)
 
 	if h.admin != nil {
 		h.admin.announceSetup()

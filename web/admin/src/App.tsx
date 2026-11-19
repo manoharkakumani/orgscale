@@ -14,6 +14,9 @@ import SetupPage from "./pages/Setup";
 import AuditPage from "./pages/Audit";
 import TempAccessPage from "./pages/TempAccess";
 import NetworksPage from "./pages/Networks";
+import PosturePage from "./pages/Posture";
+import RecordingPage from "./pages/Recording";
+import { TailnetSwitcher } from "./components/tailnets";
 
 const MeCtx = createContext<Me | null>(null);
 
@@ -37,6 +40,13 @@ const nav: { group: string; items: { to: string; label: string; icon: string; en
       { to: "/networks", label: "Networks", icon: "globe" },
       { to: "/access", label: "Access", icon: "shield" },
       { to: "/temporary-access", label: "Temporary access", icon: "clock" },
+    ],
+  },
+  {
+    group: "Security",
+    items: [
+      { to: "/posture", label: "Device posture", icon: "lock" },
+      { to: "/recording", label: "Session recording", icon: "terminal" },
     ],
   },
   {
@@ -73,12 +83,16 @@ function SignIn({ error, setupRequired }: { error?: string; setupRequired?: bool
         </div>
         {setupRequired ? (
           <>
-            <p className="muted">orgscale isn't set up yet. Open the setup link from the server's log, or make a new one on the server:</p>
+            <p className="muted">
+              orgscale isn't set up yet. Open the setup link from the server's log, or make a new one on the server:
+            </p>
             <pre className="codeblock">orgscale admin setup-link</pre>
           </>
         ) : (
           <>
-            <p className="muted">Sign in with your organization's single sign-on to manage users, devices and access.</p>
+            <p className="muted">
+              Sign in with your organization's single sign-on to manage users, devices and access.
+            </p>
             {error && <div className="callout callout-error">{error}</div>}
             <a className="btn btn-primary btn-block" href="/admin/auth/login">
               Sign in with SSO
@@ -166,7 +180,19 @@ function Console() {
   return <Shell me={me} setMe={setMe} menuOpen={menuOpen} setMenuOpen={setMenuOpen} scrolled={scrolled} />;
 }
 
-function Shell({ me, setMe, menuOpen, setMenuOpen, scrolled }: { me: Me; setMe: (m: Me | null) => void; menuOpen: boolean; setMenuOpen: (v: boolean) => void; scrolled: boolean }) {
+function Shell({
+  me,
+  setMe,
+  menuOpen,
+  setMenuOpen,
+  scrolled,
+}: {
+  me: Me;
+  setMe: (m: Me | null) => void;
+  menuOpen: boolean;
+  setMenuOpen: (v: boolean) => void;
+  scrolled: boolean;
+}) {
   const location = useLocation();
   const items = nav;
 
@@ -187,12 +213,18 @@ function Shell({ me, setMe, menuOpen, setMenuOpen, scrolled }: { me: Me; setMe: 
             <span className="logo" aria-hidden />
             orgscale
           </div>
+          <TailnetSwitcher />
           <nav>
             {items.map((g) => (
               <div key={g.group}>
                 <div className="nav-group">{g.group}</div>
                 {g.items.map((n) => (
-                  <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
+                  <NavLink
+                    key={n.to}
+                    to={n.to}
+                    end={n.end}
+                    className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}
+                  >
                     <Icon name={n.icon} />
                     {n.label}
                   </NavLink>
@@ -222,7 +254,14 @@ function Shell({ me, setMe, menuOpen, setMenuOpen, scrolled }: { me: Me; setMe: 
         <div className="main">
           <header className="topbar">
             <button className="menu-btn" aria-label="Open menu" onClick={() => setMenuOpen(true)}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeLinecap="round"
+                aria-hidden
+              >
                 <path d="M4 7h16M4 12h16M4 17h16" />
               </svg>
             </button>
@@ -249,6 +288,8 @@ function Shell({ me, setMe, menuOpen, setMenuOpen, scrolled }: { me: Me; setMe: 
               <Route path="/" element={<OverviewPage />} />
               <Route path="/temporary-access" element={<TempAccessPage />} />
               <Route path="/networks" element={<NetworksPage />} />
+              <Route path="/posture" element={<PosturePage />} />
+              <Route path="/recording" element={<RecordingPage />} />
               <Route path="/requests" element={<Navigate to="/temporary-access" replace />} />
               <Route path="/users" element={<UsersPage />} />
               <Route path="/devices" element={<DevicesPage />} />

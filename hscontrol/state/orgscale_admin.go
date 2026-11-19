@@ -126,6 +126,11 @@ func managedPolicy(db *hsdb.HSDatabase, users []types.User, nodes views.Slice[ty
 	b.addTagGrants(tagGrants)
 	b.addNetworkRules(rules)
 
+	err = b.addRecorderAccess(db)
+	if err != nil {
+		return b.m, err
+	}
+
 	return b.m, nil
 }
 
@@ -278,6 +283,46 @@ func (b *policyBuilder) addSSHRules(rules []types.AccessRule) {
 			b.m.Rules = append(b.m.Rules, managed.Rule{Comment: r.Name + " (SSH)", Src: src, Dst: netDst, Ports: "22", Proto: "tcp"})
 		}
 	}
+}
+
+// addRecorderAccess lets every SSH destination upload its sessions to the
+// recorders while recording is on.
+func (b *policyBuilder) addRecorderAccess(db *hsdb.HSDatabase) error {
+	v, err := db.GetSetting(types.SettingRecording)
+	if errors.Is(err, hsdb.ErrSettingNotFound) {
+		return nil
+	} else if err != nil {
+		return err
+	}
+
+	var rec types.RecordingSettings
+
+	err = json.Unmarshal([]byte(v), &rec)
+	if err != nil || !rec.Enabled {
+		return nil //nolint:nilerr // an unreadable setting means recording is off
+	}
+
+	var src []string
+
+	for _, r := range b.m.SSH {
+		for _, d := range r.Dst {
+			if d == "autogroup:self" {
+				d = "autogroup:member"
+			}
+
+			if !slices.Contains(src, d) {
+				src = append(src, d)
+			}
+		}
+	}
+
+	if len(src) > 0 {
+		b.m.Rules = append(b.m.Rules, managed.Rule{
+			Comment: "SSH session recording", Src: src, Dst: []string{types.RecorderTag}, Ports: "80", Proto: "tcp",
+		})
+	}
+
+	return nil
 }
 
 // accessTarget is what a temporary access grant reaches, and the tag when it

@@ -292,6 +292,12 @@ func (m *mapSession) serveLongPoll() {
 
 	connectChanges, connectGen = m.h.state.Connect(m.node.ID())
 
+	// Check device posture now rather than on the next round, so a new or
+	// updated device is judged on what it just reported.
+	if m.h.posture != nil && !m.node.IsTagged() {
+		m.h.posture.Kick()
+	}
+
 	// Cancel ephemeral GC only after Connect succeeds. Cancelling at the start
 	// of serveLongPoll left departed nodes without a deletion timer when a
 	// reconnect attempt failed before Connect (issue #3382).

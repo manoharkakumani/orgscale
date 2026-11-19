@@ -22,6 +22,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
+	"tailscale.com/tailcfg"
 )
 
 // adminHarness is an orgscale with the admin console on, behind a mock OIDC
@@ -1035,4 +1036,61 @@ func TestAdminConsolePrivateResources(t *testing.T) {
 	p, err = h.app.state.EffectivePolicy()
 	require.NoError(t, err)
 	assert.NotContains(t, string(p), "10.20.1.25")
+}
+
+func TestAdminConsolePosture(t *testing.T) {
+	h := newAdminHarness(t)
+
+	boss := h.browser(t)
+	require.Equal(t, http.StatusOK, boss.login(t, &mockoidc.MockUser{Subject: "boss", Email: "boss@example.com", EmailVerified: true}))
+
+	u, _, err := h.app.state.CreateUser(types.User{Name: "pat", Email: "pat@example.com"})
+	require.NoError(t, err)
+
+	n := h.app.state.CreateRegisteredNodeForTest(u, "pat-mac")
+	n.Hostinfo = &tailcfg.Hostinfo{Hostname: "pat-mac", OS: "macOS", OSVersion: "13.6.1", IPNVersion: "1.76.0-tabc"}
+	h.app.state.PutNodeInStoreForTest(*n)
+
+	for _, bad := range []map[string]any{
+		{"mode": "sometimes"},
+		{"mode": "monitor", "minTailscaleVersion": "new"},
+		{"mode": "monitor", "os": map[string]any{"plan9": map[string]any{"blocked": true}}},
+		{"mode": "monitor", "os": map[string]any{"macOS": map[string]any{"minVersion": "14.x"}}},
+		{"mode": "enforce", "requireIntune": true},
+	} {
+		assert.Equal(t, http.StatusBadRequest, boss.do(t, http.MethodPut, "/admin/api/posture", bad, nil), "%v", bad)
+	}
+
+	var v adminPosture
+
+	rules := map[string]any{"mode": "monitor", "os": map[string]any{"macOS": map[string]any{"minVersion": "14"}}}
+	require.Equal(t, http.StatusOK, boss.do(t, http.MethodPut, "/admin/api/posture", rules, &v))
+	require.Len(t, v.Devices, 1)
+	assert.False(t, v.Devices[0].Passing)
+	assert.False(t, v.Devices[0].Blocked, "monitor mode only reports")
+	assert.Equal(t, []string{"macOS 13.6.1 is older than 14"}, v.Devices[0].Reasons)
+	assert.False(t, h.app.state.PostureBlocked(n.ID))
+
+	rules["mode"] = "enforce"
+	require.Equal(t, http.StatusOK, boss.do(t, http.MethodPut, "/admin/api/posture", rules, &v))
+	assert.True(t, v.Devices[0].Blocked)
+	assert.True(t, h.app.state.PostureBlocked(n.ID))
+
+	// Lowering the bar lets it back in.
+	rules["os"] = map[string]any{"macOS": map[string]any{"minVersion": "13"}}
+	require.Equal(t, http.StatusOK, boss.do(t, http.MethodPut, "/admin/api/posture", rules, &v))
+	assert.True(t, v.Devices[0].Passing)
+	assert.False(t, h.app.state.PostureBlocked(n.ID))
+
+	// Recording settings and tailnet links round-trip.
+	var rec adminRecording
+	require.Equal(t, http.StatusOK, boss.do(t, http.MethodPut, "/admin/api/recording", map[string]bool{"enabled": true, "enforce": true}, &rec))
+	assert.True(t, rec.Enabled)
+	assert.True(t, h.app.state.Recording().Enforce)
+
+	assert.Equal(t, http.StatusBadRequest, boss.do(t, http.MethodPut, "/admin/api/tailnets", []map[string]string{{"name": "x", "url": "ftp://x"}}, nil))
+
+	var links []types.TailnetLink
+	require.Equal(t, http.StatusOK, boss.do(t, http.MethodPut, "/admin/api/tailnets", []map[string]string{{"name": "Staging", "url": "https://stg.example.com/admin/"}}, &links))
+	assert.Equal(t, []types.TailnetLink{{Name: "Staging", URL: "https://stg.example.com/admin"}}, links)
 }

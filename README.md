@@ -35,6 +35,10 @@ See [Credits](#credits).
   accounts, with optional re-authentication through single sign-on
 - Temporary access: give people or groups a tag or one server for 15
   minutes to 7 days; it ends on its own
+- Device posture: minimum OS and Tailscale versions, blocked systems and
+  Intune compliance; failing devices are reported or cut off until they pass
+- SSH session recording to your own disk or S3, through Tailscale's
+  `tsrecorder`
 
 **Devices and network**
 
@@ -43,6 +47,8 @@ See [Credits](#credits).
 - Servers join with a one-line command from the console
 - DNS from the console: MagicDNS names, DNS servers, split DNS for internal
   domains, custom records; changes reach devices without a restart
+- Several tailnets (production, staging, regions) as separate servers,
+  linked in the console
 - Private networks: reach AWS VPCs, Azure VNets, GCP and office networks
   through subnet routers, and name managed services such as RDS databases
   so access rules and temporary access can point at them

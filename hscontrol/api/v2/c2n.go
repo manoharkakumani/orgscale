@@ -4,6 +4,9 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"time"
@@ -24,7 +27,31 @@ const c2nTimeout = 10 * time.Second
 // sendC2N sends a POST to path on the node's c2n handler, carried in a
 // [tailcfg.PingRequest], and waits for the node's HTTP response.
 func sendC2N(ctx context.Context, b Backend, nodeID types.NodeID, path string) (*http.Response, error) {
-	c2nReq, err := http.NewRequestWithContext(ctx, http.MethodPost, "http://orgscale"+path, nil)
+	return sendC2NMethod(ctx, b, nodeID, http.MethodPost, path)
+}
+
+// PostureIdentity asks a connected node for its serial numbers. The node
+// answers with none unless posture checking is on in its settings
+// (tailscale set --posture-checking, or the PostureChecking MDM key).
+func PostureIdentity(ctx context.Context, b Backend, nodeID types.NodeID) ([]string, error) {
+	res, err := sendC2NMethod(ctx, b, nodeID, http.MethodGet, "/posture/identity")
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	var out tailcfg.C2NPostureIdentityResponse
+
+	err = json.NewDecoder(io.LimitReader(res.Body, 1<<20)).Decode(&out)
+	if err != nil {
+		return nil, fmt.Errorf("reading posture identity: %w", err)
+	}
+
+	return out.SerialNumbers, nil
+}
+
+func sendC2NMethod(ctx context.Context, b Backend, nodeID types.NodeID, method, path string) (*http.Response, error) {
+	c2nReq, err := http.NewRequestWithContext(ctx, method, "http://orgscale"+path, nil)
 	if err != nil {
 		return nil, huma.Error500InternalServerError("building c2n request", err)
 	}

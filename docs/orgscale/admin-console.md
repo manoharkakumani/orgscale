@@ -261,6 +261,86 @@ changes, and the Overview warns about it.
 Signing in opens your identity provider; the device is registered to the
 person who signs in. Servers use **Servers → Add server** instead.
 
+## Device posture
+
+**Device posture** sets what the devices people sign in with must meet.
+Servers (tagged devices) are never checked.
+
+- **Oldest Tailscale version**, e.g. `1.70`.
+- **Per operating system**: allowed or blocked, and the oldest version
+  (`14` for macOS Sonoma, `10.0.22000` for Windows 11, `17` for iOS). Linux
+  reports no comparable version, so it can only be allowed or blocked.
+- **Require Intune compliance**: only devices Microsoft Intune reports
+  compliant (or in their grace period) may connect.
+
+Choose what happens to a device that fails:
+
+- **Report only** lists failing devices and leaves their access alone. Start
+  here to see who would be affected.
+- **Cut off**: the device stays signed in, but it reaches nothing and nothing
+  reaches it. Within about 30 seconds of passing again (an update installed,
+  Intune compliant) it is back. Each cut-off and restore is in the audit log,
+  and the device shows **Cut off** on the Devices page.
+
+Cut off needs access control on (**Access**); with everything open there is
+nothing to take away.
+
+Devices report their system and Tailscale version every time they connect.
+
+### Intune
+
+Intune compliance needs Microsoft Entra ID, through directory sync or Entra
+single sign-on: orgscale signs in to Microsoft Graph as that app.
+
+1. In entra.microsoft.com → **App registrations** → the orgscale app → **API
+   permissions**, add the Microsoft Graph **application** permission
+   `DeviceManagementManagedDevices.Read.All` and **Grant admin consent**.
+2. **Device posture** → turn on **Require Intune compliance** → **Save**.
+
+Intune is read every 10 minutes (**Check now** reads it at once). Devices are
+matched by serial number, which needs posture checking on in the Tailscale
+app: the profiles and the Windows registry file from **Connect** set
+`PostureChecking`, as can your MDM; on Linux run
+`sudo tailscale set --report-posture`. A device without a serial number is
+matched by its name and owner's email. If Intune cannot be read, the last
+answer is used for a day; after that every device counts as unknown, and is
+cut off in Cut off mode.
+
+## SSH session recording
+
+**Session recording** records every Tailscale SSH session to servers (what
+was typed and shown) for audits and incident review. It covers SSH from
+**Servers**, **Access** rules and **Temporary access**. Plain SSH with keys or
+passwords, outside Tailscale SSH, is not seen.
+
+Recordings are made by Tailscale's `tsrecorder`, which you run yourself:
+**Add recorder** gives a `docker run` command with a one-time key. The
+recorder joins as `tag:recorder`, and servers stream each session to it
+directly; recordings never pass through orgscale. They are written to the
+recorder's disk (`/var/lib/tsrecorder/recordings`, one asciinema `.cast` file
+per session) or to an S3 bucket.
+
+**If no recorder answers**:
+
+- **Allow**: the session goes ahead unrecorded, so a recorder outage never
+  locks anyone out.
+- **Refuse**: the session is refused, and a running session ends when its
+  recorder stops answering. Nothing goes unrecorded.
+
+Run two recorders for Refuse; servers try each in turn.
+
+## Multiple tailnets
+
+Each orgscale server is one tailnet: one set of devices, rules, addresses
+and DNS. For a second one (staging, another region, a subsidiary), run a
+second orgscale with its own address and database; see
+[Docker](docker.md#several-tailnets-on-one-machine). Nothing is shared, so a
+mistake in one cannot touch the other.
+
+**Settings → Tailnets** links the other consoles. They then appear at the top
+of the sidebar to switch between them. Each console has its own sign-in and
+administrators.
+
 ## Directory sync
 
 ### Microsoft Entra ID

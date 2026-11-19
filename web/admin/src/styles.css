@@ -2492,3 +2492,28 @@ details.disclosure.drawer-section {
 .text-warn {
   color: var(--warn);
 }
+
+/* ---------- device posture ---------- */
+.group-toolbar {
+  padding: 10px 14px;
+  border-bottom: 0.5px solid var(--border);
+}
+.group-toolbar .search {
+  flex: 1;
+  min-width: 0;
+}
+.input-narrow {
+  width: 170px;
+}
+@media (max-width: 640px) {
+  .input-narrow {
+    width: 110px;
+  }
+}
+
+/* ---------- tailnet switcher ---------- */
+.tailnet-switch {
+  margin: 0 10px 10px;
+  width: calc(100% - 20px);
+  font-size: 13px;
+}

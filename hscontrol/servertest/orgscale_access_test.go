@@ -11,6 +11,7 @@ import (
 	hsdb "github.com/manoharkakumani/orgscale/hscontrol/db"
 	"github.com/manoharkakumani/orgscale/hscontrol/servertest"
 	"github.com/manoharkakumani/orgscale/hscontrol/types"
+	"github.com/manoharkakumani/orgscale/hscontrol/types/change"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 	"tailscale.com/tailcfg"
@@ -646,5 +647,142 @@ func TestPeerCapabilityVersionIsThePeers(t *testing.T) {
 	// with a cautious version, then updated).
 	a.WaitForCondition(t, "peer b at its own capability version", 15*time.Second, func(nm *netmap.NetworkMap) bool {
 		return len(nm.Peers) == 1 && nm.Peers[0].Cap() == tailcfg.CurrentCapabilityVersion
+	})
+}
+
+// TestOrgscalePostureCutsOff checks that a device blocked by device posture
+// loses every peer while it stays registered, and gets them back once
+// unblocked.
+func TestOrgscalePostureCutsOff(t *testing.T) {
+	t.Parallel()
+
+	srv := servertest.NewServer(t)
+	st := srv.State()
+
+	alice := srv.CreateUser(t, "alice")
+
+	laptop := servertest.NewClient(t, srv, "alice-laptop", servertest.WithUser(alice))
+	phone := servertest.NewClient(t, srv, "alice-phone", servertest.WithUser(alice))
+
+	changes, err := st.SetDeviceRestriction(true, "test")
+	require.NoError(t, err)
+	srv.App.Change(changes...)
+
+	waitPeers(t, laptop, "alice-phone")
+	waitPeers(t, phone, "alice-laptop")
+
+	phoneID := nodeIDOf(t, phone)
+
+	srv.App.Change(st.SetPostureBlocked(map[types.NodeID]struct{}{phoneID: {}}))
+
+	waitPeers(t, laptop)
+	waitPeers(t, phone)
+	require.True(t, st.PostureBlocked(phoneID))
+
+	_, ok := st.GetNodeByID(phoneID)
+	require.True(t, ok, "a blocked device stays registered")
+
+	srv.App.Change(st.SetPostureBlocked(nil))
+
+	waitPeers(t, laptop, "alice-phone")
+	waitPeers(t, phone, "alice-laptop")
+}
+
+// TestOrgscaleSSHRecording checks that with recording on, SSH servers are
+// told to send sessions to the recorders and may reach them, and that
+// enforced recording without a recorder refuses sessions.
+func TestOrgscaleSSHRecording(t *testing.T) {
+	t.Parallel()
+
+	srv := servertest.NewServer(t)
+	st := srv.State()
+
+	alice := srv.CreateUser(t, "alice")
+
+	for _, tag := range []string{"tag:prod", types.RecorderTag} {
+		changes, err := st.SaveServerTag(types.ServerTag{Name: tag}, nil)
+		require.NoError(t, err)
+		srv.App.Change(changes...)
+	}
+
+	exp := time.Now().Add(time.Hour)
+	prodKey, err := st.CreatePreAuthKey(nil, true, false, &exp, []string{"tag:prod"})
+	require.NoError(t, err)
+
+	servertest.NewClient(t, srv, "alice-laptop", servertest.WithUser(alice))
+	prod := servertest.NewClient(t, srv, "prod-1", servertest.WithAuthKey(prodKey.Key))
+
+	changes, err := st.SetDeviceRestriction(true, "test")
+	require.NoError(t, err)
+	srv.App.Change(changes...)
+
+	_, changes, err = st.SaveAccessRule(types.AccessRule{
+		Kind: types.RuleKindSSH, Name: "Alice SSH to prod", Enabled: true, SSHUsers: `["ubuntu"]`,
+		Sources:      []types.RulePrincipal{{Kind: types.PrincipalUser, Principal: strconv.FormatUint(uint64(alice.ID), 10)}},
+		Destinations: []types.RulePrincipal{{Kind: types.PrincipalTag, Principal: "tag:prod"}},
+	})
+	require.NoError(t, err)
+	srv.App.Change(changes...)
+
+	setRecording := func(rec types.RecordingSettings) {
+		t.Helper()
+
+		require.NoError(t, st.SetSettingJSON(types.SettingRecording, rec, "test"))
+		st.SetRecording(rec)
+
+		changes, err := st.ReloadPolicy()
+		require.NoError(t, err)
+		srv.App.Change(changes...)
+		srv.App.Change(change.PolicyChange())
+	}
+
+	acceptAction := func(nm *netmap.NetworkMap) *tailcfg.SSHAction {
+		if nm.SSHPolicy == nil {
+			return nil
+		}
+
+		for _, r := range nm.SSHPolicy.Rules {
+			if r.SSHUsers["ubuntu"] != "" && r.Action != nil {
+				return r.Action
+			}
+		}
+
+		return nil
+	}
+
+	// Enforced with no recorder: sessions are refused.
+	setRecording(types.RecordingSettings{Enabled: true, Enforce: true})
+
+	prod.WaitForCondition(t, "ssh refused", 15*time.Second, func(nm *netmap.NetworkMap) bool {
+		a := acceptAction(nm)
+
+		return a != nil && a.Reject && !a.Accept
+	})
+
+	// A recorder joins: sessions go to it, and prod may reach it.
+	recKey, err := st.CreatePreAuthKey(nil, true, false, &exp, []string{types.RecorderTag})
+	require.NoError(t, err)
+
+	recorder := servertest.NewClient(t, srv, "recorder", servertest.WithAuthKey(recKey.Key))
+	recIP := recorder.Netmap().SelfNode.Addresses().At(0).Addr()
+
+	prod.WaitForCondition(t, "ssh recorded", 15*time.Second, func(nm *netmap.NetworkMap) bool {
+		a := acceptAction(nm)
+
+		return a != nil && a.Accept && slices.Contains(a.Recorders, netip.AddrPortFrom(recIP, 80)) && a.OnRecordingFailure != nil
+	})
+	waitPeers(t, recorder, "prod-1")
+
+	pol, err := st.EffectivePolicy()
+	require.NoError(t, err)
+	require.Contains(t, string(pol), `"tag:recorder:80"`)
+
+	// Off: plain accept again.
+	setRecording(types.RecordingSettings{})
+
+	prod.WaitForCondition(t, "ssh unrecorded", 15*time.Second, func(nm *netmap.NetworkMap) bool {
+		a := acceptAction(nm)
+
+		return a != nil && a.Accept && len(a.Recorders) == 0
 	})
 }

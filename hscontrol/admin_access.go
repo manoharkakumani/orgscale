@@ -43,6 +43,7 @@ func (aa *adminAuth) accessRoutes(r chi.Router) {
 
 	aa.tempAccessRoutes(r)
 	aa.networkRoutes(r)
+	aa.postureRoutes(r)
 
 	r.Post("/groups", aa.handleSaveGroup)
 	r.Put("/groups/{id}", aa.handleSaveGroup)

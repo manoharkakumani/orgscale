@@ -47,7 +47,7 @@ func (h *Orgscale) WindowsRegistryFile(w http.ResponseWriter, _ *http.Request) {
 
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("Content-Disposition", `attachment; filename="orgscale.reg"`)
-	_, _ = fmt.Fprintf(w, "Windows Registry Editor Version 5.00\r\n\r\n[HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Tailscale]\r\n\"LoginURL\"=\"%s\"\r\n", url)
+	_, _ = fmt.Fprintf(w, "Windows Registry Editor Version 5.00\r\n\r\n[HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Tailscale]\r\n\"LoginURL\"=\"%s\"\r\n\"PostureChecking\"=\"always\"\r\n", url)
 }
 
 // LinuxConnectScript installs Tailscale when missing and signs in to this
@@ -187,5 +187,7 @@ var payloadTemplate = textTemplate.Must(textTemplate.New("payloadTemplate").Pars
 
         <key>ControlURL</key>
         <string>{{.URL}}</string>
+        <key>PostureChecking</key>
+        <string>always</string>
     </dict>
 `))
