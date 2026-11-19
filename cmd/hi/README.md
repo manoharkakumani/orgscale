@@ -63,7 +63,7 @@ changing.
 | `--logs-dir`        | `control_logs` | Where to save run artefacts                                                 |
 | `--verbose`         | `false`        | Verbose output                                                              |
 | `--stats`           | `false`        | Collect container resource-usage stats                                      |
-| `--hs-memory-limit` | `0`            | Fail if any orgscale container exceeds N MB (0 = disabled)                 |
+| `--hs-memory-limit` | `0`            | Fail if any orgscale container exceeds N MB (0 = disabled)                  |
 | `--ts-memory-limit` | `0`            | Fail if any tailscale container exceeds N MB                                |
 
 ### Precompiled tests in CI

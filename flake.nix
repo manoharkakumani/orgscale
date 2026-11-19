@@ -197,6 +197,7 @@
           # //go:embed targets and test-read files outside the default whitelist.
           embedDirs = [
             ./hscontrol/assets
+            ./hscontrol/adminui/dist
             ./hscontrol/db/schema.sql
           ];
           extraSrc = [
@@ -268,9 +269,11 @@
                 "html"
               ];
               # Mirror .prettierignore (docs/ are mkdocs-flavoured; gen/ generated).
+              # hscontrol/adminui/dist is the console's build output.
               fmtExclude = [
                 ./gen
                 ./docs
+                ./hscontrol/adminui/dist
               ];
             }
           );

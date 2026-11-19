@@ -5,3 +5,6 @@ docs/
 hscontrol/testdata/
 hscontrol/config/testdata/bad/
 hscontrol/config/testdata/compat/
+
+# The admin console build output (web/admin builds it).
+hscontrol/adminui/dist/

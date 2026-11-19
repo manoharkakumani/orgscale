@@ -11,7 +11,9 @@ export function normalizeTag(v: string): string {
 }
 
 export function validTag(v: string): string | null {
-  return tagNameRe.test(normalizeTag(v)) ? null : `"${v}": a tag uses lowercase letters, digits and dashes, like web-servers`;
+  return tagNameRe.test(normalizeTag(v))
+    ? null
+    : `"${v}": a tag uses lowercase letters, digits and dashes, like web-servers`;
 }
 
 // ensureTags creates the tags in names that do not exist yet.

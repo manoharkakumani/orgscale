@@ -155,7 +155,7 @@ In **Settings**:
 - **Who can sign in**: your email domains (for example `example.com`).
 - **Microsoft Entra ID**, **Google Workspace** or **SCIM**: turn on directory
   sync so users and groups follow your directory, and leavers are removed.
-  Entra sync needs the Microsoft Graph *application* permissions
+  Entra sync needs the Microsoft Graph _application_ permissions
   `User.Read.All`, `Group.Read.All`, `GroupMember.Read.All` and
   `Organization.Read.All`, with admin consent.
 - **Console access**: more administrators or read-only viewers. Nobody else

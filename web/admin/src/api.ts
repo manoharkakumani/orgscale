@@ -109,7 +109,8 @@ export interface AdminUser {
   roleFrom: "" | "console" | "config" | "group";
 }
 
-export type PrincipalKind = "user" | "directory_group" | "policy_group" | "tag" | "device" | "everyone" | "self" | "resource";
+export type PrincipalKind =
+  "user" | "directory_group" | "policy_group" | "tag" | "device" | "everyone" | "self" | "resource";
 
 export interface Principal {
   kind: PrincipalKind;
