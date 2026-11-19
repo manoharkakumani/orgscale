@@ -76,7 +76,12 @@ function usePendingRequests(enabled: boolean): number {
         .catch(() => undefined);
     void load();
     const id = window.setInterval(load, 30000);
-    return () => window.clearInterval(id);
+    const onChange = (e: Event) => setN((e as CustomEvent<number>).detail);
+    window.addEventListener("orgscale:requests", onChange);
+    return () => {
+      window.clearInterval(id);
+      window.removeEventListener("orgscale:requests", onChange);
+    };
   }, [enabled]);
   return n;
 }

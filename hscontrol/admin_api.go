@@ -51,6 +51,9 @@ func (aa *adminAuth) routes(r chi.Router) {
 		r.Delete("/settings/scim-token", aa.handleDeleteSCIMToken)
 		r.Put("/settings/google-sync", aa.handlePutGoogleSync)
 		r.Post("/settings/google-sync/run", aa.handleRunGoogleSync)
+		r.Get("/settings/dns", aa.handleGetDNS)
+		r.Put("/settings/dns", aa.handlePutDNS)
+		r.Delete("/settings/dns", aa.handleResetDNS)
 		r.Put("/settings/entra-sync", aa.handlePutEntraSync)
 		r.Post("/settings/entra-sync/run", aa.handleRunEntraSync)
 

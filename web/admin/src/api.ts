@@ -352,3 +352,21 @@ export interface AdminSessionInfo {
   userAgent: string;
   current: boolean;
 }
+
+export interface DNSRecordInfo {
+  name: string;
+  type: string;
+  value: string;
+}
+
+export interface DNSSettings {
+  magicDNS: boolean;
+  overrideLocalDNS: boolean;
+  nameservers: string[];
+  splitDNS: Record<string, string[]>;
+  searchDomains: string[];
+  records: DNSRecordInfo[];
+  baseDomain: string;
+  source: "file" | "console";
+  recordsFromFile: boolean;
+}

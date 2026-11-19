@@ -2418,3 +2418,37 @@ details.disclosure.drawer-section {
     flex: 1;
   }
 }
+
+/* ---------- DNS settings ---------- */
+.prow.dns-split,
+.prow.dns-record {
+  display: grid;
+  gap: 8px;
+  align-items: center;
+}
+.prow.dns-split {
+  grid-template-columns: minmax(140px, 220px) 1fr auto;
+}
+.prow.dns-record {
+  grid-template-columns: 1fr auto minmax(120px, 200px) auto;
+}
+.prow.dns-split > input,
+.prow.dns-record > input {
+  width: 100%;
+  min-width: 0;
+}
+@media (max-width: 640px) {
+  .prow.dns-split,
+  .prow.dns-record {
+    grid-template-columns: 1fr auto;
+  }
+  .prow.dns-split > :nth-child(2) {
+    grid-column: 1 / -1;
+  }
+  .prow.dns-record {
+    grid-template-columns: 1fr 1fr auto;
+  }
+  .prow.dns-record > .muted {
+    display: none;
+  }
+}

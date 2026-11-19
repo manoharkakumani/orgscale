@@ -188,6 +188,28 @@ Visibility is two-way: if a group may reach a server, the server also lists
 the group's devices as peers (it can't open connections to them unless a rule
 allows it).
 
+## DNS
+
+**Settings → DNS** controls what devices get, live, with no restart:
+
+- **MagicDNS**: devices reach each other by name (`db-server`, or
+  `db-server.<base domain>`). The name domain itself (`dns.base_domain`)
+  stays in the config file, since changing it renames every device.
+- **DNS servers**: IP addresses or `https://` DNS-over-HTTPS addresses.
+  Devices use them as a fallback, or instead of their own DNS when
+  **Use instead of devices' own DNS** is on (for central filtering or
+  logging).
+- **Split DNS**: send lookups for internal domains (`corp.example.com`) to
+  your own DNS servers, e.g. the domain controller reachable through a
+  subnet router.
+- **Search domains**: short names such as `intranet`.
+- **Custom records**: names that resolve to an address, e.g.
+  `grafana.<base domain>` → `100.64.0.9`. While `dns.extra_records_path` is
+  set, that file manages the records instead.
+
+Saving overrides the config file's `dns.*` settings; **Use the config
+file's settings** goes back to them.
+
 ## Connecting devices
 
 People use the official Tailscale app, pointed at your server. Send everyone

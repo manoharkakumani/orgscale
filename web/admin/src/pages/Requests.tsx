@@ -29,7 +29,8 @@ function timeLeft(iso?: string, now = Date.now()): string {
   if (!iso) return "";
   const ms = new Date(iso).getTime() - now;
   if (ms <= 0) return "ending";
-  const m = Math.ceil(ms / 60000);
+  const m = Math.floor(ms / 60000);
+  if (m < 1) return "under a minute left";
   if (m < 60) return `${m} min left`;
   const h = Math.floor(m / 60);
   if (h < 48) return `${h} h ${m % 60 ? `${m % 60} min ` : ""}left`;
@@ -144,7 +145,7 @@ function RequestRow({ r, now, children, showWho }: { r: AccessRequest; now: numb
         <div className="cell-stack grow">
           <span>
             {showWho && <b>{r.requester} </b>}
-            {showWho ? "wants " : ""}
+            {showWho ? (r.active ? "has " : r.status === "pending" ? "wants " : "asked for ") : ""}
             <code>{r.tag}</code> for {duration(r.minutes)}
             {r.ssh && r.sshUsers?.length ? <> · SSH as {r.sshUsers.join(", ")}</> : null}
           </span>
@@ -304,6 +305,10 @@ export default function RequestsPage() {
   const me = useMe();
   const now = useTick();
   const { data, error, loading, reload } = useAsync(() => get<AccessRequest[]>("/admin/api/requests"));
+  // Keep the sidebar count in step with this page.
+  useEffect(() => {
+    if (data) window.dispatchEvent(new CustomEvent("orgscale:requests", { detail: data.filter((r) => r.status === "pending").length }));
+  }, [data]);
   const [filter, setFilter] = useState<Filter>("open");
   const [deciding, setDeciding] = useState<{ r: AccessRequest; kind: "approve" | "deny" | "revoke" } | null>(null);
 

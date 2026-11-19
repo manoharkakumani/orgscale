@@ -342,6 +342,13 @@ func (s *TestServer) SetExtraRecords(records []tailcfg.DNSRecord) {
 	s.App.Change(change.ExtraRecords())
 }
 
+// ApplyConsoleDNS applies DNS settings as the admin console does and sends
+// them to every node.
+func (s *TestServer) ApplyConsoleDNS(cd *types.ConsoleDNS) {
+	s.cfg.ApplyConsoleDNS(cd)
+	s.App.Change(change.DNSConfig())
+}
+
 // CreateUser creates a test user and returns it.
 func (s *TestServer) CreateUser(tb testing.TB, name string) *types.User {
 	tb.Helper()

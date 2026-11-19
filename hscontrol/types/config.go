@@ -1205,7 +1205,12 @@ func dnsToTailcfgDNS(dns DNSConfig) *tailcfg.DNSConfig {
 // TailcfgDNSConfig builds the DNS config clients get from DNSConfig and the
 // IP prefixes. It is never nil.
 func (c *Config) TailcfgDNSConfig() *tailcfg.DNSConfig {
-	cfg := dnsToTailcfgDNS(c.DNSConfig)
+	return c.tailcfgDNSFrom(c.DNSConfig)
+}
+
+// tailcfgDNSFrom builds the client DNS config from d and the IP prefixes.
+func (c *Config) tailcfgDNSFrom(d DNSConfig) *tailcfg.DNSConfig {
+	cfg := dnsToTailcfgDNS(d)
 	if !cfg.Proxied {
 		return cfg
 	}

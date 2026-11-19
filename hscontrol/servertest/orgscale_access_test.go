@@ -424,3 +424,39 @@ func TestOrgscaleSSHRules(t *testing.T) {
 	require.Contains(t, string(pol), `"checkPeriod":"12h"`)
 	require.Contains(t, string(pol), `"tag:prod:22"`)
 }
+
+// TestOrgscaleConsoleDNS checks that DNS settings changed in the admin
+// console reach connected clients without a restart, and that resetting
+// them goes back to the config file's.
+func TestOrgscaleConsoleDNS(t *testing.T) {
+	t.Parallel()
+
+	srv := servertest.NewServer(t, servertest.WithMagicDNS("tailnet.example"))
+	alice := srv.CreateUser(t, "alice")
+	c := servertest.NewClient(t, srv, "alice-laptop", servertest.WithUser(alice))
+	c.WaitForCondition(t, "netmap", 15*time.Second, func(nm *netmap.NetworkMap) bool { return nm.SelfNode.Valid() })
+
+	srv.ApplyConsoleDNS(&types.ConsoleDNS{
+		MagicDNS:         true,
+		OverrideLocalDNS: true,
+		Nameservers:      []string{"10.0.0.53"},
+		SplitDNS:         map[string][]string{"corp.example.com": {"10.1.0.53"}},
+		SearchDomains:    []string{"corp.example.com"},
+		Records:          []types.ConsoleDNSRecord{{Name: "grafana.tailnet.example", Type: "A", Value: "100.64.0.9"}},
+	})
+
+	c.WaitForCondition(t, "console DNS", 15*time.Second, func(nm *netmap.NetworkMap) bool {
+		d := nm.DNS
+		return len(d.Resolvers) == 1 && d.Resolvers[0].Addr == "10.0.0.53" &&
+			len(d.Routes["corp.example.com"]) == 1 &&
+			slices.Contains(d.Domains, "corp.example.com") &&
+			len(d.ExtraRecords) == 1 && d.Proxied
+	})
+
+	srv.ApplyConsoleDNS(nil)
+
+	c.WaitForCondition(t, "file DNS again", 15*time.Second, func(nm *netmap.NetworkMap) bool {
+		d := nm.DNS
+		return len(d.Resolvers) == 0 && len(d.Routes["corp.example.com"]) == 0 && len(d.ExtraRecords) == 0 && d.Proxied
+	})
+}

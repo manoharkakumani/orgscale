@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { del, get, post, put, type AdminSessionInfo, type EntraSyncSettings, type EntraSyncStatus, type GoogleSyncSettings, type GoogleSyncStatus, type ListSetting, type Settings, type SSOState } from "../api";
 import { SSOFields, initialForm, issuerFor } from "../components/sso";
+import DNSEditor from "../components/dns";
 import { useCanEdit } from "../App";
 import { Badge, Button, ChipInput, Confirm, CopyText, ErrorBox, Group, Icon, Modal, PRow, PageHeader, Spinner, Toggle, dateTime, timeAgo, useAsync, useToast } from "../components/ui";
 
@@ -620,6 +621,7 @@ const sections = [
   { id: "sso", label: "Single sign-on", tile: "tile-blue", icon: "sso", text: "Your identity provider and the redirect URLs to register with it." },
   { id: "signin", label: "Who can sign in", tile: "tile-green", icon: "user", text: "Email domains, people and groups allowed to join the network." },
   { id: "console", label: "Console access", tile: "tile-violet", icon: "key", text: "Who can use this console, as an admin or read-only." },
+  { id: "dns", label: "DNS", tile: "tile-orange", icon: "globe", text: "Device names (MagicDNS), the DNS servers devices use, split DNS for internal domains and custom records." },
   { id: "entra", label: "Microsoft Entra ID", tile: "tile-blue", icon: "sync", text: "Read users and groups from Microsoft Entra ID through Microsoft Graph." },
   { id: "directory", label: "SCIM provisioning", tile: "tile-teal", icon: "link", text: "Okta, Microsoft Entra ID, OneLogin, JumpCloud and Authentik push users and groups here." },
   { id: "google", label: "Google Workspace", tile: "tile-orange", icon: "sync", text: "Read users and groups from Google Workspace on a schedule." },
@@ -657,8 +659,17 @@ export default function SettingsPage() {
               {x.label}
             </button>
           ))}
+          <div className="nav-group">Network</div>
+          {sections.slice(3, 4).map((x) => (
+            <button key={x.id} className={current === x.id ? "active" : ""} onClick={() => setParams({ section: x.id })}>
+              <span className={`nav-tile ${x.tile}`}>
+                <Icon name={x.icon} />
+              </span>
+              {x.label}
+            </button>
+          ))}
           <div className="nav-group">Directory sync</div>
-          {sections.slice(3).map((x) => (
+          {sections.slice(4).map((x) => (
             <button key={x.id} className={current === x.id ? "active" : ""} onClick={() => setParams({ section: x.id })}>
               <span className={`nav-tile ${x.tile}`}>
                 <Icon name={x.icon} />
@@ -683,6 +694,7 @@ export default function SettingsPage() {
           </div>
 
           {current === "sso" && <SSOEditor />}
+          {current === "dns" && <DNSEditor />}
           {current === "signin" && <LoginRules key={JSON.stringify(data.sso)} s={data} onSaved={setData} />}
           {current === "console" && (
             <>

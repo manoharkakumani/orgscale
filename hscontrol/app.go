@@ -200,6 +200,12 @@ func NewOrgscale(cfg *types.Config) (*Orgscale, error) {
 		return nil, fmt.Errorf("init state: %w", err)
 	}
 
+	// DNS settings made in the admin console override the file's.
+	var consoleDNS types.ConsoleDNS
+	if ok, err := s.GetSettingJSON(types.SettingDNS, &consoleDNS); err == nil && ok {
+		cfg.ApplyConsoleDNS(&consoleDNS)
+	}
+
 	app := Orgscale{
 		cfg:               cfg,
 		noisePrivateKey:   noisePrivateKey,

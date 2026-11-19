@@ -3,7 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { del, get, post, put, type EnrollKey, type Principal, type ServerTag } from "../api";
 import { useCanEdit } from "../App";
 import { PrincipalList, PrincipalPicker, type Option } from "../components/principals";
-import { durationChoices } from "./Requests";
+import { duration, durationChoices } from "./Requests";
 import { Badge, Button, ChipInput, CodeBlock, Confirm, Empty, ErrorBox, Field, Icon, Modal, PRow, PageHeader, Segmented, Spinner, Toggle, dateTime, useAsync, useToast } from "../components/ui";
 
 const granteeKinds = ["everyone", "directory_group", "policy_group", "user", "tag"] as const;
@@ -366,6 +366,12 @@ function TagCard({ t, canEdit, onAdd, onEdit, onDelete }: { t: ServerTag; canEdi
       <div>
         <div className="muted small mb-xs">Who can reach them</div>
         <PrincipalList items={t.access} empty="Nobody yet" max={5} />
+        {t.requestMaxMinutes > 0 && (
+          <div className="muted small mt">
+            <Icon name="clock" /> Others can request access for up to {duration(t.requestMaxMinutes)}
+            {t.requestSSHUsers.length ? `, with SSH as ${t.requestSSHUsers.join(", ")}` : ""}.
+          </div>
+        )}
       </div>
       {canEdit && (
         <div className="tag-card-foot">
