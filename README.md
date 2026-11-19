@@ -241,5 +241,4 @@ notice is kept as the license requires; Orgscale's changes are released
 under the same terms.
 
 Orgscale is not affiliated with or endorsed by Tailscale Inc. "Tailscale" is
-a trademark of Tailscale Inc.; "WireGuard" is a registered trademark of
-Jason A. Donenfeld.
+a trademark of Tailscale Inc.
