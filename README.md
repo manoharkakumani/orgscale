@@ -222,35 +222,24 @@ gives the exact toolchain CI uses. See [CONTRIBUTING.md](CONTRIBUTING.md) and
 
 ## Credits
 
-Orgscale stands on the work of others.
-
-- **[Headscale](https://github.com/juanfont/headscale)**, created by Juan
-  Font and maintained with Kristoffer Dalby and
-  [many contributors](https://github.com/juanfont/headscale/graphs/contributors).
-  Orgscale is a fork of Headscale: the control server (node registration,
-  the policy engine, the network map, DERP, the CLI and API) is theirs.
-  Orgscale adds the admin console, single sign-on setup, directory sync,
-  access management, temporary access, the device connection pages and
-  container packaging. Headscale's history is kept in this repository, and
-  its BSD 3-Clause license and copyright notice in [LICENSE](LICENSE).
-- **[Tailscale](https://tailscale.com)**, whose open-source client and
-  libraries Orgscale talks to and builds on, and whose apps people use to
-  connect. Orgscale is not affiliated with, endorsed by or supported by
-  Tailscale Inc.; "Tailscale" is a trademark of Tailscale Inc.
-- **[WireGuard](https://www.wireguard.com)**, the encrypted tunnel underneath
-  everything. "WireGuard" is a registered trademark of Jason A. Donenfeld.
-- The open-source libraries listed in [go.mod](go.mod) and
-  [web/admin/package.json](web/admin/package.json), including
-  [chi](https://github.com/go-chi/chi), [GORM](https://gorm.io),
-  [zerolog](https://github.com/rs/zerolog),
-  [go-oidc](https://github.com/coreos/go-oidc), [React](https://react.dev)
-  and [Vite](https://vite.dev).
+Orgscale is built on [Headscale](https://github.com/juanfont/headscale), and
+all credit for the control server goes to the Headscale project and
+[its contributors](https://github.com/juanfont/headscale/graphs/contributors):
+node registration, the policy engine, the network map, DERP, the CLI and the
+API are their work. Orgscale adds the admin console, single sign-on setup,
+directory sync, access management, temporary access, the device connection
+pages and container packaging. Headscale's history is kept in this
+repository, and its license and copyright notice in [LICENSE](LICENSE).
 
 Questions or problems about Orgscale belong in this repository's issues, not
-Headscale's or Tailscale's.
+Headscale's.
 
 ## License
 
 BSD 3-Clause, as Headscale. See [LICENSE](LICENSE). The original copyright
 notice is kept as the license requires; Orgscale's changes are released
 under the same terms.
+
+Orgscale is not affiliated with or endorsed by Tailscale Inc. "Tailscale" is
+a trademark of Tailscale Inc.; "WireGuard" is a registered trademark of
+Jason A. Donenfeld.
