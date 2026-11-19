@@ -2452,3 +2452,12 @@ details.disclosure.drawer-section {
     display: none;
   }
 }
+
+/* Long code (paths, keys) in row descriptions wraps instead of overflowing. */
+.prow-label code {
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+.prow-label {
+  min-width: 0;
+}

@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { get, type Overview } from "../api";
 import { useMe } from "../App";
-import { CopyText, ErrorBox, PageHeader, Spinner, timeAgo, useAsync } from "../components/ui";
+import { CopyText, ErrorBox, Group, PRow, PageHeader, Spinner, timeAgo, useAsync } from "../components/ui";
 
 function Stat({ label, value, sub, to }: { label: string; value: number | string; sub?: string; to?: string }) {
   const body = (
@@ -92,26 +92,30 @@ export default function OverviewPage() {
         </ol>
       </section>
 
-      <section className="card">
-        <h2>Connect people's devices</h2>
-        <p className="muted small">Send everyone this link. It shows each platform's steps and downloads the settings, so nobody types a command.</p>
-        <CopyText value={`${base}/connect`} />
-        <details className="mt">
-          <summary>Company-managed devices (Intune, Jamf, Kandji)</summary>
-          <ul className="small">
-            <li>
-              <b>Mac</b>: upload <a href={`${base}/apple/macos`} download="orgscale.mobileconfig">orgscale.mobileconfig</a> as a custom configuration profile.
-            </li>
-            <li>
-              <b>Windows</b>: set the registry value <code>HKLM\SOFTWARE\Policies\Tailscale\LoginURL</code> to <code>{base}</code> (Settings catalog, OMA-URI or a script), or deploy <a href={`${base}/windows/orgscale.reg`}>orgscale.reg</a>.
-            </li>
-            <li>
-              <b>iPhone and iPad</b>: an app configuration policy for the Tailscale app with <code>ControlURL</code> = <code>{base}</code>. <b>Android</b>: managed configuration with <code>LoginURL</code> = <code>{base}</code>.
-            </li>
-          </ul>
-          <p className="muted small">People then just open Tailscale and click Log in. Servers join from Servers → Add server instead.</p>
-        </details>
-      </section>
+      <Group title="Connect people's devices" note="People open Tailscale and click Log in; their device joins as the account they sign in with. Servers join from Servers → Add server instead.">
+        <PRow block label="Link for everyone" sub="Steps for each platform and the settings downloads, so nobody types a command.">
+          <CopyText value={`${base}/connect`} />
+        </PRow>
+      </Group>
+
+      <Group title="Company-managed devices" note="Push these with Intune, Jamf or Kandji and people never see a setup step.">
+        <PRow label="Mac" sub="Upload as a custom configuration profile.">
+          <a className="btn btn-secondary" href={`${base}/apple/macos`} download="orgscale.mobileconfig">
+            Download profile
+          </a>
+        </PRow>
+        <PRow label="Windows" sub={<>Registry value <code>HKLM\SOFTWARE\Policies\Tailscale\LoginURL</code> set to the server address, through the Settings catalog or a script.</>}>
+          <a className="btn btn-secondary" href={`${base}/windows/orgscale.reg`} download="orgscale.reg">
+            Download .reg
+          </a>
+        </PRow>
+        <PRow label="iPhone and iPad" sub={<>App configuration policy for Tailscale with <code>ControlURL</code> = the server address.</>} />
+        <PRow label="Android" sub={<>Managed configuration for Tailscale with <code>LoginURL</code> = the server address.</>} />
+        <PRow block label="Server address">
+          <CopyText value={base} />
+        </PRow>
+      </Group>
+
 
       {data.googleSync && data.googleSyncStatus?.error && (
         <div className="callout callout-error">Google Workspace sync failed {timeAgo(data.googleSyncStatus.lastRun)}: {data.googleSyncStatus.error}</div>

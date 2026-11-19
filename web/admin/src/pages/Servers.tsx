@@ -368,7 +368,7 @@ function TagCard({ t, canEdit, onAdd, onEdit, onDelete }: { t: ServerTag; canEdi
         <PrincipalList items={t.access} empty="Nobody yet" max={5} />
         {t.requestMaxMinutes > 0 && (
           <div className="muted small mt">
-            <Icon name="clock" /> Others can request access for up to {duration(t.requestMaxMinutes)}
+            Others can request access for up to {duration(t.requestMaxMinutes)}
             {t.requestSSHUsers.length ? `, with SSH as ${t.requestSSHUsers.join(", ")}` : ""}.
           </div>
         )}
