@@ -11,6 +11,9 @@ import (
 	"gorm.io/gorm"
 )
 
+// dialectSQLite is gorm's name for the SQLite dialect.
+const dialectSQLite = "sqlite"
+
 // Tables for server tags and the access rules built in the console. The
 // SQLite DDL must match schema.sql.
 
@@ -216,7 +219,7 @@ func ensureAccessRequests(tx *gorm.DB) error {
 	}
 
 	ddl := accessRequestsDDLSQLite
-	if tx.Name() != "sqlite" {
+	if tx.Name() != dialectSQLite {
 		ddl = accessRequestsDDLPostgres
 	}
 
@@ -264,7 +267,7 @@ func ensureNetworkResources(tx *gorm.DB) error {
 	}
 
 	ddl := networkResourcesDDLSQLite
-	if tx.Name() != "sqlite" {
+	if tx.Name() != dialectSQLite {
 		ddl = networkResourcesDDLPostgres
 	}
 
@@ -472,7 +475,7 @@ func ensureOrgscaleSessionsTable(tx *gorm.DB) error {
 	}
 
 	ddl := orgscaleSessionsDDLSQLite
-	if tx.Name() != "sqlite" {
+	if tx.Name() != dialectSQLite {
 		ddl = orgscaleSessionsDDLPostgres
 	}
 
@@ -537,7 +540,7 @@ func ensureOrgscaleAccessTables(tx *gorm.DB) error {
 	}
 
 	ddl := orgscaleAccessDDLSQLite
-	if tx.Name() != "sqlite" {
+	if tx.Name() != dialectSQLite {
 		ddl = orgscaleAccessDDLPostgres
 	}
 

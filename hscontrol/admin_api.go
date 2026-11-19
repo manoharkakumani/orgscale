@@ -257,12 +257,15 @@ func (aa *adminAuth) handleOverview(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var scimSince string
+
 	_, _ = st.GetSettingJSON(types.SettingSCIMTokenCreatedAt, &scimSince)
 
 	var google types.GoogleSyncSettings
+
 	_, _ = st.GetSettingJSON(types.SettingGoogleSync, &google)
 
 	var googleStatus types.GoogleSyncStatus
+
 	_, _ = st.GetSettingJSON(types.SettingGoogleSyncStatus, &googleStatus)
 
 	adminJSON(w, http.StatusOK, map[string]any{
@@ -308,6 +311,7 @@ func (aa *adminAuth) loginRule(key string, cfg []string) listSetting {
 
 func (aa *adminAuth) roleList(key string, cfg []string) listSetting {
 	var v []string
+
 	_, _ = aa.h.state.GetSettingJSON(key, &v)
 
 	return listSetting{Value: nonNil(append(slices.Clone(cfg), v...)), Console: nonNil(v), Config: nonNil(cfg)}
@@ -326,15 +330,18 @@ func (aa *adminAuth) handleGetSettings(w http.ResponseWriter, r *http.Request) {
 	oidc := aa.h.cfg.OIDC
 
 	var scimSince string
+
 	_, _ = st.GetSettingJSON(types.SettingSCIMTokenCreatedAt, &scimSince)
 
 	var google types.GoogleSyncSettings
+
 	_, _ = st.GetSettingJSON(types.SettingGoogleSync, &google)
 
 	hasSA := google.ServiceAccountJSON != ""
 	google.ServiceAccountJSON = ""
 
 	var googleStatus types.GoogleSyncStatus
+
 	_, _ = st.GetSettingJSON(types.SettingGoogleSyncStatus, &googleStatus)
 
 	sso := aa.ssoState()
@@ -385,6 +392,7 @@ func (aa *adminAuth) entraSyncView() map[string]any {
 	s.ClientSecret = ""
 
 	var status types.EntraSyncStatus
+
 	_, _ = aa.h.state.GetSettingJSON(types.SettingEntraSyncStatus, &status)
 
 	_, ssoTenant := entraTenant(aa.ssoState().Issuer)
@@ -420,8 +428,9 @@ func (aa *adminAuth) handlePutEntraSync(w http.ResponseWriter, r *http.Request) 
 
 	req.IntervalMinutes = min(max(cmp.Or(req.IntervalMinutes, 15), 5), 24*60)
 
-	if _, err := aa.h.entraSync.credentials(req); req.Enabled && err != nil {
-		adminJSONError(w, http.StatusBadRequest, err.Error())
+	_, credErr := aa.h.entraSync.credentials(req)
+	if req.Enabled && credErr != nil {
+		adminJSONError(w, http.StatusBadRequest, credErr.Error())
 
 		return
 	}
@@ -487,7 +496,7 @@ func (aa *adminAuth) handlePutLoginRules(w http.ResponseWriter, r *http.Request)
 		list := normaliseList(*v, fold)
 		for _, item := range list {
 			if strings.ContainsAny(item, " \t,;") {
-				return fmt.Errorf("%q is not a valid entry", item)
+				return userErrorf("%q is not a valid entry", item)
 			}
 		}
 
@@ -511,8 +520,7 @@ func (aa *adminAuth) handlePutLoginRules(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	b, _ := json.Marshal(req)
-	aa.auditReq(r, "settings.login_rules.update", "", string(b))
+	aa.auditReq(r, "settings.login_rules.update", "", mustJSON(req))
 	aa.handleGetSettings(w, r)
 }
 
@@ -537,6 +545,7 @@ func (aa *adminAuth) handlePutRoles(w http.ResponseWriter, r *http.Request) {
 	cfgAdmin := slices.ContainsFunc(aa.h.cfg.Admin.Users, func(u string) bool { return strings.EqualFold(u, sess.roleEmail) })
 	if !cfgAdmin && !slices.Contains(adminUsers, strings.ToLower(sess.roleEmail)) {
 		var prev []string
+
 		_, _ = aa.h.state.GetSettingJSON(types.SettingAdminUsers, &prev)
 
 		if slices.ContainsFunc(prev, func(u string) bool { return strings.EqualFold(u, sess.roleEmail) }) {
@@ -561,8 +570,7 @@ func (aa *adminAuth) handlePutRoles(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	b, _ := json.Marshal(req)
-	aa.auditReq(r, "settings.roles.update", "", string(b))
+	aa.auditReq(r, "settings.roles.update", "", mustJSON(req))
 	aa.handleGetSettings(w, r)
 }
 
@@ -577,6 +585,7 @@ func (aa *adminAuth) roleSource(email string, groups []string) (string, string) 
 	}
 
 	var consoleAdmins, consoleViewers []string
+
 	_, _ = aa.h.state.GetSettingJSON(types.SettingAdminUsers, &consoleAdmins)
 	_, _ = aa.h.state.GetSettingJSON(types.SettingViewerUsers, &consoleViewers)
 
@@ -660,6 +669,7 @@ func (aa *adminAuth) handlePutUserRole(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var admins, viewers []string
+
 	_, _ = aa.h.state.GetSettingJSON(types.SettingAdminUsers, &admins)
 	_, _ = aa.h.state.GetSettingJSON(types.SettingViewerUsers, &viewers)
 
@@ -752,6 +762,7 @@ func (aa *adminAuth) handlePutGoogleSync(w http.ResponseWriter, r *http.Request)
 	}
 
 	var prev types.GoogleSyncSettings
+
 	_, _ = aa.h.state.GetSettingJSON(types.SettingGoogleSync, &prev)
 
 	// An empty service account keeps the stored one: the console never
@@ -1233,7 +1244,8 @@ func (aa *adminAuth) handlePutDeviceAccess(w http.ResponseWriter, r *http.Reques
 				return
 			}
 
-			if _, err := aa.h.state.GetUserByID(types.UserID(uid)); err != nil {
+			_, err = aa.h.state.GetUserByID(types.UserID(uid))
+			if err != nil {
 				adminJSONError(w, http.StatusBadRequest, "no user "+a.Principal)
 
 				return
@@ -1241,7 +1253,8 @@ func (aa *adminAuth) handlePutDeviceAccess(w http.ResponseWriter, r *http.Reques
 
 			labels = append(labels, aa.userLabel(types.UserID(uid)))
 		case types.PrincipalDirectoryGroup:
-			if _, err := strconv.ParseUint(a.Principal, 10, 64); err != nil {
+			_, err := strconv.ParseUint(a.Principal, 10, 64)
+			if err != nil {
 				adminJSONError(w, http.StatusBadRequest, "invalid group id "+a.Principal)
 
 				return

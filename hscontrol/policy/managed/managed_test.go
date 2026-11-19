@@ -46,7 +46,7 @@ func TestMergeAddsGroupsWithoutOverridingPolicyGroups(t *testing.T) {
 	}})
 	require.NoError(t, err)
 
-	groups := decode(t, got)["groups"].(map[string]any)
+	groups := field[map[string]any](t, got, "groups")
 	assert.Equal(t, []any{"owner@x.com"}, groups["group:eng"], "policy definition wins")
 	assert.Equal(t, []any{"s@x.com"}, groups["group:sales"])
 	assert.Equal(t, []any{}, groups["group:empty"], "empty group still defined so references validate")
@@ -63,7 +63,7 @@ func TestMergeRestrictDevicesOnEmptyPolicy(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	acls := decode(t, got)["acls"].([]any)
+	acls := field[[]any](t, got, "acls")
 	require.Len(t, acls, 2, "baseline + one device rule; a rule without grantees is dropped")
 
 	assert.Equal(t, map[string]any{
@@ -84,9 +84,11 @@ func TestMergeRestrictDevicesAppendsToExistingACLs(t *testing.T) {
 	got, err := Merge(raw, Policy{RestrictDevices: true})
 	require.NoError(t, err)
 
-	acls := decode(t, got)["acls"].([]any)
+	acls := field[[]any](t, got, "acls")
 	require.Len(t, acls, 2)
-	assert.Equal(t, []any{"group:admins"}, acls[0].(map[string]any)["src"])
+	first, ok := acls[0].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, []any{"group:admins"}, first["src"])
 }
 
 func TestMergeRejectsBrokenPolicy(t *testing.T) {
@@ -112,9 +114,11 @@ func TestMergeDropsUndefinedGroupReferences(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	acls := decode(t, got)["acls"].([]any)
+	acls := field[[]any](t, got, "acls")
 	require.Len(t, acls, 2, "baseline + the rule that still has a defined source")
-	assert.Equal(t, []any{"group:ops"}, acls[1].(map[string]any)["src"])
+	second, ok := acls[1].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, []any{"group:ops"}, second["src"])
 }
 
 func TestMergeTagsAndPortRules(t *testing.T) {
@@ -155,4 +159,15 @@ func TestMergeTagsAndPortRules(t *testing.T) {
 	assert.Equal(t, map[string]any{
 		"action": "accept", "proto": "tcp", "src": []any{"group:ops"}, "dst": []any{"tag:db:5432,6432"},
 	}, acls[1])
+}
+
+// field returns key of the decoded policy as T, failing the test if it is
+// something else.
+func field[T any](t *testing.T, got []byte, key string) T {
+	t.Helper()
+
+	v, ok := decode(t, got)[key].(T)
+	require.True(t, ok, "policy key %q", key)
+
+	return v
 }

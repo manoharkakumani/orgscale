@@ -175,7 +175,7 @@ WHERE user_id IS NULL
 						return nil
 					}
 
-					if tx.Name() != "sqlite" {
+					if tx.Name() != dialectSQLite {
 						return tx.AutoMigrate(&types.OAuthClient{}, &types.OAuthAccessToken{})
 					}
 

@@ -6,7 +6,6 @@ import (
 	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -43,6 +42,13 @@ const (
 type scimServer struct {
 	h *Orgscale
 }
+
+// Keys of SCIM response objects (RFC 7643).
+const (
+	scimKeySchemas   = "schemas"
+	scimKeyStatus    = "status"
+	scimKeySupported = "supported"
+)
 
 func (s *scimServer) routes(r chi.Router) {
 	r.Use(s.auth)
@@ -106,14 +112,18 @@ func (s *scimServer) auth(next http.Handler) http.Handler {
 func scimJSON(w http.ResponseWriter, code int, v any) {
 	w.Header().Set("Content-Type", scimContentType)
 	w.WriteHeader(code)
-	_ = json.NewEncoder(w).Encode(v)
+
+	err := json.NewEncoder(w).Encode(v)
+	if err != nil {
+		log.Debug().Err(err).Msg("scim: writing response")
+	}
 }
 
 func scimError(w http.ResponseWriter, code int, detail string) {
 	scimJSON(w, code, map[string]any{
-		"schemas": []string{scimErrorSchema},
-		"status":  strconv.Itoa(code),
-		"detail":  detail,
+		scimKeySchemas: []string{scimErrorSchema},
+		scimKeyStatus:  strconv.Itoa(code),
+		"detail":       detail,
 	})
 }
 
@@ -129,13 +139,13 @@ func (s *scimServer) base() string {
 
 func (s *scimServer) serviceProviderConfig(w http.ResponseWriter, _ *http.Request) {
 	scimJSON(w, http.StatusOK, map[string]any{
-		"schemas":        []string{"urn:ietf:params:scim:schemas:core:2.0:ServiceProviderConfig"},
-		"patch":          map[string]bool{"supported": true},
-		"bulk":           map[string]any{"supported": false, "maxOperations": 0, "maxPayloadSize": 0},
-		"filter":         map[string]any{"supported": true, "maxResults": 1000},
-		"changePassword": map[string]bool{"supported": false},
-		"sort":           map[string]bool{"supported": false},
-		"etag":           map[string]bool{"supported": false},
+		scimKeySchemas:   []string{"urn:ietf:params:scim:schemas:core:2.0:ServiceProviderConfig"},
+		"patch":          map[string]bool{scimKeySupported: true},
+		"bulk":           map[string]any{scimKeySupported: false, "maxOperations": 0, "maxPayloadSize": 0},
+		"filter":         map[string]any{scimKeySupported: true, "maxResults": 1000},
+		"changePassword": map[string]bool{scimKeySupported: false},
+		"sort":           map[string]bool{scimKeySupported: false},
+		"etag":           map[string]bool{scimKeySupported: false},
 		"authenticationSchemes": []map[string]any{{
 			"type": "oauthbearertoken", "name": "Bearer token", "primary": true,
 			"description": "Token created in the orgscale admin console",
@@ -145,18 +155,18 @@ func (s *scimServer) serviceProviderConfig(w http.ResponseWriter, _ *http.Reques
 
 func (s *scimServer) resourceTypes(w http.ResponseWriter, _ *http.Request) {
 	scimJSON(w, http.StatusOK, map[string]any{
-		"schemas":      []string{scimListSchema},
+		scimKeySchemas: []string{scimListSchema},
 		"totalResults": 2,
 		"Resources": []map[string]any{
-			{"schemas": []string{"urn:ietf:params:scim:schemas:core:2.0:ResourceType"}, "id": "User", "name": "User", "endpoint": "/Users", "schema": scimUserSchema},
-			{"schemas": []string{"urn:ietf:params:scim:schemas:core:2.0:ResourceType"}, "id": "Group", "name": "Group", "endpoint": "/Groups", "schema": scimGroupSchema},
+			{scimKeySchemas: []string{"urn:ietf:params:scim:schemas:core:2.0:ResourceType"}, "id": "User", "name": "User", "endpoint": "/Users", "schema": scimUserSchema},
+			{scimKeySchemas: []string{"urn:ietf:params:scim:schemas:core:2.0:ResourceType"}, "id": "Group", "name": "Group", "endpoint": "/Groups", "schema": scimGroupSchema},
 		},
 	})
 }
 
 func (s *scimServer) schemas(w http.ResponseWriter, _ *http.Request) {
 	scimJSON(w, http.StatusOK, map[string]any{
-		"schemas":      []string{scimListSchema},
+		scimKeySchemas: []string{scimListSchema},
 		"totalResults": 2,
 		"Resources": []map[string]any{
 			{"id": scimUserSchema, "name": "User"},
@@ -199,12 +209,12 @@ func (b *scimBool) UnmarshalJSON(data []byte) error {
 	case string:
 		parsed, err := strconv.ParseBool(strings.TrimSpace(t))
 		if err != nil {
-			return fmt.Errorf("invalid boolean %q", t)
+			return userErrorf("invalid boolean %q", t)
 		}
 
 		*b = scimBool(parsed)
 	default:
-		return fmt.Errorf("invalid boolean %s", data)
+		return userErrorf("invalid boolean %s", data)
 	}
 
 	return nil
@@ -241,12 +251,12 @@ func (s *scimServer) userResource(u *types.User, active bool) map[string]any {
 	email := cmp.Or(u.Email, u.Name)
 
 	res := map[string]any{
-		"schemas":     []string{scimUserSchema},
-		"id":          id,
-		"userName":    email,
-		"displayName": cmp.Or(u.DisplayName, u.Name),
-		"name":        map[string]string{"formatted": cmp.Or(u.DisplayName, u.Name)},
-		"active":      active,
+		scimKeySchemas: []string{scimUserSchema},
+		"id":           id,
+		"userName":     email,
+		"displayName":  cmp.Or(u.DisplayName, u.Name),
+		"name":         map[string]string{"formatted": cmp.Or(u.DisplayName, u.Name)},
+		"active":       active,
 		"meta": map[string]any{
 			"resourceType": "User",
 			"created":      u.CreatedAt.UTC().Format(time.RFC3339),
@@ -291,7 +301,7 @@ func parseSCIMFilter(f string) (string, string, error) {
 
 	m := scimFilterRE.FindStringSubmatch(f)
 	if m == nil {
-		return "", "", fmt.Errorf("unsupported filter %q", f)
+		return "", "", userErrorf("unsupported filter %q", f)
 	}
 
 	return strings.ToLower(m[1]), strings.ReplaceAll(m[2], `\"`, `"`), nil
@@ -299,8 +309,8 @@ func parseSCIMFilter(f string) (string, string, error) {
 
 func paging(r *http.Request) (int, int) {
 	start, _ := strconv.Atoi(r.URL.Query().Get("startIndex"))
-	count, err := strconv.Atoi(r.URL.Query().Get("count"))
 
+	count, err := strconv.Atoi(r.URL.Query().Get("count"))
 	if err != nil {
 		count = 100
 	}
@@ -315,7 +325,7 @@ func listResponse(resources []map[string]any, start, count int) map[string]any {
 	to := min(from+count, total)
 
 	return map[string]any{
-		"schemas":      []string{scimListSchema},
+		scimKeySchemas: []string{scimListSchema},
 		"totalResults": total,
 		"startIndex":   start,
 		"itemsPerPage": to - from,
@@ -418,9 +428,10 @@ func (s *scimServer) createUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if existing, err := s.h.userByEmail(email); err == nil && existing != nil {
+	existing, err := s.h.userByEmail(email)
+	if err == nil && existing != nil {
 		scimJSON(w, http.StatusConflict, map[string]any{
-			"schemas": []string{scimErrorSchema}, "status": "409", "scimType": "uniqueness",
+			scimKeySchemas: []string{scimErrorSchema}, scimKeyStatus: "409", "scimType": "uniqueness",
 			"detail": "a user with this email exists; look it up with a userName filter",
 		})
 
@@ -507,11 +518,13 @@ func (s *scimServer) finishUserUpdate(w http.ResponseWriter, u *types.User, in *
 }
 
 type scimPatch struct {
-	Operations []struct {
-		Op    string          `json:"op"`
-		Path  string          `json:"path"`
-		Value json.RawMessage `json:"value"`
-	} `json:"Operations"`
+	Operations []scimPatchOp `json:"Operations"`
+}
+
+type scimPatchOp struct {
+	Op    string          `json:"op"`
+	Path  string          `json:"path"`
+	Value json.RawMessage `json:"value"`
 }
 
 func (s *scimServer) patchUser(w http.ResponseWriter, r *http.Request) {
@@ -609,11 +622,11 @@ func (s *scimServer) groupResource(g *types.DirectoryGroup) map[string]any {
 	}
 
 	return map[string]any{
-		"schemas":     []string{scimGroupSchema},
-		"id":          id,
-		"externalId":  g.ExternalID,
-		"displayName": g.DisplayName,
-		"members":     members,
+		scimKeySchemas: []string{scimGroupSchema},
+		"id":           id,
+		"externalId":   g.ExternalID,
+		"displayName":  g.DisplayName,
+		"members":      members,
 		"meta": map[string]any{
 			"resourceType": "Group",
 			"created":      g.CreatedAt.UTC().Format(time.RFC3339),
@@ -801,7 +814,7 @@ func (s *scimServer) createGroup(w http.ResponseWriter, r *http.Request) {
 		for _, g := range groups {
 			if g.ExternalID == external || strings.EqualFold(g.DisplayName, in.DisplayName) {
 				scimJSON(w, http.StatusConflict, map[string]any{
-					"schemas": []string{scimErrorSchema}, "status": "409", "scimType": "uniqueness",
+					scimKeySchemas: []string{scimErrorSchema}, scimKeyStatus: "409", "scimType": "uniqueness",
 					"detail": "a group with this name exists",
 				})
 
@@ -878,99 +891,12 @@ func (s *scimServer) patchGroup(w http.ResponseWriter, r *http.Request) {
 
 	err := s.writeGroup(func(tx *gorm.DB, known map[types.UserID]bool) error {
 		for _, op := range p.Operations {
-			kind := strings.ToLower(op.Op)
-			path := strings.TrimSpace(op.Path)
-
-			var members []scimMember
-			if len(op.Value) > 0 {
-				_ = json.Unmarshal(op.Value, &members)
+			done, err := patchGroupOp(tx, g, known, op)
+			if err != nil {
+				return err
 			}
 
-			switch {
-			case strings.EqualFold(path, "members") && kind == "add":
-				err := hsdb.AddDirectoryGroupMembers(tx, g.ID, memberIDs(known, members))
-				if err != nil {
-					return err
-				}
-
-				summary = append(summary, "+"+plural(len(members), "member"))
-			case strings.EqualFold(path, "members") && kind == "replace":
-				err := hsdb.SetDirectoryGroupMembers(tx, g.ID, memberIDs(known, members))
-				if err != nil {
-					return err
-				}
-
-				summary = append(summary, "="+plural(len(members), "member"))
-			case strings.EqualFold(path, "members") && kind == "remove":
-				if len(members) == 0 {
-					err := hsdb.SetDirectoryGroupMembers(tx, g.ID, nil)
-					if err != nil {
-						return err
-					}
-
-					summary = append(summary, "removed all members")
-
-					continue
-				}
-
-				err := hsdb.RemoveDirectoryGroupMembers(tx, g.ID, memberIDs(known, members))
-				if err != nil {
-					return err
-				}
-
-				summary = append(summary, "-"+plural(len(members), "member"))
-			case kind == "remove" && scimMemberPathRE.MatchString(path):
-				m := scimMemberPathRE.FindStringSubmatch(path)
-
-				err := hsdb.RemoveDirectoryGroupMembers(tx, g.ID, memberIDs(known, []scimMember{{Value: m[1]}}))
-				if err != nil {
-					return err
-				}
-
-				summary = append(summary, "-1 member")
-			case strings.EqualFold(path, "displayName") && (kind == "replace" || kind == "add"):
-				var name string
-				if json.Unmarshal(op.Value, &name) != nil || strings.TrimSpace(name) == "" {
-					return errors.New("invalid displayName")
-				}
-
-				_, err := hsdb.UpsertDirectoryGroup(tx, types.DirectorySourceSCIM, g.ExternalID, name)
-				if err != nil {
-					return err
-				}
-
-				summary = append(summary, "renamed to "+name)
-			case path == "" && (kind == "replace" || kind == "add"):
-				var v scimGroup
-				if json.Unmarshal(op.Value, &v) != nil {
-					return errors.New("invalid patch value")
-				}
-
-				if v.DisplayName != "" {
-					_, err := hsdb.UpsertDirectoryGroup(tx, types.DirectorySourceSCIM, g.ExternalID, v.DisplayName)
-					if err != nil {
-						return err
-					}
-
-					summary = append(summary, "renamed to "+v.DisplayName)
-				}
-
-				if v.Members != nil {
-					add := hsdb.AddDirectoryGroupMembers
-					if kind == "replace" {
-						add = hsdb.SetDirectoryGroupMembers
-					}
-
-					err := add(tx, g.ID, memberIDs(known, v.Members))
-					if err != nil {
-						return err
-					}
-
-					summary = append(summary, kind+" "+plural(len(v.Members), "member"))
-				}
-			default:
-				log.Debug().Str("op", op.Op).Str("path", op.Path).Msg("scim: ignoring unsupported group patch")
-			}
+			summary = append(summary, done...)
 		}
 
 		return nil
@@ -985,6 +911,100 @@ func (s *scimServer) patchGroup(w http.ResponseWriter, r *http.Request) {
 
 	// Entra and Okta accept 204 or the resource; return the resource.
 	s.reloadGroup(w, http.StatusOK, g.ID)
+}
+
+// patchGroupOp applies one SCIM patch operation to group g and describes
+// what it did, for the audit log.
+func patchGroupOp(tx *gorm.DB, g *types.DirectoryGroup, known map[types.UserID]bool, op scimPatchOp) ([]string, error) {
+	kind := strings.ToLower(op.Op)
+	path := strings.TrimSpace(op.Path)
+
+	switch {
+	case strings.EqualFold(path, "members"):
+		var members []scimMember
+		if len(op.Value) > 0 {
+			_ = json.Unmarshal(op.Value, &members)
+		}
+
+		return patchGroupMembers(tx, g, known, kind, members)
+	case kind == "remove" && scimMemberPathRE.MatchString(path):
+		m := scimMemberPathRE.FindStringSubmatch(path)
+
+		err := hsdb.RemoveDirectoryGroupMembers(tx, g.ID, memberIDs(known, []scimMember{{Value: m[1]}}))
+
+		return []string{"-1 member"}, err
+	case strings.EqualFold(path, "displayName") && (kind == "replace" || kind == "add"):
+		var name string
+		if json.Unmarshal(op.Value, &name) != nil || strings.TrimSpace(name) == "" {
+			return nil, userError("invalid displayName")
+		}
+
+		_, err := hsdb.UpsertDirectoryGroup(tx, types.DirectorySourceSCIM, g.ExternalID, name)
+
+		return []string{"renamed to " + name}, err
+	case path == "" && (kind == "replace" || kind == "add"):
+		return patchGroupWhole(tx, g, known, kind, op.Value)
+	default:
+		log.Debug().Str("op", op.Op).Str("path", op.Path).Msg("scim: ignoring unsupported group patch")
+
+		return nil, nil
+	}
+}
+
+// patchGroupMembers handles add, replace and remove on the members path.
+func patchGroupMembers(tx *gorm.DB, g *types.DirectoryGroup, known map[types.UserID]bool, kind string, members []scimMember) ([]string, error) {
+	switch kind {
+	case "add":
+		return []string{"+" + plural(len(members), "member")}, hsdb.AddDirectoryGroupMembers(tx, g.ID, memberIDs(known, members))
+	case "replace":
+		return []string{"=" + plural(len(members), "member")}, hsdb.SetDirectoryGroupMembers(tx, g.ID, memberIDs(known, members))
+	case "remove":
+		if len(members) == 0 {
+			return []string{"removed all members"}, hsdb.SetDirectoryGroupMembers(tx, g.ID, nil)
+		}
+
+		return []string{"-" + plural(len(members), "member")}, hsdb.RemoveDirectoryGroupMembers(tx, g.ID, memberIDs(known, members))
+	}
+
+	log.Debug().Str("op", kind).Msg("scim: ignoring unsupported members patch")
+
+	return nil, nil
+}
+
+// patchGroupWhole handles a path-less add or replace carrying a group
+// object: a new name and/or members.
+func patchGroupWhole(tx *gorm.DB, g *types.DirectoryGroup, known map[types.UserID]bool, kind string, value json.RawMessage) ([]string, error) {
+	var v scimGroup
+	if json.Unmarshal(value, &v) != nil {
+		return nil, userError("invalid patch value")
+	}
+
+	var done []string
+
+	if v.DisplayName != "" {
+		_, err := hsdb.UpsertDirectoryGroup(tx, types.DirectorySourceSCIM, g.ExternalID, v.DisplayName)
+		if err != nil {
+			return nil, err
+		}
+
+		done = append(done, "renamed to "+v.DisplayName)
+	}
+
+	if v.Members != nil {
+		add := hsdb.AddDirectoryGroupMembers
+		if kind == "replace" {
+			add = hsdb.SetDirectoryGroupMembers
+		}
+
+		err := add(tx, g.ID, memberIDs(known, v.Members))
+		if err != nil {
+			return nil, err
+		}
+
+		done = append(done, kind+" "+plural(len(v.Members), "member"))
+	}
+
+	return done, nil
 }
 
 func (s *scimServer) deleteGroup(w http.ResponseWriter, r *http.Request) {

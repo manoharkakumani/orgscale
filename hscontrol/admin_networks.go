@@ -107,7 +107,8 @@ func (aa *adminAuth) handleListNetworks(w http.ResponseWriter, _ *http.Request) 
 	for _, r := range rows {
 		v := adminResource{ID: r.ID, Name: r.Name, Address: r.Address, Description: r.Description, CreatedAt: r.CreatedAt, CoveredBy: []string{}}
 
-		if p, err := netip.ParsePrefix(r.Address); err == nil {
+		p, err := netip.ParsePrefix(r.Address)
+		if err == nil {
 			for _, c := range covering {
 				if c.prefix.Bits() <= p.Bits() && c.prefix.Contains(p.Addr()) && !slices.Contains(v.CoveredBy, c.router) {
 					v.CoveredBy = append(v.CoveredBy, c.router)
@@ -129,23 +130,24 @@ func parseResourceAddress(s string) (netip.Prefix, error) {
 
 	var p netip.Prefix
 
-	if a, err := netip.ParseAddr(s); err == nil {
+	a, err := netip.ParseAddr(s)
+	if err == nil {
 		p = netip.PrefixFrom(a.Unmap(), a.Unmap().BitLen())
 	} else {
 		p, err = netip.ParsePrefix(s)
 		if err != nil {
-			return p, errors.New("enter an IP address such as 10.0.1.25, or a range such as 10.0.1.0/24")
+			return p, userError("enter an IP address such as 10.0.1.25, or a range such as 10.0.1.0/24")
 		}
 
 		p = p.Masked()
 	}
 
 	if p.Bits() == 0 {
-		return p, errors.New("a private resource cannot be the whole internet")
+		return p, userError("a private resource cannot be the whole internet")
 	}
 
 	if tsaddr.CGNATRange().Overlaps(p) || tsaddr.TailscaleULARange().Overlaps(p) {
-		return p, errors.New("that range belongs to devices on this network; give access to the devices instead")
+		return p, userError("that range belongs to devices on this network; give access to the devices instead")
 	}
 
 	return p, nil

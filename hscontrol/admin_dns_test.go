@@ -32,7 +32,7 @@ func TestCleanDNS(t *testing.T) {
 		"record without domain": {Records: []types.ConsoleDNSRecord{{Name: "grafana", Value: "100.64.0.1"}}},
 	} {
 		_, err := cleanDNS(in, "ts.example")
-		assert.Error(t, err, name)
+		require.Error(t, err, name)
 	}
 
 	off, err := cleanDNS(types.ConsoleDNS{OverrideLocalDNS: true}, "ts.example")

@@ -70,35 +70,91 @@ func usableToken(s string) bool {
 	})
 }
 
+// policyBuilder turns the console's data into the rules orgscale adds to
+// the administrator's policy.
+type policyBuilder struct {
+	m managed.Policy
+
+	tokens       map[types.UserID]string
+	groupMembers map[uint64][]string
+	nodeIPs      map[string][]string
+	resourceAddr map[string]string
+	tagByName    map[string]types.ServerTag
+}
+
 // managedPolicy builds what orgscale adds to the administrator's policy from
-// the settings, directory groups and device access grants in db.
+// the settings, directory groups, access rules and grants in db.
 func managedPolicy(db *hsdb.HSDatabase, users []types.User, nodes views.Slice[types.NodeView]) (managed.Policy, error) {
-	var m managed.Policy
+	b, err := newPolicyBuilder(db, users, nodes)
+	if err != nil {
+		return managed.Policy{}, err
+	}
+
+	rules, err := hsdb.Read(db.DB, hsdb.ListAccessRules)
+	if err != nil {
+		return b.m, err
+	}
+
+	requests, err := hsdb.Read(db.DB, func(rx *gorm.DB) ([]types.AccessRequest, error) {
+		return hsdb.ListGrantingAccessRequests(rx, time.Now())
+	})
+	if err != nil {
+		return b.m, err
+	}
+
+	// SSH rules and temporary access apply with or without device
+	// restriction; the rest only matters when devices are restricted
+	// (otherwise everyone reaches everything already).
+	b.addSSHRules(rules)
+	b.addTemporaryAccess(requests)
+
+	if !b.m.RestrictDevices {
+		return b.m, nil
+	}
+
+	grants, err := db.ListDeviceAccess()
+	if err != nil {
+		return b.m, err
+	}
+
+	tagGrants, err := hsdb.Read(db.DB, hsdb.ListServerTagAccess)
+	if err != nil {
+		return b.m, err
+	}
+
+	b.addDeviceGrants(nodes, grants)
+	b.addTagGrants(tagGrants)
+	b.addNetworkRules(rules)
+
+	return b.m, nil
+}
+
+// newPolicyBuilder loads what principals resolve against.
+func newPolicyBuilder(db *hsdb.HSDatabase, users []types.User, nodes views.Slice[types.NodeView]) (*policyBuilder, error) {
+	b := &policyBuilder{tokens: policyUserTokens(users)}
 
 	restrict, err := db.GetSetting(types.SettingDeviceAccessEnabled)
 	if err != nil && !errors.Is(err, hsdb.ErrSettingNotFound) {
-		return m, err
+		return nil, err
 	}
 
-	m.RestrictDevices = restrict == "true"
-
-	tokens := policyUserTokens(users)
+	b.m.RestrictDevices = restrict == "true"
 
 	groups, err := db.ListDirectoryGroups()
 	if err != nil {
-		return m, err
+		return nil, err
 	}
 
 	// Directory group names are unique (see [hsdb.UpsertDirectoryGroup]);
 	// a device grant to a group expands to that group's own members.
-	groupMembers := make(map[uint64][]string, len(groups))
-	m.Groups = make(map[string][]string, len(groups))
+	b.groupMembers = make(map[uint64][]string, len(groups))
+	b.m.Groups = make(map[string][]string, len(groups))
 
 	for _, g := range groups {
 		var members []string
 
 		for _, uid := range g.MemberIDs {
-			if t, ok := tokens[uid]; ok {
+			if t, ok := b.tokens[uid]; ok {
 				members = append(members, t)
 			}
 		}
@@ -106,153 +162,156 @@ func managedPolicy(db *hsdb.HSDatabase, users []types.User, nodes views.Slice[ty
 		slices.Sort(members)
 		members = slices.Compact(members)
 
-		groupMembers[g.ID] = members
-		m.Groups[g.Name] = members
+		b.groupMembers[g.ID] = members
+		b.m.Groups[g.Name] = members
 	}
 
 	serverTags, err := hsdb.Read(db.DB, hsdb.ListServerTags)
 	if err != nil {
-		return m, err
+		return nil, err
 	}
 
+	b.tagByName = make(map[string]types.ServerTag, len(serverTags))
 	for _, t := range serverTags {
-		m.Tags = append(m.Tags, t.Name)
+		b.m.Tags = append(b.m.Tags, t.Name)
+		b.tagByName[t.Name] = t
 	}
 
 	resources, err := hsdb.Read(db.DB, hsdb.ListNetworkResources)
 	if err != nil {
-		return m, err
+		return nil, err
 	}
 
-	resourceAddr := make(map[string]string, len(resources))
+	b.resourceAddr = make(map[string]string, len(resources))
 	for _, r := range resources {
-		resourceAddr[strconv.FormatUint(r.ID, 10)] = r.Address
+		b.resourceAddr[strconv.FormatUint(r.ID, 10)] = r.Address
 	}
 
-	nodeIPs := make(map[string][]string, nodes.Len())
+	b.nodeIPs = make(map[string][]string, nodes.Len())
 	for _, n := range nodes.All() {
-		nodeIPs[strconv.FormatUint(uint64(n.ID()), 10)] = n.IPsAsString()
+		b.nodeIPs[strconv.FormatUint(uint64(n.ID()), 10)] = n.IPsAsString()
 	}
 
-	// resolve turns a principal into policy aliases; one that no longer
-	// exists resolves to nothing.
-	resolve := func(kind, principal string) []string {
-		switch kind {
-		case types.PrincipalUser:
-			id, err := strconv.ParseUint(principal, 10, 64)
-			if err != nil {
-				return nil
-			}
+	return b, nil
+}
 
-			if t, ok := tokens[types.UserID(id)]; ok {
-				return []string{t}
-			}
-		case types.PrincipalDirectoryGroup:
-			id, err := strconv.ParseUint(principal, 10, 64)
-			if err != nil {
-				return nil
-			}
-
-			return groupMembers[id]
-		case types.PrincipalPolicyGroup:
-			return []string{"group:" + strings.TrimPrefix(principal, "group:")}
-		case types.PrincipalTag:
-			return []string{principal}
-		case types.PrincipalDevice:
-			return nodeIPs[principal]
-		case types.PrincipalEveryone:
-			return []string{"autogroup:member"}
-		case types.PrincipalSelf:
-			return []string{"autogroup:self"}
-		case types.PrincipalResource:
-			if a, ok := resourceAddr[principal]; ok {
-				return []string{a}
-			}
+// resolve turns a principal into policy aliases; one that no longer exists
+// resolves to nothing.
+func (b *policyBuilder) resolve(kind, principal string) []string {
+	switch kind {
+	case types.PrincipalUser:
+		id, err := strconv.ParseUint(principal, 10, 64)
+		if err != nil {
+			return nil
 		}
 
-		return nil
+		if t, ok := b.tokens[types.UserID(id)]; ok {
+			return []string{t}
+		}
+	case types.PrincipalDirectoryGroup:
+		id, err := strconv.ParseUint(principal, 10, 64)
+		if err != nil {
+			return nil
+		}
+
+		return b.groupMembers[id]
+	case types.PrincipalPolicyGroup:
+		return []string{"group:" + strings.TrimPrefix(principal, "group:")}
+	case types.PrincipalTag:
+		return []string{principal}
+	case types.PrincipalDevice:
+		return b.nodeIPs[principal]
+	case types.PrincipalEveryone:
+		return []string{"autogroup:member"}
+	case types.PrincipalSelf:
+		return []string{"autogroup:self"}
+	case types.PrincipalResource:
+		if a, ok := b.resourceAddr[principal]; ok {
+			return []string{a}
+		}
 	}
 
-	resolveAll := func(add func(yield func(kind, principal string))) []string {
-		var out []string
+	return nil
+}
 
-		add(func(kind, principal string) {
-			out = append(out, resolve(kind, principal)...)
-		})
+// resolveEach resolves every principal from each, sorted and without
+// duplicates.
+func (b *policyBuilder) resolveEach(each func(yield func(kind, principal string))) []string {
+	var out []string
 
-		slices.Sort(out)
+	each(func(kind, principal string) {
+		out = append(out, b.resolve(kind, principal)...)
+	})
 
-		return slices.Compact(out)
-	}
+	slices.Sort(out)
 
-	rules, err := hsdb.Read(db.DB, hsdb.ListAccessRules)
-	if err != nil {
-		return m, err
-	}
+	return slices.Compact(out)
+}
 
-	// SSH rules apply with or without device restriction.
+func (b *policyBuilder) resolveRuleSide(ps []types.RulePrincipal) []string {
+	return b.resolveEach(func(yield func(string, string)) {
+		for _, p := range ps {
+			yield(p.Kind, p.Principal)
+		}
+	})
+}
+
+// addSSHRules adds the enabled SSH rules, with port 22 opened for them when
+// devices are restricted.
+func (b *policyBuilder) addSSHRules(rules []types.AccessRule) {
 	for _, r := range rules {
 		if !r.Enabled || r.Kind != types.RuleKindSSH {
 			continue
 		}
 
 		var users []string
+
 		_ = json.Unmarshal([]byte(r.SSHUsers), &users)
 
-		side := func(ps []types.RulePrincipal) []string {
-			return resolveAll(func(yield func(string, string)) {
-				for _, p := range ps {
-					yield(p.Kind, p.Principal)
-				}
-			})
-		}
-
-		src, dst := side(r.Sources), side(r.Destinations)
-		m.SSH = append(m.SSH, managed.SSHRule{Comment: r.Name, Src: src, Dst: dst, Users: users, CheckPeriod: r.SSHCheckPeriod})
+		src, dst := b.resolveRuleSide(r.Sources), b.resolveRuleSide(r.Destinations)
+		b.m.SSH = append(b.m.SSH, managed.SSHRule{Comment: r.Name, Src: src, Dst: dst, Users: users, CheckPeriod: r.SSHCheckPeriod})
 
 		// SSH needs port 22 open between them when devices are restricted;
 		// a person's own devices are open to them already.
 		netDst := slices.DeleteFunc(slices.Clone(dst), func(d string) bool { return d == "autogroup:self" })
-		if m.RestrictDevices && len(netDst) > 0 {
-			m.Rules = append(m.Rules, managed.Rule{Comment: r.Name + " (SSH)", Src: src, Dst: netDst, Ports: "22", Proto: "tcp"})
+		if b.m.RestrictDevices && len(netDst) > 0 {
+			b.m.Rules = append(b.m.Rules, managed.Rule{Comment: r.Name + " (SSH)", Src: src, Dst: netDst, Ports: "22", Proto: "tcp"})
 		}
 	}
+}
 
-	// Approved access requests grant their tag until they lapse: SSH (when
-	// asked for and the tag allows it) always, network access when devices
-	// are restricted (otherwise everyone reaches everything already).
-	requests, err := hsdb.Read(db.DB, func(rx *gorm.DB) ([]types.AccessRequest, error) {
-		return hsdb.ListGrantingAccessRequests(rx, time.Now())
-	})
-	if err != nil {
-		return m, err
+// accessTarget is what a temporary access grant reaches, and the tag when it
+// names one (only tags can carry keyless SSH).
+func (b *policyBuilder) accessTarget(r types.AccessRequest) ([]string, *types.ServerTag) {
+	if node, ok := r.AccessNodeTarget(); ok {
+		return b.nodeIPs[node], nil
 	}
 
-	tagByName := make(map[string]types.ServerTag, len(serverTags))
-	for _, t := range serverTags {
-		tagByName[t.Name] = t
+	if res, ok := r.AccessResourceTarget(); ok {
+		return b.resolve(types.PrincipalResource, res), nil
 	}
 
+	if t, ok := b.tagByName[r.Tag]; ok {
+		return []string{t.Name}, &t
+	}
+
+	return nil, nil
+}
+
+// addTemporaryAccess adds approved temporary access until it lapses:
+// network access when devices are restricted, and keyless SSH when granted
+// on a tag that allows it.
+func (b *policyBuilder) addTemporaryAccess(requests []types.AccessRequest) {
 	for _, r := range requests {
-		var dst []string
-
-		t, tagOK := tagByName[r.Tag]
-		if node, ok := r.AccessNodeTarget(); ok {
-			dst = nodeIPs[node]
-		} else if res, ok := r.AccessResourceTarget(); ok {
-			dst = resolve(types.PrincipalResource, res)
-		} else if tagOK {
-			dst = []string{t.Name}
-		}
-
+		dst, tag := b.accessTarget(r)
 		if len(dst) == 0 {
 			continue
 		}
 
 		var who []string
 		if r.GrantKind != "" {
-			who = resolve(r.GrantKind, r.GrantPrincipal)
-		} else if tok, ok := tokens[types.UserID(r.UserID)]; ok {
+			who = b.resolve(r.GrantKind, r.GrantPrincipal)
+		} else if tok, ok := b.tokens[types.UserID(r.UserID)]; ok {
 			who = []string{tok}
 		}
 
@@ -262,33 +321,27 @@ func managedPolicy(db *hsdb.HSDatabase, users []types.User, nodes views.Slice[ty
 
 		comment := fmt.Sprintf("access request #%d (%s)", r.ID, r.Requester)
 
-		if m.RestrictDevices {
-			m.Rules = append(m.Rules, managed.Rule{Comment: comment, Src: who, Dst: dst})
+		if b.m.RestrictDevices {
+			b.m.Rules = append(b.m.Rules, managed.Rule{Comment: comment, Src: who, Dst: dst})
 		}
 
-		// Keyless SSH rules can only name tags, so a single-server grant
-		// is network access only.
-		if !tagOK {
+		if tag == nil || !r.SSH {
 			continue
 		}
 
 		var sshUsers []string
-		_ = json.Unmarshal([]byte(t.RequestSSHUsers), &sshUsers)
 
-		if r.SSH && len(sshUsers) > 0 {
-			m.SSH = append(m.SSH, managed.SSHRule{Comment: comment, Src: who, Dst: []string{t.Name}, Users: sshUsers})
+		_ = json.Unmarshal([]byte(tag.RequestSSHUsers), &sshUsers)
+
+		if len(sshUsers) > 0 {
+			b.m.SSH = append(b.m.SSH, managed.SSHRule{Comment: comment, Src: who, Dst: []string{tag.Name}, Users: sshUsers})
 		}
 	}
+}
 
-	if !m.RestrictDevices {
-		return m, nil
-	}
-
-	grants, err := db.ListDeviceAccess()
-	if err != nil {
-		return m, err
-	}
-
+// addDeviceGrants lets the people and groups a device was shared with reach
+// it.
+func (b *policyBuilder) addDeviceGrants(nodes views.Slice[types.NodeView], grants []types.DeviceAccess) {
 	byNode := make(map[types.NodeID][]types.DeviceAccess)
 	for _, g := range grants {
 		byNode[g.NodeID] = append(byNode[g.NodeID], g)
@@ -300,69 +353,58 @@ func managedPolicy(db *hsdb.HSDatabase, users []types.User, nodes views.Slice[ty
 			continue
 		}
 
-		src := resolveAll(func(yield func(string, string)) {
-			for _, g := range gs {
-				yield(g.PrincipalKind, g.Principal)
-			}
-		})
-
-		m.Rules = append(m.Rules, managed.Rule{
+		b.m.Rules = append(b.m.Rules, managed.Rule{
 			Comment: n.Hostname(),
-			Src:     src,
-			Dst:     n.IPsAsString(),
+			Src: b.resolveEach(func(yield func(string, string)) {
+				for _, g := range gs {
+					yield(g.PrincipalKind, g.Principal)
+				}
+			}),
+			Dst: n.IPsAsString(),
 		})
 	}
+}
 
-	tagGrants, err := hsdb.Read(db.DB, hsdb.ListServerTagAccess)
-	if err != nil {
-		return m, err
-	}
-
+// addTagGrants lets each tag's access list reach the tag's devices.
+func (b *policyBuilder) addTagGrants(tagGrants []types.ServerTagAccess) {
 	byTag := make(map[string][]types.ServerTagAccess)
 	for _, g := range tagGrants {
 		byTag[g.Tag] = append(byTag[g.Tag], g)
 	}
 
-	for _, t := range serverTags {
-		gs := byTag[t.Name]
+	for _, name := range b.m.Tags {
+		gs := byTag[name]
 		if len(gs) == 0 {
 			continue
 		}
 
-		m.Rules = append(m.Rules, managed.Rule{
-			Comment: t.Name,
-			Src: resolveAll(func(yield func(string, string)) {
+		b.m.Rules = append(b.m.Rules, managed.Rule{
+			Comment: name,
+			Src: b.resolveEach(func(yield func(string, string)) {
 				for _, g := range gs {
 					yield(g.PrincipalKind, g.Principal)
 				}
 			}),
-			Dst: []string{t.Name},
+			Dst: []string{name},
 		})
 	}
+}
 
+// addNetworkRules adds the enabled network rules from the rule editor.
+func (b *policyBuilder) addNetworkRules(rules []types.AccessRule) {
 	for _, r := range rules {
 		if !r.Enabled || r.Kind == types.RuleKindSSH {
 			continue
 		}
 
-		side := func(ps []types.RulePrincipal) []string {
-			return resolveAll(func(yield func(string, string)) {
-				for _, p := range ps {
-					yield(p.Kind, p.Principal)
-				}
-			})
-		}
-
-		m.Rules = append(m.Rules, managed.Rule{
+		b.m.Rules = append(b.m.Rules, managed.Rule{
 			Comment: r.Name,
-			Src:     side(r.Sources),
-			Dst:     side(r.Destinations),
+			Src:     b.resolveRuleSide(r.Sources),
+			Dst:     b.resolveRuleSide(r.Destinations),
 			Ports:   r.Ports,
 			Proto:   r.Protocol,
 		})
 	}
-
-	return m, nil
 }
 
 // withManagedPolicy returns pol with orgscale's managed rules merged in.

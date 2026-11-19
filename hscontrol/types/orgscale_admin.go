@@ -22,9 +22,9 @@ const (
 	// SettingViewerGroups is []string: IdP groups given the viewer role.
 	SettingViewerGroups = "viewer.groups"
 	// SettingSCIMTokenHash is string: SHA-256 hex of the SCIM bearer token.
-	SettingSCIMTokenHash = "scim.token_hash"
+	SettingSCIMTokenHash = "scim.token_hash" //nolint:gosec // G101: a settings key, not a credential
 	// SettingSCIMTokenCreatedAt is time.Time: when the SCIM token was made.
-	SettingSCIMTokenCreatedAt = "scim.token_created_at"
+	SettingSCIMTokenCreatedAt = "scim.token_created_at" //nolint:gosec // G101: a settings key, not a credential
 	// SettingGoogleSync is GoogleSyncSettings.
 	SettingGoogleSync = "google.sync"
 	// SettingGoogleSyncStatus is GoogleSyncStatus.
@@ -152,13 +152,13 @@ const (
 
 // AuditEvent is one entry of the audit log.
 type AuditEvent struct {
-	ID        uint64    `gorm:"column:id;primaryKey"       json:"id"`
-	CreatedAt time.Time `gorm:"column:created_at"          json:"createdAt"`
-	Actor     string    `gorm:"column:actor"               json:"actor"`
-	ActorKind string    `gorm:"column:actor_kind"          json:"actorKind"`
-	Action    string    `gorm:"column:action"              json:"action"`
-	Target    string    `gorm:"column:target"              json:"target"`
-	Detail    string    `gorm:"column:detail"              json:"detail"`
+	ID        uint64    `gorm:"column:id;primaryKey" json:"id"`
+	CreatedAt time.Time `gorm:"column:created_at"    json:"createdAt"`
+	Actor     string    `gorm:"column:actor"         json:"actor"`
+	ActorKind string    `gorm:"column:actor_kind"    json:"actorKind"`
+	Action    string    `gorm:"column:action"        json:"action"`
+	Target    string    `gorm:"column:target"        json:"target"`
+	Detail    string    `gorm:"column:detail"        json:"detail"`
 }
 
 // TableName pins the gorm table name.

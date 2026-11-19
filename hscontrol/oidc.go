@@ -255,7 +255,9 @@ func (a *AuthProviderOIDC) authHandler(
 	authURL := a.oauth2Config.AuthCodeURL(state, extras...)
 	log.Debug().Caller().Msgf("redirecting to %s for authentication", authURL)
 
-	http.Redirect(writer, req, authURL, http.StatusFound)
+	// authURL is the identity provider's authorization endpoint from the
+	// server's own OIDC configuration, not from the request.
+	http.Redirect(writer, req, authURL, http.StatusFound) //nolint:gosec // G710: configured provider URL
 }
 
 // OIDCCallbackHandler handles the callback from the OIDC endpoint

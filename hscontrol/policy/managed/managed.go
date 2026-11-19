@@ -102,66 +102,14 @@ func Merge(raw []byte, m Policy) ([]byte, error) {
 		}
 	}
 
-	groups := map[string]json.RawMessage{}
-
-	if g, ok := doc["groups"]; ok {
-		err := json.Unmarshal(g, &groups)
-		if err != nil {
-			return nil, fmt.Errorf("parsing policy groups: %w", err)
-		}
+	groups, err := mergeGroups(doc, m.Groups)
+	if err != nil {
+		return nil, err
 	}
 
-	if len(m.Groups) > 0 {
-
-		for _, name := range slices.Sorted(maps.Keys(m.Groups)) {
-			key := "group:" + name
-			if _, defined := groups[key]; defined {
-				continue
-			}
-
-			members := m.Groups[name]
-			if members == nil {
-				members = []string{}
-			}
-
-			b, err := json.Marshal(members)
-			if err != nil {
-				return nil, err
-			}
-
-			groups[key] = b
-		}
-
-		b, err := json.Marshal(groups)
-		if err != nil {
-			return nil, err
-		}
-
-		doc["groups"] = b
-	}
-
-	tagOwners := map[string]json.RawMessage{}
-
-	if t, ok := doc["tagOwners"]; ok {
-		err := json.Unmarshal(t, &tagOwners)
-		if err != nil {
-			return nil, fmt.Errorf("parsing policy tagOwners: %w", err)
-		}
-	}
-
-	if len(m.Tags) > 0 {
-		for _, tag := range m.Tags {
-			if _, defined := tagOwners[tag]; !defined {
-				tagOwners[tag] = json.RawMessage("[]")
-			}
-		}
-
-		b, err := json.Marshal(tagOwners)
-		if err != nil {
-			return nil, err
-		}
-
-		doc["tagOwners"] = b
+	tagOwners, err := mergeTagOwners(doc, m.Tags)
+	if err != nil {
+		return nil, err
 	}
 
 	// An alias naming a group or tag the policy does not define would fail
@@ -182,109 +130,191 @@ func Merge(raw []byte, m Policy) ([]byte, error) {
 	}
 
 	if m.RestrictDevices {
-		var acls []json.RawMessage
-
-		if a, ok := doc["acls"]; ok {
-			err := json.Unmarshal(a, &acls)
-			if err != nil {
-				return nil, fmt.Errorf("parsing policy acls: %w", err)
-			}
-		}
-
-		b, err := json.Marshal(baselineRule)
+		err = mergeACLs(doc, m.Rules, undefined)
 		if err != nil {
 			return nil, err
 		}
-
-		acls = append(acls, b)
-
-		for _, r := range m.Rules {
-			r.Src = slices.DeleteFunc(slices.Clone(r.Src), undefined)
-			r.Dst = slices.DeleteFunc(slices.Clone(r.Dst), undefined)
-
-			if len(r.Src) == 0 || len(r.Dst) == 0 {
-				continue
-			}
-
-			ports := cmp.Or(strings.ReplaceAll(r.Ports, " ", ""), "*")
-
-			dst := make([]string, 0, len(r.Dst))
-			for _, d := range r.Dst {
-				dst = append(dst, d+":"+ports)
-			}
-
-			acl := map[string]any{
-				"action": "accept",
-				"src":    r.Src,
-				"dst":    dst,
-			}
-			if r.Proto != "" {
-				acl["proto"] = r.Proto
-			}
-
-			b, err := json.Marshal(acl)
-			if err != nil {
-				return nil, err
-			}
-
-			acls = append(acls, b)
-		}
-
-		b, err = json.Marshal(acls)
-		if err != nil {
-			return nil, err
-		}
-
-		doc["acls"] = b
 	}
 
 	if len(m.SSH) > 0 {
-		var ssh []json.RawMessage
+		err = mergeSSH(doc, m.SSH, undefined)
+		if err != nil {
+			return nil, err
+		}
+	}
 
-		if a, ok := doc["ssh"]; ok {
-			err := json.Unmarshal(a, &ssh)
-			if err != nil {
-				return nil, fmt.Errorf("parsing policy ssh: %w", err)
-			}
+	return json.Marshal(doc)
+}
+
+// sectionOf decodes doc[key] into v when present.
+func sectionOf(doc map[string]json.RawMessage, key string, v any) error {
+	raw, ok := doc[key]
+	if !ok {
+		return nil
+	}
+
+	err := json.Unmarshal(raw, v)
+	if err != nil {
+		return fmt.Errorf("parsing policy %s: %w", key, err)
+	}
+
+	return nil
+}
+
+// setSection encodes v as doc[key].
+func setSection(doc map[string]json.RawMessage, key string, v any) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	doc[key] = b
+
+	return nil
+}
+
+// mergeGroups adds the managed groups the policy does not define itself and
+// returns every group.
+func mergeGroups(doc map[string]json.RawMessage, managed map[string][]string) (map[string]json.RawMessage, error) {
+	groups := map[string]json.RawMessage{}
+
+	err := sectionOf(doc, "groups", &groups)
+	if err != nil || len(managed) == 0 {
+		return groups, err
+	}
+
+	for _, name := range slices.Sorted(maps.Keys(managed)) {
+		key := "group:" + name
+		if _, defined := groups[key]; defined {
+			continue
 		}
 
-		for _, r := range m.SSH {
-			r.Src = slices.DeleteFunc(slices.Clone(r.Src), undefined)
-			r.Dst = slices.DeleteFunc(slices.Clone(r.Dst), undefined)
-
-			if len(r.Src) == 0 || len(r.Dst) == 0 || len(r.Users) == 0 {
-				continue
-			}
-
-			rule := map[string]any{
-				"action": "accept",
-				"src":    r.Src,
-				"dst":    r.Dst,
-				"users":  r.Users,
-			}
-
-			if r.CheckPeriod != "" {
-				rule["action"] = "check"
-				rule["checkPeriod"] = r.CheckPeriod
-			}
-
-			b, err := json.Marshal(rule)
-			if err != nil {
-				return nil, err
-			}
-
-			ssh = append(ssh, b)
+		members := managed[name]
+		if members == nil {
+			members = []string{}
 		}
 
-		b, err := json.Marshal(ssh)
+		b, err := json.Marshal(members)
 		if err != nil {
 			return nil, err
 		}
 
-		doc["ssh"] = b
+		groups[key] = b
 	}
 
-	return json.Marshal(doc)
+	return groups, setSection(doc, "groups", groups)
+}
+
+// mergeTagOwners defines the managed tags the policy does not (with no
+// owners: servers get them from install keys) and returns every tag owner.
+func mergeTagOwners(doc map[string]json.RawMessage, tags []string) (map[string]json.RawMessage, error) {
+	tagOwners := map[string]json.RawMessage{}
+
+	err := sectionOf(doc, "tagOwners", &tagOwners)
+	if err != nil || len(tags) == 0 {
+		return tagOwners, err
+	}
+
+	for _, tag := range tags {
+		if _, defined := tagOwners[tag]; !defined {
+			tagOwners[tag] = json.RawMessage("[]")
+		}
+	}
+
+	return tagOwners, setSection(doc, "tagOwners", tagOwners)
+}
+
+// mergeACLs appends the baseline rule and the managed rules to the policy's
+// ACLs, dropping aliases the policy does not define.
+func mergeACLs(doc map[string]json.RawMessage, rules []Rule, undefined func(string) bool) error {
+	var acls []json.RawMessage
+
+	err := sectionOf(doc, "acls", &acls)
+	if err != nil {
+		return err
+	}
+
+	b, err := json.Marshal(baselineRule)
+	if err != nil {
+		return err
+	}
+
+	acls = append(acls, b)
+
+	for _, r := range rules {
+		r.Src = slices.DeleteFunc(slices.Clone(r.Src), undefined)
+		r.Dst = slices.DeleteFunc(slices.Clone(r.Dst), undefined)
+
+		if len(r.Src) == 0 || len(r.Dst) == 0 {
+			continue
+		}
+
+		ports := cmp.Or(strings.ReplaceAll(r.Ports, " ", ""), "*")
+
+		dst := make([]string, 0, len(r.Dst))
+		for _, d := range r.Dst {
+			dst = append(dst, d+":"+ports)
+		}
+
+		acl := map[string]any{
+			"action": "accept",
+			"src":    r.Src,
+			"dst":    dst,
+		}
+		if r.Proto != "" {
+			acl["proto"] = r.Proto
+		}
+
+		b, err := json.Marshal(acl)
+		if err != nil {
+			return err
+		}
+
+		acls = append(acls, b)
+	}
+
+	return setSection(doc, "acls", acls)
+}
+
+// mergeSSH appends the managed SSH rules to the policy's, dropping aliases
+// the policy does not define.
+func mergeSSH(doc map[string]json.RawMessage, rules []SSHRule, undefined func(string) bool) error {
+	var ssh []json.RawMessage
+
+	err := sectionOf(doc, "ssh", &ssh)
+	if err != nil {
+		return err
+	}
+
+	for _, r := range rules {
+		r.Src = slices.DeleteFunc(slices.Clone(r.Src), undefined)
+		r.Dst = slices.DeleteFunc(slices.Clone(r.Dst), undefined)
+
+		if len(r.Src) == 0 || len(r.Dst) == 0 || len(r.Users) == 0 {
+			continue
+		}
+
+		rule := map[string]any{
+			"action": "accept",
+			"src":    r.Src,
+			"dst":    r.Dst,
+			"users":  r.Users,
+		}
+
+		if r.CheckPeriod != "" {
+			rule["action"] = "check"
+			rule["checkPeriod"] = r.CheckPeriod
+		}
+
+		b, err := json.Marshal(rule)
+		if err != nil {
+			return err
+		}
+
+		ssh = append(ssh, b)
+	}
+
+	return setSection(doc, "ssh", ssh)
 }
 
 // AllowsEverything reports whether raw lets everyone reach everything: no

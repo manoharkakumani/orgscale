@@ -64,15 +64,15 @@ func (h *Orgscale) directoryUsername(email string) (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("no free username for %q", email)
+	return "", userErrorf("no free username for %q", email)
 }
 
 // userByEmail returns the one user with email (case-insensitive), nil when
-// there is none, and an error when several share it.
+// there is none, and an error when several share it or email is empty.
 func (h *Orgscale) userByEmail(email string) (*types.User, error) {
 	email = strings.TrimSpace(email)
 	if email == "" {
-		return nil, nil
+		return nil, errInvalidDirectoryEmail
 	}
 
 	users, err := h.state.ListAllUsers()
@@ -88,7 +88,7 @@ func (h *Orgscale) userByEmail(email string) (*types.User, error) {
 		}
 
 		if found != nil {
-			return nil, fmt.Errorf("several users have the email %q", email)
+			return nil, userErrorf("several users have the email %q", email)
 		}
 
 		found = &users[i]
@@ -148,7 +148,9 @@ func (h *Orgscale) provisionUser(email, displayName, picture, provider string) (
 // deactivates them: their devices, personal keys, grants and the user go.
 func (h *Orgscale) offboardUser(uid types.UserID, actor, actorKind, reason string) error {
 	label := strconv.FormatUint(uint64(uid), 10)
-	if u, err := h.state.GetUserByID(uid); err == nil {
+
+	u, err := h.state.GetUserByID(uid)
+	if err == nil {
 		label = u.Email
 		if label == "" {
 			label = u.Name

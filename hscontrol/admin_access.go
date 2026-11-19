@@ -263,27 +263,29 @@ func (aa *adminAuth) parsePrincipals(in []adminPrincipal, allowed ...string) ([]
 
 	for _, p := range in {
 		if !slices.Contains(allowed, p.Kind) {
-			return nil, fmt.Errorf("%q cannot be used here", p.Kind)
+			return nil, userErrorf("%q cannot be used here", p.Kind)
 		}
 
 		switch p.Kind {
 		case types.PrincipalUser:
 			uid, err := strconv.ParseUint(p.Principal, 10, 64)
 			if err != nil {
-				return nil, fmt.Errorf("invalid user id %q", p.Principal)
+				return nil, userErrorf("invalid user id %q", p.Principal)
 			}
 
-			if _, err := st.GetUserByID(types.UserID(uid)); err != nil {
-				return nil, fmt.Errorf("no user %s", p.Principal)
+			_, err = st.GetUserByID(types.UserID(uid))
+			if err != nil {
+				return nil, userErrorf("no user %s", p.Principal)
 			}
 		case types.PrincipalDirectoryGroup:
-			if _, err := strconv.ParseUint(p.Principal, 10, 64); err != nil {
-				return nil, fmt.Errorf("invalid group id %q", p.Principal)
+			_, err := strconv.ParseUint(p.Principal, 10, 64)
+			if err != nil {
+				return nil, userErrorf("invalid group id %q", p.Principal)
 			}
 		case types.PrincipalPolicyGroup:
 			p.Principal = strings.TrimSpace(strings.TrimPrefix(p.Principal, "group:"))
 			if p.Principal == "" {
-				return nil, errors.New("empty group name")
+				return nil, userError("empty group name")
 			}
 		case types.PrincipalTag:
 			if tags == nil {
@@ -291,21 +293,21 @@ func (aa *adminAuth) parsePrincipals(in []adminPrincipal, allowed ...string) ([]
 			}
 
 			if !tags[p.Principal] {
-				return nil, fmt.Errorf("unknown tag %q", p.Principal)
+				return nil, userErrorf("unknown tag %q", p.Principal)
 			}
 		case types.PrincipalDevice:
 			id, err := strconv.ParseUint(p.Principal, 10, 64)
 			if err != nil {
-				return nil, fmt.Errorf("invalid device id %q", p.Principal)
+				return nil, userErrorf("invalid device id %q", p.Principal)
 			}
 
 			if _, ok := st.GetNodeByID(types.NodeID(id)); !ok {
-				return nil, fmt.Errorf("no device %s", p.Principal)
+				return nil, userErrorf("no device %s", p.Principal)
 			}
 		case types.PrincipalResource:
 			id, err := strconv.ParseUint(p.Principal, 10, 64)
 			if err != nil {
-				return nil, fmt.Errorf("invalid resource id %q", p.Principal)
+				return nil, userErrorf("invalid resource id %q", p.Principal)
 			}
 
 			resources, err := st.ListNetworkResources()
@@ -314,12 +316,12 @@ func (aa *adminAuth) parsePrincipals(in []adminPrincipal, allowed ...string) ([]
 			}
 
 			if !slices.ContainsFunc(resources, func(r types.NetworkResource) bool { return r.ID == id }) {
-				return nil, fmt.Errorf("no private resource %s", p.Principal)
+				return nil, userErrorf("no private resource %s", p.Principal)
 			}
 		case types.PrincipalEveryone, types.PrincipalSelf:
 			p.Principal = ""
 		default:
-			return nil, fmt.Errorf("unknown kind %q", p.Kind)
+			return nil, userErrorf("unknown kind %q", p.Kind)
 		}
 
 		out = append(out, adminPrincipal{Kind: p.Kind, Principal: p.Principal})
@@ -482,7 +484,9 @@ func (aa *adminAuth) handleListTags(w http.ResponseWriter, r *http.Request) {
 
 func tagFromURL(r *http.Request) (string, bool) {
 	name := chi.URLParam(r, "name")
-	if u, err := url.PathUnescape(name); err == nil {
+
+	u, err := url.PathUnescape(name)
+	if err == nil {
 		name = u
 	}
 
@@ -535,8 +539,7 @@ func (aa *adminAuth) handlePutTag(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		b, _ := json.Marshal(users)
-		tempSSH = string(b)
+		tempSSH = mustJSON(users)
 	}
 
 	// The tag being saved is a valid grantee too (servers reaching each
@@ -774,7 +777,7 @@ func normalizePorts(s string) (string, error) {
 	}
 
 	if !portsRE.MatchString(s) {
-		return "", errors.New("ports are a list like 22, 443, 8000-8100")
+		return "", userError("ports are a list like 22, 443, 8000-8100")
 	}
 
 	for part := range strings.SplitSeq(s, ",") {
@@ -787,7 +790,7 @@ func normalizePorts(s string) (string, error) {
 		}
 
 		if a < 1 || b > 65535 || a > b {
-			return "", fmt.Errorf("invalid port range %q", part)
+			return "", userErrorf("invalid port range %q", part)
 		}
 	}
 
@@ -807,7 +810,7 @@ func validSSHUsers(in []string) ([]string, error) {
 	for _, u := range in {
 		u = strings.TrimSpace(u)
 		if u != "autogroup:nonroot" && !sshUserRE.MatchString(u) {
-			return nil, fmt.Errorf("%q is not a Linux account name", u)
+			return nil, userErrorf("%q is not a Linux account name", u)
 		}
 
 		if !slices.Contains(out, u) {
@@ -816,7 +819,7 @@ func validSSHUsers(in []string) ([]string, error) {
 	}
 
 	if len(out) == 0 {
-		return nil, errors.New("choose at least one account people may log in as")
+		return nil, userError("choose at least one account people may log in as")
 	}
 
 	return out, nil
@@ -907,8 +910,7 @@ func (aa *adminAuth) handleSaveRule(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		b, _ := json.Marshal(users)
-		sshUsers = string(b)
+		sshUsers = mustJSON(users)
 
 		if req.SSHCheckPeriod != "" {
 			d, err := time.ParseDuration(req.SSHCheckPeriod)
@@ -994,7 +996,7 @@ func (aa *adminAuth) describeRule(src, dst []adminPrincipal, proto, ports string
 	}
 
 	names := func(ps []adminPrincipal) string {
-		var out []string
+		out := make([]string, 0, len(ps))
 		for _, p := range ps {
 			out = append(out, label(p.Kind, p.Principal))
 		}

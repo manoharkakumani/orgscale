@@ -81,7 +81,8 @@ func (aa *adminAuth) handleGetDNS(w http.ResponseWriter, _ *http.Request) {
 
 // validNameserverAddr accepts an IP address or an https DNS-over-HTTPS URL.
 func validNameserverAddr(ns string) bool {
-	if _, err := netip.ParseAddr(ns); err == nil {
+	_, err := netip.ParseAddr(ns)
+	if err == nil {
 		return true
 	}
 
@@ -101,7 +102,7 @@ func cleanDNS(in types.ConsoleDNS, baseDomain string) (types.ConsoleDNS, error) 
 	out := types.ConsoleDNS{MagicDNS: in.MagicDNS, OverrideLocalDNS: in.OverrideLocalDNS, SplitDNS: map[string][]string{}}
 
 	if out.MagicDNS && baseDomain == "" {
-		return out, fmt.Errorf("MagicDNS needs dns.base_domain in the config file")
+		return out, userError("MagicDNS needs dns.base_domain in the config file")
 	}
 
 	servers := func(list []string, where string) ([]string, error) {
@@ -114,7 +115,7 @@ func cleanDNS(in types.ConsoleDNS, baseDomain string) (types.ConsoleDNS, error) 
 			}
 
 			if !validNameserverAddr(ns) {
-				return nil, fmt.Errorf("%s: %q is not an IP address or https:// DNS-over-HTTPS address", where, ns)
+				return nil, userErrorf("%s: %q is not an IP address or https:// DNS-over-HTTPS address", where, ns)
 			}
 
 			if !slices.Contains(res, ns) {
@@ -138,11 +139,11 @@ func cleanDNS(in types.ConsoleDNS, baseDomain string) (types.ConsoleDNS, error) 
 	for domain, list := range in.SplitDNS {
 		domain = strings.ToLower(strings.Trim(strings.TrimSpace(domain), "."))
 		if !validDNSDomain(domain) {
-			return out, fmt.Errorf("%q is not a domain", domain)
+			return out, userErrorf("%q is not a domain", domain)
 		}
 
 		if baseDomain != "" && (domain == baseDomain || strings.HasSuffix(baseDomain, "."+domain)) && out.MagicDNS {
-			return out, fmt.Errorf("%s holds the MagicDNS domain %s; send a subdomain instead", domain, baseDomain)
+			return out, userErrorf("%s holds the MagicDNS domain %s; send a subdomain instead", domain, baseDomain)
 		}
 
 		ns, err := servers(list, domain)
@@ -151,7 +152,7 @@ func cleanDNS(in types.ConsoleDNS, baseDomain string) (types.ConsoleDNS, error) 
 		}
 
 		if len(ns) == 0 {
-			return out, fmt.Errorf("add a DNS server for %s", domain)
+			return out, userErrorf("add a DNS server for %s", domain)
 		}
 
 		out.SplitDNS[domain] = ns
@@ -164,7 +165,7 @@ func cleanDNS(in types.ConsoleDNS, baseDomain string) (types.ConsoleDNS, error) 
 		}
 
 		if !validDNSDomain(d) {
-			return out, fmt.Errorf("%q is not a domain", d)
+			return out, userErrorf("%q is not a domain", d)
 		}
 
 		if !slices.Contains(out.SearchDomains, d) {
@@ -175,12 +176,12 @@ func cleanDNS(in types.ConsoleDNS, baseDomain string) (types.ConsoleDNS, error) 
 	for _, r := range in.Records {
 		name := strings.ToLower(strings.Trim(strings.TrimSpace(r.Name), "."))
 		if !validDNSDomain(name) || !strings.Contains(name, ".") {
-			return out, fmt.Errorf("%q is not a full name, e.g. grafana.%s", r.Name, cmp.Or(baseDomain, "example.com"))
+			return out, userErrorf("%q is not a full name, e.g. grafana.%s", r.Name, cmp.Or(baseDomain, "example.com"))
 		}
 
 		ip, err := netip.ParseAddr(strings.TrimSpace(r.Value))
 		if err != nil {
-			return out, fmt.Errorf("%s: %q is not an IP address", name, r.Value)
+			return out, userErrorf("%s: %q is not an IP address", name, r.Value)
 		}
 
 		typ := "A"
@@ -192,7 +193,7 @@ func cleanDNS(in types.ConsoleDNS, baseDomain string) (types.ConsoleDNS, error) 
 	}
 
 	if len(out.Records) > 1000 {
-		return out, fmt.Errorf("at most 1000 records")
+		return out, userError("at most 1000 records")
 	}
 
 	return out, nil

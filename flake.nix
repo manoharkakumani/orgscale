@@ -226,6 +226,7 @@
               ];
               goSkip = [ "TestPostgres" ];
               testEnv = "export CGO_ENABLED=0";
+              testFlags = [ "-timeout=30m" ];
             }
           );
 
@@ -237,7 +238,12 @@
               name = "orgscale-gorace";
               goRace = true;
               testEnv = "export CGO_ENABLED=1";
-              testFlags = [ "-p=2" ];
+              # -race slows tests several times over; hscontrol alone takes
+              # minutes without it, so the default 10m is not enough.
+              testFlags = [
+                "-p=2"
+                "-timeout=45m"
+              ];
               goSkip = [ "TestPostgres" ];
               testPackages = "./hscontrol/...";
               testExclude = [ "/hscontrol/servertest" ];

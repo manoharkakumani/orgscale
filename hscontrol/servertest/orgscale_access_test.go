@@ -23,7 +23,7 @@ func nodeIDOf(t *testing.T, c *servertest.TestClient) types.NodeID {
 	nm := c.Netmap()
 	require.NotNil(t, nm)
 
-	return types.NodeID(nm.SelfNode.ID())
+	return types.NodeID(nm.SelfNode.ID()) //nolint:gosec // G115: node IDs are positive
 }
 
 // waitPeers waits until c sees exactly the peers named want.
@@ -450,6 +450,7 @@ func TestOrgscaleConsoleDNS(t *testing.T) {
 
 	c.WaitForCondition(t, "console DNS", 15*time.Second, func(nm *netmap.NetworkMap) bool {
 		d := nm.DNS
+
 		return len(d.Resolvers) == 1 && d.Resolvers[0].Addr == "10.0.0.53" &&
 			len(d.Routes["corp.example.com"]) == 1 &&
 			slices.Contains(d.Domains, "corp.example.com") &&
@@ -497,7 +498,7 @@ func TestOrgscaleTempAccessOneServer(t *testing.T) {
 	until := now.Add(time.Hour)
 
 	id, err := st.CreateAccessRequest(types.AccessRequest{
-		UserID: uint(alice.ID), Requester: "alice", Tag: types.AccessNodePrefix + strconv.FormatUint(uint64(nodeIDOf(t, db1)), 10),
+		UserID: alice.ID, Requester: "alice", Tag: types.AccessNodePrefix + strconv.FormatUint(uint64(nodeIDOf(t, db1)), 10),
 		Minutes: 60, Status: types.AccessRequestPending, CreatedAt: now,
 		GrantKind: types.PrincipalUser, GrantPrincipal: strconv.FormatUint(uint64(alice.ID), 10),
 	})
@@ -586,7 +587,9 @@ func TestOrgscalePrivateResource(t *testing.T) {
 	})
 
 	// The router lets her in to the database's address only.
-	routerAllows := func(nm *netmap.NetworkMap) (dbAllowed, otherAllowed bool) {
+	routerAllows := func(nm *netmap.NetworkMap) (bool, bool) {
+		var dbAllowed, otherAllowed bool
+
 		for _, m := range nm.PacketFilter {
 			for _, d := range m.Dsts {
 				if d.Net.String() == db && d.Ports.First <= 5432 && 5432 <= d.Ports.Last {

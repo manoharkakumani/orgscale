@@ -202,7 +202,9 @@ func NewOrgscale(cfg *types.Config) (*Orgscale, error) {
 
 	// DNS settings made in the admin console override the file's.
 	var consoleDNS types.ConsoleDNS
-	if ok, err := s.GetSettingJSON(types.SettingDNS, &consoleDNS); err == nil && ok {
+
+	ok, err := s.GetSettingJSON(types.SettingDNS, &consoleDNS)
+	if err == nil && ok {
 		cfg.ApplyConsoleDNS(&consoleDNS)
 	}
 
@@ -274,61 +276,9 @@ func NewOrgscale(cfg *types.Config) (*Orgscale, error) {
 	})
 	app.ephemeralGC = ephemeralGC
 
-	authSw := &authSwitch{web: NewAuthProviderWeb(cfg.ServerURL)}
-
-	// Single sign-on comes from the configuration file, or else from the
-	// admin console's setup.
-	oidcCfg := &cfg.OIDC
-
-	var stored types.StoredOIDC
-	if cfg.OIDC.Issuer == "" {
-		ok, err := app.state.GetSettingJSON(types.SettingSSOOIDC, &stored)
-		if err != nil {
-			log.Warn().Err(err).Msg("reading single sign-on settings from the database")
-		}
-
-		if ok && stored.Issuer != "" {
-			oidcCfg, oidcClientSecret = storedOIDCConfig(cfg.OIDC, stored), stored.ClientSecret
-		}
-	}
-
-	if oidcCfg.Issuer != "" {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-
-		oidcProvider, err := NewAuthProviderOIDC(
-			ctx,
-			&app,
-			cfg.ServerURL,
-			oidcCfg,
-			oidcClientSecret,
-		)
-		if err != nil {
-			if cfg.OIDC.OnlyStartIfOIDCIsAvailable {
-				return nil, err
-			} else {
-				log.Warn().Err(err).Msg("failed to set up OIDC provider, falling back to CLI based authentication")
-			}
-		} else {
-			authSw.oidc.Store(oidcProvider)
-		}
-	}
-
-	app.authProvider = authSw
-
-	app.googleSync = newGoogleSyncer(&app)
-	app.entraSync = newEntraSyncer(&app)
-	app.scimFailures = newIPLimiter(20, time.Minute)
-
-	if cfg.Admin.Enabled {
-		if consoleTransportOK(cfg) {
-			app.admin = newAdminAuth(&app)
-		} else {
-			app.adminInsecure = true
-
-			log.Error().Str("server_url", cfg.ServerURL).Msg(
-				"the admin console is off: it needs an https:// server_url. For a lab only, set admin.allow_insecure_http")
-		}
+	err = app.setUpIdentity(oidcClientSecret)
+	if err != nil {
+		return nil, err
 	}
 
 	if cfg.DERP.Server.Enabled {
@@ -362,6 +312,72 @@ func NewOrgscale(cfg *types.Config) (*Orgscale, error) {
 	}
 
 	return &app, nil
+}
+
+// setUpIdentity wires up what orgscale adds around sign-in: single sign-on
+// from the configuration file or else from the admin console's setup, the
+// directory syncs, and the admin console itself.
+func (h *Orgscale) setUpIdentity(oidcClientSecret string) error {
+	cfg := h.cfg
+
+	authSw := &authSwitch{web: NewAuthProviderWeb(cfg.ServerURL)}
+
+	// Single sign-on comes from the configuration file, or else from the
+	// admin console's setup.
+	oidcCfg := &cfg.OIDC
+
+	var stored types.StoredOIDC
+	if cfg.OIDC.Issuer == "" {
+		ok, err := h.state.GetSettingJSON(types.SettingSSOOIDC, &stored)
+		if err != nil {
+			log.Warn().Err(err).Msg("reading single sign-on settings from the database")
+		}
+
+		if ok && stored.Issuer != "" {
+			oidcCfg, oidcClientSecret = storedOIDCConfig(cfg.OIDC, stored), stored.ClientSecret
+		}
+	}
+
+	if oidcCfg.Issuer != "" {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		oidcProvider, err := NewAuthProviderOIDC(
+			ctx,
+			h,
+			cfg.ServerURL,
+			oidcCfg,
+			oidcClientSecret,
+		)
+		if err != nil {
+			if cfg.OIDC.OnlyStartIfOIDCIsAvailable {
+				return err
+			} else {
+				log.Warn().Err(err).Msg("failed to set up OIDC provider, falling back to CLI based authentication")
+			}
+		} else {
+			authSw.oidc.Store(oidcProvider)
+		}
+	}
+
+	h.authProvider = authSw
+
+	h.googleSync = newGoogleSyncer(h)
+	h.entraSync = newEntraSyncer(h)
+	h.scimFailures = newIPLimiter(20, time.Minute)
+
+	if cfg.Admin.Enabled {
+		if consoleTransportOK(cfg) {
+			h.admin = newAdminAuth(h)
+		} else {
+			h.adminInsecure = true
+
+			log.Error().Str("server_url", cfg.ServerURL).Msg(
+				"the admin console is off: it needs an https:// server_url. For a lab only, set admin.allow_insecure_http")
+		}
+	}
+
+	return nil
 }
 
 // Redirect to our TLS url.

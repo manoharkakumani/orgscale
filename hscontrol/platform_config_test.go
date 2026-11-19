@@ -1,6 +1,7 @@
 package hscontrol
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -123,10 +124,14 @@ func TestConnectDownloads(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	get := func(path string) string {
-		//nolint:noctx // test fixture
-		resp, err := http.Get(srv.URL + path)
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, srv.URL+path, nil) //nolint:gosec // G704: the test's own server
 		require.NoError(t, err)
+
+		resp, err := srv.Client().Do(req) //nolint:gosec // G704: the test's own server
+		require.NoError(t, err)
+
 		defer resp.Body.Close()
+
 		require.Equal(t, http.StatusOK, resp.StatusCode, path)
 		b, _ := io.ReadAll(resp.Body)
 

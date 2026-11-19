@@ -304,7 +304,7 @@ func TestAdminConsoleOffboardsUser(t *testing.T) {
 func scimToken(t *testing.T, app *Orgscale) string {
 	t.Helper()
 
-	token := "oskey-scim-test"
+	token := "oskey-scim-test" //nolint:gosec // G101: a made-up token
 	sum := sha256.Sum256([]byte(token))
 	require.NoError(t, app.state.SetSettingJSON(types.SettingSCIMTokenHash, hex.EncodeToString(sum[:]), "test"))
 
@@ -360,7 +360,8 @@ func TestSCIMProvisioning(t *testing.T) {
 	}`)
 	require.Equal(t, http.StatusCreated, code)
 
-	aliceID := alice["id"].(string)
+	aliceID, ok := alice["id"].(string)
+	require.True(t, ok)
 	assert.Equal(t, "alice+vpn@example.com", alice["userName"])
 
 	// Lookup by filter, as clients do before creating.
@@ -371,14 +372,16 @@ func TestSCIMProvisioning(t *testing.T) {
 	code, bob := scimDo(t, url, token, http.MethodPost, "/Users", `{"userName": "bob@example.com", "displayName": "Bob"}`)
 	require.Equal(t, http.StatusCreated, code)
 
-	bobID := bob["id"].(string)
+	bobID, ok := bob["id"].(string)
+	require.True(t, ok)
 
 	// A group with both, then Entra-style membership patches.
 	code, group := scimDo(t, url, token, http.MethodPost, "/Groups",
 		`{"displayName": "VPN Users", "externalId": "g-1", "members": [{"value": "`+aliceID+`"}]}`)
 	require.Equal(t, http.StatusCreated, code)
 
-	groupID := group["id"].(string)
+	groupID, ok := group["id"].(string)
+	require.True(t, ok)
 
 	code, _ = scimDo(t, url, token, http.MethodPatch, "/Groups/"+groupID, `{
 		"schemas": ["urn:ietf:params:scim:api:messages:2.0:PatchOp"],
@@ -672,7 +675,7 @@ func TestAdminConsoleTagsRulesAndBulk(t *testing.T) {
 	var audit []types.AuditEvent
 	require.Equal(t, http.StatusOK, boss.do(t, http.MethodGet, "/admin/api/audit", nil, &audit))
 
-	var actions []string
+	actions := make([]string, 0, len(audit))
 	for _, e := range audit {
 		actions = append(actions, e.Action)
 	}
@@ -697,7 +700,10 @@ func TestAdminConsoleGroups(t *testing.T) {
 	}, &created))
 	assert.Equal(t, "web-team", created["name"])
 
-	id := strconv.FormatUint(uint64(created["id"].(float64)), 10)
+	createdID, ok := created["id"].(float64)
+	require.True(t, ok)
+
+	id := strconv.FormatUint(uint64(createdID), 10)
 
 	var groups []adminGroup
 	require.Equal(t, http.StatusOK, boss.do(t, http.MethodGet, "/admin/api/groups", nil, &groups))
@@ -732,13 +738,20 @@ func TestAdminConsoleDoubleSlashAndNonAdmins(t *testing.T) {
 	// server URL with a trailing slash.
 	c := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 
-	res, err := c.Get(h.srv.URL + "//admin")
+	get := func(path string) (*http.Response, error) {
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, h.srv.URL+path, nil)
+		require.NoError(t, err)
+
+		return c.Do(req)
+	}
+
+	res, err := get("//admin")
 	require.NoError(t, err)
 	res.Body.Close()
 	assert.Equal(t, http.StatusMovedPermanently, res.StatusCode)
 	assert.Equal(t, "/admin", res.Header.Get("Location"))
 
-	res, err = c.Get(h.srv.URL + "//evil.example.com/x")
+	res, err = get("//evil.example.com/x")
 	require.NoError(t, err)
 	res.Body.Close()
 	assert.Equal(t, "/evil.example.com/x", res.Header.Get("Location"), "never redirects off the server")
@@ -835,6 +848,7 @@ func TestAdminConsoleUserRoles(t *testing.T) {
 	assert.Empty(t, from)
 
 	require.Equal(t, http.StatusOK, boss.do(t, http.MethodPut, "/admin/api/users/"+cid+"/role", map[string]string{"role": "admin"}, nil))
+
 	r, from = role("carol@example.com")
 	assert.Equal(t, "admin", r)
 	assert.Equal(t, "console", from)
@@ -844,6 +858,7 @@ func TestAdminConsoleUserRoles(t *testing.T) {
 	require.Equal(t, http.StatusOK, c.login(t, &mockoidc.MockUser{Subject: "carol", Email: "carol@example.com", EmailVerified: true}))
 
 	require.Equal(t, http.StatusOK, boss.do(t, http.MethodPut, "/admin/api/users/"+cid+"/role", map[string]string{"role": "viewer"}, nil))
+
 	r, _ = role("carol@example.com")
 	assert.Equal(t, "viewer", r)
 	assert.Equal(t, http.StatusForbidden, c.do(t, http.MethodPost, "/admin/api/groups", map[string]any{"name": "x"}, nil), "viewers cannot change things")
@@ -873,7 +888,7 @@ func TestAdminConsoleTempAccess(t *testing.T) {
 	alice, _, err := h.app.state.CreateUser(types.User{Name: "alice", Email: "alice@example.com", Provider: userProviderEntra})
 	require.NoError(t, err)
 
-	aliceID := fmt.Sprint(alice.ID)
+	aliceID := strconv.FormatUint(uint64(alice.ID), 10)
 
 	// People who are not administrators cannot sign in, account or not.
 	assert.Equal(t, http.StatusForbidden, h.browser(t).login(t, &mockoidc.MockUser{Subject: "alice", Email: "alice@example.com", EmailVerified: true}))
@@ -909,6 +924,7 @@ func TestAdminConsoleTempAccess(t *testing.T) {
 
 	grant := func(to []map[string]string, tag string, minutes int, ssh bool) (int, []uint64) {
 		var out map[string][]uint64
+
 		code := boss.do(t, http.MethodPost, "/admin/api/temp-access", map[string]any{"to": to, "tag": tag, "minutes": minutes, "ssh": ssh, "reason": "incident 42"}, &out)
 
 		return code, out["ids"]
@@ -966,6 +982,7 @@ func TestAdminConsolePrivateResources(t *testing.T) {
 
 	save := func(name, addr string) (int, uint64) {
 		var out map[string]uint64
+
 		code := boss.do(t, http.MethodPost, "/admin/api/resources", map[string]string{"name": name, "address": addr}, &out)
 
 		return code, out["id"]
@@ -995,7 +1012,7 @@ func TestAdminConsolePrivateResources(t *testing.T) {
 	assert.Empty(t, nets.Resources[0].CoveredBy, "no router yet")
 
 	// Usable as a rule destination, not as a source.
-	rid := fmt.Sprint(id)
+	rid := strconv.FormatUint(id, 10)
 	assert.Equal(t, http.StatusBadRequest, boss.do(t, http.MethodPost, "/admin/api/rules", map[string]any{
 		"name": "bad", "ports": "*", "enabled": true,
 		"sources":      []map[string]string{{"kind": "resource", "principal": rid}},
