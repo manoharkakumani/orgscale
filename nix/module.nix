@@ -156,7 +156,14 @@ in
     services.orgscale = {
       enable = lib.mkEnableOption "orgscale, Open Source coordination server for Tailscale";
 
-      package = lib.mkPackageOption pkgs "orgscale" { };
+      # nixpkgs has no orgscale package (it has headscale), so there is no
+      # pkgs default to fall back on: this flake's nixosModules set it to the
+      # flake's own build.
+      package = lib.mkOption {
+        type = lib.types.package;
+        defaultText = lib.literalExpression "orgscale from this flake";
+        description = "The orgscale package to use.";
+      };
 
       configFile = lib.mkOption {
         type = lib.types.path;

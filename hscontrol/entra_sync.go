@@ -4,7 +4,6 @@ import (
 	"cmp"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -44,7 +43,7 @@ const (
 	entraMaxRetryAfter = 60 * time.Second
 )
 
-var errEntraNotConfigured = errors.New("Microsoft Entra sync needs a tenant, client ID and secret: set up single sign-on with Microsoft Entra ID, or enter them here")
+var errEntraNotConfigured = userError("Microsoft Entra sync needs a tenant, client ID and secret: set up single sign-on with Microsoft Entra ID, or enter them here")
 
 type entraSyncer struct {
 	h    *Orgscale
@@ -115,6 +114,7 @@ func (e *entraSyncer) credentials(s types.EntraSyncSettings) (entraCredentials, 
 
 	if c.tenant == "" || c.clientID == "" || c.secret == "" {
 		var stored types.StoredOIDC
+
 		_, _ = e.h.state.GetSettingJSON(types.SettingSSOOIDC, &stored)
 
 		issuer, clientID, secret := stored.Issuer, stored.ClientID, stored.ClientSecret
@@ -181,7 +181,7 @@ func (g *graph) get(ctx context.Context, u string, out any) error {
 
 	// Paging and delta links must stay on Graph.
 	if !strings.HasPrefix(u, g.base) {
-		return fmt.Errorf("refusing a Graph link outside %s", g.base)
+		return userErrorf("refusing a Graph link outside %s", g.base)
 	}
 
 	for attempt := 0; ; attempt++ {
@@ -208,7 +208,9 @@ func (g *graph) get(ctx context.Context, u string, out any) error {
 
 		if (resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusServiceUnavailable) && attempt < entraMaxRetries {
 			wait := 10 * time.Second
-			if s, err := strconv.Atoi(resp.Header.Get("Retry-After")); err == nil && s > 0 {
+
+			s, err := strconv.Atoi(resp.Header.Get("Retry-After"))
+			if err == nil && s > 0 {
 				wait = time.Duration(s) * time.Second
 			}
 
@@ -223,6 +225,7 @@ func (g *graph) get(ctx context.Context, u string, out any) error {
 
 		if resp.StatusCode != http.StatusOK {
 			var ge graphError
+
 			_ = json.Unmarshal(body, &ge)
 
 			msg := cmp.Or(ge.Error.Message, resp.Status)
@@ -230,7 +233,7 @@ func (g *graph) get(ctx context.Context, u string, out any) error {
 				msg += " (grant the app registration the Microsoft Graph application permissions User.Read.All, Group.Read.All, GroupMember.Read.All and Organization.Read.All, of type Application rather than Delegated, with admin consent)"
 			}
 
-			return fmt.Errorf("Microsoft Graph: %s", msg)
+			return userErrorf("Microsoft Graph: %s", msg)
 		}
 
 		return json.Unmarshal(body, out)
@@ -294,10 +297,13 @@ func (e *entraSyncer) RunNow(ctx context.Context, full bool) types.EntraSyncStat
 	defer cancel()
 
 	var prev types.EntraSyncStatus
+
 	_, _ = e.h.state.GetSettingJSON(types.SettingEntraSyncStatus, &prev)
 
-	status := types.EntraSyncStatus{LastFull: prev.LastFull}
-	status.LastRun = time.Now().UTC()
+	status := types.EntraSyncStatus{
+		LastFull: prev.LastFull,
+		LastRun:  time.Now().UTC(),
+	}
 
 	err := e.sync(ctx, full, &status)
 	if err != nil {
@@ -333,6 +339,7 @@ func (e *entraSyncer) sync(ctx context.Context, full bool, status *types.EntraSy
 	defer func() { status.Requests = g.requests }()
 
 	var st types.EntraSyncState
+
 	_, _ = e.h.state.GetSettingJSON(types.SettingEntraSyncState, &st)
 
 	// Cheap path: ask what changed since last time.
@@ -436,14 +443,66 @@ func entraEmail(u entraUser) string {
 func (e *entraSyncer) apply(users []entraUser, groups []entraGroup, members map[string][]string, tenantDomains []string, status *types.GoogleSyncStatus) error {
 	h := e.h
 
-	active := make(map[string]entraUser)
-	inactive := make(map[string]bool)
-	known := make(map[string]bool)
-	domains := make(map[string]bool)
-	byEntraID := make(map[string]string)
+	accounts := classifyEntraUsers(users, tenantDomains)
+	if len(accounts.active) == 0 {
+		return userError("Microsoft Entra ID returned no member accounts; check the tenant and the app's permissions")
+	}
+
+	existing, err := h.state.ListAllUsers()
+	if err != nil {
+		return err
+	}
+
+	leavers := accounts.leavers(existing)
+	if len(leavers) > googleMaxRemovalsPerRun || (len(existing) >= 4 && len(leavers)*2 > len(existing)) {
+		return userError("refusing to offboard more than half of the users, or more than 25, in one run; check the Microsoft Entra sync settings")
+	}
+
+	for _, u := range leavers {
+		err := h.offboardUser(types.UserID(u.ID), "entra-sync", types.AuditActorSystem,
+			"disabled or deleted in Microsoft Entra ID")
+		if err != nil {
+			return fmt.Errorf("offboarding %s: %w", u.Email, err)
+		}
+
+		status.Disabled++
+	}
+
+	byEmail := e.provision(accounts.active, status)
+	status.Users = len(accounts.active)
+
+	err = e.writeGroups(groups, members, accounts.byEntraID, byEmail)
+	if err != nil {
+		return fmt.Errorf("writing groups: %w", err)
+	}
+
+	status.Groups = len(groups)
+
+	_ = h.state.AppendAuditEvent(types.AuditEvent{
+		Actor: "entra-sync", ActorKind: types.AuditActorSystem, Action: "entra_sync.run",
+		Detail: "users=" + strconv.Itoa(status.Users) + " groups=" + strconv.Itoa(status.Groups) +
+			" created=" + strconv.Itoa(status.Created) + " offboarded=" + strconv.Itoa(status.Disabled),
+	})
+
+	return nil
+}
+
+// entraAccounts sorts Entra accounts for a sync, by UPN.
+type entraAccounts struct {
+	active    map[string]entraUser
+	inactive  map[string]bool
+	domains   map[string]bool   // the tenant's domains
+	byEntraID map[string]string // Entra object ID -> UPN
+}
+
+func classifyEntraUsers(users []entraUser, tenantDomains []string) entraAccounts {
+	a := entraAccounts{
+		active: map[string]entraUser{}, inactive: map[string]bool{},
+		domains: map[string]bool{}, byEntraID: map[string]string{},
+	}
 
 	for _, d := range tenantDomains {
-		domains[d] = true
+		a.domains[d] = true
 	}
 
 	for _, u := range users {
@@ -460,67 +519,53 @@ func (e *entraSyncer) apply(users []entraUser, groups []entraGroup, members map[
 		}
 
 		if _, d, ok := strings.Cut(email, "@"); ok {
-			domains[d] = true
+			a.domains[d] = true
 		}
 
 		if u.AccountEnabled != nil && !*u.AccountEnabled {
-			inactive[email] = true
+			a.inactive[email] = true
 
 			continue
 		}
 
-		active[email] = u
-		byEntraID[u.ID] = email
-		known[email] = true
+		a.active[email] = u
+		a.byEntraID[u.ID] = email
 	}
 
-	if len(active) == 0 {
-		return errors.New("Microsoft Entra ID returned no member accounts; check the tenant and the app's permissions")
-	}
+	return a
+}
 
-	existing, err := h.state.ListAllUsers()
-	if err != nil {
-		return err
-	}
-
-	// Who to offboard: users from this sync or from single sign-on whose
-	// UPN is disabled in Entra, or is in a tenant domain but belongs to no
-	// active member. SCIM, Google and local users are never removed because
-	// of Entra data.
+// leavers returns the users to offboard: users from this sync or from
+// single sign-on whose UPN is disabled in Entra, or is in a tenant domain
+// but belongs to no active member. SCIM, Google and local users are never
+// removed because of Entra data.
+func (a entraAccounts) leavers(existing []types.User) []types.User {
 	var leavers []types.User
 
 	for _, u := range existing {
 		email := strings.ToLower(u.Email)
-		if email == "" || known[email] {
+		if _, active := a.active[email]; email == "" || active {
 			continue
 		}
 
 		_, d, _ := strings.Cut(email, "@")
 		syncable := u.Provider == userProviderEntra || u.Provider == util.RegisterMethodOIDC
 
-		if syncable && (inactive[email] || domains[d]) {
+		if syncable && (a.inactive[email] || a.domains[d]) {
 			leavers = append(leavers, u)
 		}
 	}
 
-	if len(leavers) > googleMaxRemovalsPerRun || (len(existing) >= 4 && len(leavers)*2 > len(existing)) {
-		return errors.New("refusing to offboard more than half of the users, or more than 25, in one run; check the Microsoft Entra sync settings")
-	}
+	return leavers
+}
 
-	for _, u := range leavers {
-		err := h.offboardUser(types.UserID(u.ID), "entra-sync", types.AuditActorSystem,
-			"disabled or deleted in Microsoft Entra ID")
-		if err != nil {
-			return fmt.Errorf("offboarding %s: %w", u.Email, err)
-		}
-
-		status.Disabled++
-	}
-
+// provision makes sure every active member has a user and returns them by
+// UPN.
+func (e *entraSyncer) provision(active map[string]entraUser, status *types.GoogleSyncStatus) map[string]types.UserID {
 	byEmail := make(map[string]types.UserID, len(active))
 
 	for email, eu := range active {
-		u, created, err := h.provisionUser(email, eu.DisplayName, "", userProviderEntra)
+		u, created, err := e.h.provisionUser(email, eu.DisplayName, "", userProviderEntra)
 		if err != nil {
 			log.Warn().Err(err).Str("email", email).Msg("entra sync: skipping user")
 
@@ -534,11 +579,14 @@ func (e *entraSyncer) apply(users []entraUser, groups []entraGroup, members map[
 		byEmail[email] = types.UserID(u.ID)
 	}
 
-	status.Users = len(active)
+	return byEmail
+}
 
+// writeGroups replaces the Entra groups and their members.
+func (e *entraSyncer) writeGroups(groups []entraGroup, members map[string][]string, byEntraID map[string]string, byEmail map[string]types.UserID) error {
 	keep := make([]string, 0, len(groups))
 
-	changes, err := h.state.WriteDirectory(func(tx *gorm.DB) error {
+	changes, err := e.h.state.WriteDirectory(func(tx *gorm.DB) error {
 		for _, gr := range groups {
 			group, err := hsdb.UpsertDirectoryGroup(tx, types.DirectorySourceEntra, gr.ID, cmp.Or(gr.DisplayName, gr.ID))
 			if err != nil {
@@ -565,19 +613,7 @@ func (e *entraSyncer) apply(users []entraUser, groups []entraGroup, members map[
 
 		return err
 	})
-	h.Change(changes...)
+	e.h.Change(changes...)
 
-	if err != nil {
-		return fmt.Errorf("writing groups: %w", err)
-	}
-
-	status.Groups = len(groups)
-
-	_ = h.state.AppendAuditEvent(types.AuditEvent{
-		Actor: "entra-sync", ActorKind: types.AuditActorSystem, Action: "entra_sync.run",
-		Detail: "users=" + strconv.Itoa(status.Users) + " groups=" + strconv.Itoa(status.Groups) +
-			" created=" + strconv.Itoa(status.Created) + " offboarded=" + strconv.Itoa(status.Disabled),
-	})
-
-	return nil
+	return err
 }

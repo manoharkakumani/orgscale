@@ -32,7 +32,7 @@ func (f *fakeGraph) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	if strings.HasSuffix(r.URL.Path, "/oauth2/v2.0/token") {
-		_ = json.NewEncoder(w).Encode(map[string]any{"access_token": "t", "token_type": "Bearer", "expires_in": 3600})
+		_, _ = w.Write([]byte(`{"access_token":"t","token_type":"Bearer","expires_in":3600}`))
 
 		return
 	}
@@ -51,7 +51,14 @@ func (f *fakeGraph) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			out["@odata.deltaLink"] = f.url + delta
 		}
 
-		_ = json.NewEncoder(w).Encode(out)
+		b, err := json.Marshal(out)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+
+			return
+		}
+
+		_, _ = w.Write(b)
 	}
 
 	q := r.URL.Query()
@@ -184,7 +191,7 @@ func TestEntraSync(t *testing.T) {
 	users, err = app.state.ListAllUsers()
 	require.NoError(t, err)
 
-	var emails []string
+	emails := make([]string, 0, len(users))
 	for _, u := range users {
 		emails = append(emails, u.Email)
 	}

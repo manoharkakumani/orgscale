@@ -74,6 +74,62 @@ publish port 443), or put a TLS proxy such as Caddy or Traefik in front and
 forward to port 8080. Sign-in cookies, keys and SCIM tokens must never travel
 over plain HTTP.
 
+## Several tailnets on one machine
+
+Each tailnet is its own orgscale container, with its own address, volume
+and database. One Caddy serves them all:
+
+```yaml
+services:
+  prod:
+    image: ghcr.io/manoharkakumani/orgscale:latest
+    restart: unless-stopped
+    volumes: [prod-data:/var/lib/orgscale]
+    environment:
+      ORGSCALE_SERVER_URL: https://vpn.example.com
+      ORGSCALE_LISTEN_ADDR: 0.0.0.0:8080
+      ORGSCALE_POLICY_MODE: database
+      ORGSCALE_PREFIXES_V4: 100.64.0.0/11
+
+  staging:
+    image: ghcr.io/manoharkakumani/orgscale:latest
+    restart: unless-stopped
+    volumes: [staging-data:/var/lib/orgscale]
+    environment:
+      ORGSCALE_SERVER_URL: https://vpn-staging.example.com
+      ORGSCALE_LISTEN_ADDR: 0.0.0.0:8080
+      ORGSCALE_POLICY_MODE: database
+      ORGSCALE_PREFIXES_V4: 100.96.0.0/11
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy-data:/data
+
+volumes:
+  prod-data:
+  staging-data:
+  caddy-data:
+```
+
+```
+vpn.example.com {
+    reverse_proxy prod:8080
+}
+
+vpn-staging.example.com {
+    reverse_proxy staging:8080
+}
+```
+
+Each one prints its own setup link (`docker compose logs staging`). Giving
+them different address ranges, as above, lets one person's laptop join both
+(with `tailscale switch`) without the addresses clashing. Link the consoles to
+each other under **Settings → Tailnets**.
+
 ## Building the image yourself
 
 ```bash

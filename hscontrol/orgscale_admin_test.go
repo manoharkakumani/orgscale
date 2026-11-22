@@ -22,6 +22,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
+	"tailscale.com/tailcfg"
 )
 
 // adminHarness is an orgscale with the admin console on, behind a mock OIDC
@@ -304,7 +305,7 @@ func TestAdminConsoleOffboardsUser(t *testing.T) {
 func scimToken(t *testing.T, app *Orgscale) string {
 	t.Helper()
 
-	token := "oskey-scim-test"
+	token := "oskey-scim-test" //nolint:gosec // G101: a made-up token
 	sum := sha256.Sum256([]byte(token))
 	require.NoError(t, app.state.SetSettingJSON(types.SettingSCIMTokenHash, hex.EncodeToString(sum[:]), "test"))
 
@@ -360,7 +361,8 @@ func TestSCIMProvisioning(t *testing.T) {
 	}`)
 	require.Equal(t, http.StatusCreated, code)
 
-	aliceID := alice["id"].(string)
+	aliceID, ok := alice["id"].(string)
+	require.True(t, ok)
 	assert.Equal(t, "alice+vpn@example.com", alice["userName"])
 
 	// Lookup by filter, as clients do before creating.
@@ -371,14 +373,16 @@ func TestSCIMProvisioning(t *testing.T) {
 	code, bob := scimDo(t, url, token, http.MethodPost, "/Users", `{"userName": "bob@example.com", "displayName": "Bob"}`)
 	require.Equal(t, http.StatusCreated, code)
 
-	bobID := bob["id"].(string)
+	bobID, ok := bob["id"].(string)
+	require.True(t, ok)
 
 	// A group with both, then Entra-style membership patches.
 	code, group := scimDo(t, url, token, http.MethodPost, "/Groups",
 		`{"displayName": "VPN Users", "externalId": "g-1", "members": [{"value": "`+aliceID+`"}]}`)
 	require.Equal(t, http.StatusCreated, code)
 
-	groupID := group["id"].(string)
+	groupID, ok := group["id"].(string)
+	require.True(t, ok)
 
 	code, _ = scimDo(t, url, token, http.MethodPatch, "/Groups/"+groupID, `{
 		"schemas": ["urn:ietf:params:scim:api:messages:2.0:PatchOp"],
@@ -672,7 +676,7 @@ func TestAdminConsoleTagsRulesAndBulk(t *testing.T) {
 	var audit []types.AuditEvent
 	require.Equal(t, http.StatusOK, boss.do(t, http.MethodGet, "/admin/api/audit", nil, &audit))
 
-	var actions []string
+	actions := make([]string, 0, len(audit))
 	for _, e := range audit {
 		actions = append(actions, e.Action)
 	}
@@ -697,7 +701,10 @@ func TestAdminConsoleGroups(t *testing.T) {
 	}, &created))
 	assert.Equal(t, "web-team", created["name"])
 
-	id := strconv.FormatUint(uint64(created["id"].(float64)), 10)
+	createdID, ok := created["id"].(float64)
+	require.True(t, ok)
+
+	id := strconv.FormatUint(uint64(createdID), 10)
 
 	var groups []adminGroup
 	require.Equal(t, http.StatusOK, boss.do(t, http.MethodGet, "/admin/api/groups", nil, &groups))
@@ -732,13 +739,20 @@ func TestAdminConsoleDoubleSlashAndNonAdmins(t *testing.T) {
 	// server URL with a trailing slash.
 	c := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 
-	res, err := c.Get(h.srv.URL + "//admin")
+	get := func(path string) (*http.Response, error) {
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, h.srv.URL+path, nil)
+		require.NoError(t, err)
+
+		return c.Do(req)
+	}
+
+	res, err := get("//admin")
 	require.NoError(t, err)
 	res.Body.Close()
 	assert.Equal(t, http.StatusMovedPermanently, res.StatusCode)
 	assert.Equal(t, "/admin", res.Header.Get("Location"))
 
-	res, err = c.Get(h.srv.URL + "//evil.example.com/x")
+	res, err = get("//evil.example.com/x")
 	require.NoError(t, err)
 	res.Body.Close()
 	assert.Equal(t, "/evil.example.com/x", res.Header.Get("Location"), "never redirects off the server")
@@ -835,6 +849,7 @@ func TestAdminConsoleUserRoles(t *testing.T) {
 	assert.Empty(t, from)
 
 	require.Equal(t, http.StatusOK, boss.do(t, http.MethodPut, "/admin/api/users/"+cid+"/role", map[string]string{"role": "admin"}, nil))
+
 	r, from = role("carol@example.com")
 	assert.Equal(t, "admin", r)
 	assert.Equal(t, "console", from)
@@ -844,6 +859,7 @@ func TestAdminConsoleUserRoles(t *testing.T) {
 	require.Equal(t, http.StatusOK, c.login(t, &mockoidc.MockUser{Subject: "carol", Email: "carol@example.com", EmailVerified: true}))
 
 	require.Equal(t, http.StatusOK, boss.do(t, http.MethodPut, "/admin/api/users/"+cid+"/role", map[string]string{"role": "viewer"}, nil))
+
 	r, _ = role("carol@example.com")
 	assert.Equal(t, "viewer", r)
 	assert.Equal(t, http.StatusForbidden, c.do(t, http.MethodPost, "/admin/api/groups", map[string]any{"name": "x"}, nil), "viewers cannot change things")
@@ -873,7 +889,7 @@ func TestAdminConsoleTempAccess(t *testing.T) {
 	alice, _, err := h.app.state.CreateUser(types.User{Name: "alice", Email: "alice@example.com", Provider: userProviderEntra})
 	require.NoError(t, err)
 
-	aliceID := fmt.Sprint(alice.ID)
+	aliceID := strconv.FormatUint(uint64(alice.ID), 10)
 
 	// People who are not administrators cannot sign in, account or not.
 	assert.Equal(t, http.StatusForbidden, h.browser(t).login(t, &mockoidc.MockUser{Subject: "alice", Email: "alice@example.com", EmailVerified: true}))
@@ -909,6 +925,7 @@ func TestAdminConsoleTempAccess(t *testing.T) {
 
 	grant := func(to []map[string]string, tag string, minutes int, ssh bool) (int, []uint64) {
 		var out map[string][]uint64
+
 		code := boss.do(t, http.MethodPost, "/admin/api/temp-access", map[string]any{"to": to, "tag": tag, "minutes": minutes, "ssh": ssh, "reason": "incident 42"}, &out)
 
 		return code, out["ids"]
@@ -956,4 +973,124 @@ func TestAdminConsoleTempAccess(t *testing.T) {
 	require.Len(t, list, 2)
 	assert.Equal(t, "expired", list[0].Status)
 	assert.Equal(t, "ended", list[1].Status)
+}
+
+func TestAdminConsolePrivateResources(t *testing.T) {
+	h := newAdminHarness(t)
+
+	boss := h.browser(t)
+	require.Equal(t, http.StatusOK, boss.login(t, &mockoidc.MockUser{Subject: "boss", Email: "boss@example.com", EmailVerified: true}))
+
+	save := func(name, addr string) (int, uint64) {
+		var out map[string]uint64
+
+		code := boss.do(t, http.MethodPost, "/admin/api/resources", map[string]string{"name": name, "address": addr}, &out)
+
+		return code, out["id"]
+	}
+
+	for _, bad := range []string{"db.example.com", "0.0.0.0/0", "100.64.0.5", "fd7a:115c:a1e0::1"} {
+		code, _ := save("x", bad)
+		assert.Equal(t, http.StatusBadRequest, code, bad)
+	}
+
+	code, _ := save("", "10.0.0.1")
+	assert.Equal(t, http.StatusBadRequest, code, "a name is required")
+
+	code, id := save("orders-db", "10.20.1.25")
+	require.Equal(t, http.StatusOK, code)
+
+	code, _ = save("vpc", "10.20.7.9/16")
+	require.Equal(t, http.StatusOK, code)
+
+	var nets struct {
+		Resources []adminResource `json:"resources"`
+	}
+	require.Equal(t, http.StatusOK, boss.do(t, http.MethodGet, "/admin/api/networks", nil, &nets))
+	require.Len(t, nets.Resources, 2)
+	assert.Equal(t, "10.20.1.25/32", nets.Resources[0].Address, "an address becomes a /32")
+	assert.Equal(t, "10.20.0.0/16", nets.Resources[1].Address, "a range is masked")
+	assert.Empty(t, nets.Resources[0].CoveredBy, "no router yet")
+
+	// Usable as a rule destination, not as a source.
+	rid := strconv.FormatUint(id, 10)
+	assert.Equal(t, http.StatusBadRequest, boss.do(t, http.MethodPost, "/admin/api/rules", map[string]any{
+		"name": "bad", "ports": "*", "enabled": true,
+		"sources":      []map[string]string{{"kind": "resource", "principal": rid}},
+		"destinations": []map[string]string{{"kind": "everyone"}},
+	}, nil))
+	require.Equal(t, http.StatusOK, boss.do(t, http.MethodPost, "/admin/api/rules", map[string]any{
+		"name": "people to orders-db", "ports": "5432", "protocol": "tcp", "enabled": true,
+		"sources":      []map[string]string{{"kind": "everyone"}},
+		"destinations": []map[string]string{{"kind": "resource", "principal": rid}},
+	}, nil))
+
+	require.Equal(t, http.StatusOK, boss.do(t, http.MethodPut, "/admin/api/settings/device-restriction", map[string]bool{"enabled": true}, nil))
+
+	p, err := h.app.state.EffectivePolicy()
+	require.NoError(t, err)
+	assert.Contains(t, string(p), "10.20.1.25/32:5432")
+
+	require.Equal(t, http.StatusNoContent, boss.do(t, http.MethodDelete, "/admin/api/resources/"+rid, nil, nil))
+
+	p, err = h.app.state.EffectivePolicy()
+	require.NoError(t, err)
+	assert.NotContains(t, string(p), "10.20.1.25")
+}
+
+func TestAdminConsolePosture(t *testing.T) {
+	h := newAdminHarness(t)
+
+	boss := h.browser(t)
+	require.Equal(t, http.StatusOK, boss.login(t, &mockoidc.MockUser{Subject: "boss", Email: "boss@example.com", EmailVerified: true}))
+
+	u, _, err := h.app.state.CreateUser(types.User{Name: "pat", Email: "pat@example.com"})
+	require.NoError(t, err)
+
+	n := h.app.state.CreateRegisteredNodeForTest(u, "pat-mac")
+	n.Hostinfo = &tailcfg.Hostinfo{Hostname: "pat-mac", OS: "macOS", OSVersion: "13.6.1", IPNVersion: "1.76.0-tabc"}
+	h.app.state.PutNodeInStoreForTest(*n)
+
+	for _, bad := range []map[string]any{
+		{"mode": "sometimes"},
+		{"mode": "monitor", "minTailscaleVersion": "new"},
+		{"mode": "monitor", "os": map[string]any{"plan9": map[string]any{"blocked": true}}},
+		{"mode": "monitor", "os": map[string]any{"macOS": map[string]any{"minVersion": "14.x"}}},
+		{"mode": "enforce", "requireIntune": true},
+	} {
+		assert.Equal(t, http.StatusBadRequest, boss.do(t, http.MethodPut, "/admin/api/posture", bad, nil), "%v", bad)
+	}
+
+	var v adminPosture
+
+	rules := map[string]any{"mode": "monitor", "os": map[string]any{"macOS": map[string]any{"minVersion": "14"}}}
+	require.Equal(t, http.StatusOK, boss.do(t, http.MethodPut, "/admin/api/posture", rules, &v))
+	require.Len(t, v.Devices, 1)
+	assert.False(t, v.Devices[0].Passing)
+	assert.False(t, v.Devices[0].Blocked, "monitor mode only reports")
+	assert.Equal(t, []string{"macOS 13.6.1 is older than 14"}, v.Devices[0].Reasons)
+	assert.False(t, h.app.state.PostureBlocked(n.ID))
+
+	rules["mode"] = "enforce"
+	require.Equal(t, http.StatusOK, boss.do(t, http.MethodPut, "/admin/api/posture", rules, &v))
+	assert.True(t, v.Devices[0].Blocked)
+	assert.True(t, h.app.state.PostureBlocked(n.ID))
+
+	// Lowering the bar lets it back in.
+	rules["os"] = map[string]any{"macOS": map[string]any{"minVersion": "13"}}
+	require.Equal(t, http.StatusOK, boss.do(t, http.MethodPut, "/admin/api/posture", rules, &v))
+	assert.True(t, v.Devices[0].Passing)
+	assert.False(t, h.app.state.PostureBlocked(n.ID))
+
+	// Recording settings and tailnet links round-trip.
+	var rec adminRecording
+	require.Equal(t, http.StatusOK, boss.do(t, http.MethodPut, "/admin/api/recording", map[string]bool{"enabled": true, "enforce": true}, &rec))
+	assert.True(t, rec.Enabled)
+	assert.True(t, h.app.state.Recording().Enforce)
+
+	assert.Equal(t, http.StatusBadRequest, boss.do(t, http.MethodPut, "/admin/api/tailnets", []map[string]string{{"name": "x", "url": "ftp://x"}}, nil))
+
+	var links []types.TailnetLink
+	require.Equal(t, http.StatusOK, boss.do(t, http.MethodPut, "/admin/api/tailnets", []map[string]string{{"name": "Staging", "url": "https://stg.example.com/admin/"}}, &links))
+	assert.Equal(t, []types.TailnetLink{{Name: "Staging", URL: "https://stg.example.com/admin"}}, links)
 }

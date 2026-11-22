@@ -1,6 +1,18 @@
 import { useState } from "react";
 import { get, type AuditEvent } from "../api";
-import { Badge, Button, Empty, ErrorBox, PageHeader, SearchBox, Spinner, dateTime, timeAgo, useAsync, useToast } from "../components/ui";
+import {
+  Badge,
+  Button,
+  Empty,
+  ErrorBox,
+  PageHeader,
+  SearchBox,
+  Spinner,
+  dateTime,
+  timeAgo,
+  useAsync,
+  useToast,
+} from "../components/ui";
 
 const kindTone: Record<string, "blue" | "green" | "violet" | "amber" | "neutral"> = {
   admin: "blue",
@@ -29,8 +41,15 @@ const describe: Record<string, string> = {
   "setup.finished": "Finished setup",
   "tag.save": "Saved server tag",
   "temp_access.grant": "Granted temporary access",
+  "resource.save": "Saved private resource",
+  "resource.delete": "Deleted private resource",
   "temp_access.end": "Ended temporary access early",
   "temp_access.expire": "Temporary access ran out",
+  "posture.save": "Changed device requirements",
+  "posture.block": "Cut off a device failing posture",
+  "posture.unblock": "Restored a device passing posture",
+  "recording.save": "Changed SSH session recording",
+  "tailnets.save": "Changed linked tailnets",
   "tag.delete": "Deleted server tag",
   "tag.enroll_key": "Made a server install key",
   "rule.create": "Added access rule",
@@ -74,7 +93,11 @@ export default function AuditPage() {
   const [busy, setBusy] = useState(false);
 
   const needle = q.trim().toLowerCase();
-  const rows = (data ?? []).filter((e) => !needle || [e.actor, e.action, e.target, e.detail, describe[e.action]].some((s) => s?.toLowerCase().includes(needle)));
+  const rows = (data ?? []).filter(
+    (e) =>
+      !needle ||
+      [e.actor, e.action, e.target, e.detail, describe[e.action]].some((s) => s?.toLowerCase().includes(needle)),
+  );
 
   const loadMore = async () => {
     if (!data?.length) return;
@@ -92,7 +115,11 @@ export default function AuditPage() {
 
   return (
     <>
-      <PageHeader title="Audit log" description="Every change made in the console, through the API, by SCIM or by directory sync, with who made it." actions={<Button onClick={reload}>Refresh</Button>} />
+      <PageHeader
+        title="Audit log"
+        description="Every change made in the console, through the API, by SCIM or by directory sync, with who made it."
+        actions={<Button onClick={reload}>Refresh</Button>}
+      />
       <div className="toolbar">
         <SearchBox value={q} onChange={setQ} placeholder="Search actor, action or target" />
       </div>

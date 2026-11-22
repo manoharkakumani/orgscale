@@ -87,7 +87,7 @@ func ensureCredentialsTable(tx *gorm.DB) error {
 // createCredentialsTable creates the unified credentials table and its indexes.
 func createCredentialsTable(tx *gorm.DB) error {
 	ddl := credentialsDDLSQLite
-	if tx.Name() != "sqlite" {
+	if tx.Name() != dialectSQLite {
 		ddl = credentialsDDLPostgres
 	}
 
@@ -237,7 +237,7 @@ WHERE id = ?`, legacyAuthKeyIdentifier(k.Key), hashSecret(k.Key), k.ID, k.ID).Er
 //
 // TODO(kradalby): remove in 0.31 with the credentials migration.
 func retargetNodesAuthKeyFK(tx *gorm.DB) error {
-	if tx.Name() != "sqlite" {
+	if tx.Name() != dialectSQLite {
 		err := tx.Exec(`ALTER TABLE nodes DROP CONSTRAINT IF EXISTS fk_nodes_auth_key`).Error
 		if err != nil {
 			return fmt.Errorf("dropping nodes auth_key constraint: %w", err)
@@ -309,7 +309,7 @@ FROM nodes`,
 //
 // TODO(kradalby): remove in 0.31 with the credentials migration.
 func continuePreAuthKeySequence(tx *gorm.DB) error {
-	if tx.Name() == "sqlite" {
+	if tx.Name() == dialectSQLite {
 		seq, err := sqliteSequence(tx, "pre_auth_keys")
 		if err != nil {
 			return err

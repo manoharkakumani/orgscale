@@ -37,7 +37,7 @@ import (
 
 const (
 	googleDirectoryBase = "https://admin.googleapis.com/admin/directory/v1"
-	googleTokenURL      = "https://oauth2.googleapis.com/token"
+	googleTokenURL      = "https://oauth2.googleapis.com/token" //nolint:gosec // G101: a public endpoint, not a credential
 	googleSyncTimeout   = 5 * time.Minute
 )
 
@@ -68,7 +68,7 @@ func parseServiceAccount(b []byte) (*googleServiceAccount, error) {
 	}
 
 	if sa.Type != "service_account" || sa.ClientEmail == "" || sa.PrivateKey == "" {
-		return nil, errors.New("the service account key must be a Google service account JSON key (type service_account, with client_email and private_key)")
+		return nil, userError("the service account key must be a Google service account JSON key (type service_account, with client_email and private_key)")
 	}
 
 	return &sa, nil
@@ -237,7 +237,7 @@ func googleList[T any](ctx context.Context, c *http.Client, endpoint, field stri
 		}
 
 		if resp.StatusCode != http.StatusOK {
-			return nil, fmt.Errorf("google directory API %s: %s: %s", endpoint, resp.Status, strings.TrimSpace(string(body)))
+			return nil, userErrorf("google directory API %s: %s: %s", endpoint, resp.Status, strings.TrimSpace(string(body)))
 		}
 
 		var page map[string]json.RawMessage
@@ -286,7 +286,7 @@ func (g *googleSyncer) sync(ctx context.Context, s types.GoogleSyncSettings, sta
 	}
 
 	if len(gusers) == 0 {
-		return errors.New("the Google directory returned no users; check the customer ID and the admin email")
+		return userError("the Google directory returned no users; check the customer ID and the admin email")
 	}
 
 	ggroups, err := googleList[googleGroup](ctx, c, googleDirectoryBase+"/groups", "groups",
@@ -319,64 +319,14 @@ func (g *googleSyncer) apply(
 	status *types.GoogleSyncStatus,
 ) error {
 	h := g.h
-
-	active := make(map[string]googleUser)
-	inactive := make(map[string]bool)
-	// known holds every address of an active account, aliases included, so
-	// someone signed in with an alias is not mistaken for a leaver.
-	known := make(map[string]bool)
-
-	for _, u := range gusers {
-		email := strings.ToLower(u.PrimaryEmail)
-		addrs := append([]string{email}, append(u.Aliases, u.NonEditableAliases...)...)
-
-		if u.Suspended || u.Archived {
-			for _, a := range addrs {
-				inactive[strings.ToLower(a)] = true
-			}
-		} else {
-			active[email] = u
-			for _, a := range addrs {
-				known[strings.ToLower(a)] = true
-			}
-		}
-	}
+	accounts := classifyGoogleUsers(gusers)
 
 	users, err := h.state.ListAllUsers()
 	if err != nil {
 		return err
 	}
 
-	domains := make(map[string]bool)
-
-	for _, u := range gusers {
-		if _, d, ok := strings.Cut(strings.ToLower(u.PrimaryEmail), "@"); ok {
-			domains[d] = true
-		}
-	}
-
-	// Who to offboard:
-	//   - any user whose address Workspace marks suspended or archived;
-	//   - users from this sync or from SSO sign-in whose address is in a
-	//     Workspace domain but belongs to no active account (aliases count,
-	//     and Google keeps a renamed account's old address as an alias).
-	// SCIM and local users are never removed for a missing address.
-	var leavers []types.User
-
-	for _, u := range users {
-		email := strings.ToLower(u.Email)
-		if email == "" || known[email] {
-			continue
-		}
-
-		_, d, _ := strings.Cut(email, "@")
-		syncable := u.Provider == userProviderGoogle || u.Provider == util.RegisterMethodOIDC
-
-		if inactive[email] || (syncable && domains[d]) {
-			leavers = append(leavers, u)
-		}
-	}
-
+	leavers := accounts.leavers(users)
 	if len(leavers) > googleMaxRemovalsPerRun || (len(users) >= 4 && len(leavers)*2 > len(users)) {
 		return errGoogleMassRemoval
 	}
@@ -391,10 +341,101 @@ func (g *googleSyncer) apply(
 		status.Disabled++
 	}
 
+	byEmail := g.provision(accounts.active, status)
+	status.Users = len(accounts.active)
+
+	err = g.writeGroups(ggroups, members, byEmail)
+	if err != nil {
+		return fmt.Errorf("writing groups: %w", err)
+	}
+
+	status.Groups = len(ggroups)
+
+	_ = h.state.AppendAuditEvent(types.AuditEvent{
+		Actor: "google-sync", ActorKind: types.AuditActorSystem, Action: "google_sync.run",
+		Detail: "users=" + strconv.Itoa(status.Users) + " groups=" + strconv.Itoa(status.Groups) +
+			" created=" + strconv.Itoa(status.Created) + " offboarded=" + strconv.Itoa(status.Disabled),
+	})
+
+	return nil
+}
+
+// googleAccounts sorts Workspace accounts for a sync.
+type googleAccounts struct {
+	active   map[string]googleUser // by primary email
+	inactive map[string]bool       // every address of a suspended or archived account
+	// known holds every address of an active account, aliases included, so
+	// someone signed in with an alias is not mistaken for a leaver.
+	known   map[string]bool
+	domains map[string]bool // the domains of primary addresses
+}
+
+func classifyGoogleUsers(gusers []googleUser) googleAccounts {
+	a := googleAccounts{
+		active: map[string]googleUser{}, inactive: map[string]bool{},
+		known: map[string]bool{}, domains: map[string]bool{},
+	}
+
+	for _, u := range gusers {
+		email := strings.ToLower(u.PrimaryEmail)
+		addrs := append([]string{email}, append(u.Aliases, u.NonEditableAliases...)...)
+
+		if _, d, ok := strings.Cut(email, "@"); ok {
+			a.domains[d] = true
+		}
+
+		if u.Suspended || u.Archived {
+			for _, addr := range addrs {
+				a.inactive[strings.ToLower(addr)] = true
+			}
+
+			continue
+		}
+
+		a.active[email] = u
+
+		for _, addr := range addrs {
+			a.known[strings.ToLower(addr)] = true
+		}
+	}
+
+	return a
+}
+
+// leavers returns the users to offboard:
+//   - any user whose address Workspace marks suspended or archived;
+//   - users from this sync or from SSO sign-in whose address is in a
+//     Workspace domain but belongs to no active account (aliases count, and
+//     Google keeps a renamed account's old address as an alias).
+//
+// SCIM and local users are never removed for a missing address.
+func (a googleAccounts) leavers(users []types.User) []types.User {
+	var leavers []types.User
+
+	for _, u := range users {
+		email := strings.ToLower(u.Email)
+		if email == "" || a.known[email] {
+			continue
+		}
+
+		_, d, _ := strings.Cut(email, "@")
+		syncable := u.Provider == userProviderGoogle || u.Provider == util.RegisterMethodOIDC
+
+		if a.inactive[email] || (syncable && a.domains[d]) {
+			leavers = append(leavers, u)
+		}
+	}
+
+	return leavers
+}
+
+// provision makes sure every active account has a user and returns them by
+// email.
+func (g *googleSyncer) provision(active map[string]googleUser, status *types.GoogleSyncStatus) map[string]types.UserID {
 	byEmail := make(map[string]types.UserID, len(active))
 
 	for email, gu := range active {
-		u, created, err := h.provisionUser(email, gu.Name.FullName, gu.ThumbnailPhotoURL, userProviderGoogle)
+		u, created, err := g.h.provisionUser(email, gu.Name.FullName, gu.ThumbnailPhotoURL, userProviderGoogle)
 		if err != nil {
 			log.Warn().Err(err).Str("email", email).Msg("google sync: skipping user")
 
@@ -408,11 +449,14 @@ func (g *googleSyncer) apply(
 		byEmail[email] = types.UserID(u.ID)
 	}
 
-	status.Users = len(active)
+	return byEmail
+}
 
+// writeGroups replaces the Workspace groups and their members.
+func (g *googleSyncer) writeGroups(ggroups []googleGroup, members map[string][]googleMember, byEmail map[string]types.UserID) error {
 	keep := make([]string, 0, len(ggroups))
 
-	changes, err := h.state.WriteDirectory(func(tx *gorm.DB) error {
+	changes, err := g.h.state.WriteDirectory(func(tx *gorm.DB) error {
 		for _, gg := range ggroups {
 			group, err := hsdb.UpsertDirectoryGroup(tx, types.DirectorySourceGoogle, gg.ID, cmp.Or(gg.Name, gg.Email))
 			if err != nil {
@@ -450,19 +494,7 @@ func (g *googleSyncer) apply(
 
 		return nil
 	})
-	h.Change(changes...)
+	g.h.Change(changes...)
 
-	if err != nil {
-		return fmt.Errorf("writing groups: %w", err)
-	}
-
-	status.Groups = len(ggroups)
-
-	_ = h.state.AppendAuditEvent(types.AuditEvent{
-		Actor: "google-sync", ActorKind: types.AuditActorSystem, Action: "google_sync.run",
-		Detail: "users=" + strconv.Itoa(status.Users) + " groups=" + strconv.Itoa(status.Groups) +
-			" created=" + strconv.Itoa(status.Created) + " offboarded=" + strconv.Itoa(status.Disabled),
-	})
-
-	return nil
+	return err
 }

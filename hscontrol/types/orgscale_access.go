@@ -14,7 +14,26 @@ const (
 	// PrincipalSelf is each person's own devices (autogroup:self), as an SSH
 	// destination. Its Principal is empty.
 	PrincipalSelf = "self"
+	// PrincipalResource is a private resource behind a subnet router (an RDS
+	// database, a VPC range), by [NetworkResource] ID.
+	PrincipalResource = "resource"
 )
+
+// NetworkResource is a named address or range in a private network that
+// devices reach through a subnet router: a managed database, a VPC, an
+// on-premises range. It can be a destination of access rules and of
+// temporary access.
+type NetworkResource struct {
+	ID          uint64    `gorm:"column:id;primaryKey"`
+	Name        string    `gorm:"column:name"`
+	Address     string    `gorm:"column:address"` // a prefix, e.g. 10.0.1.25/32
+	Description string    `gorm:"column:description"`
+	CreatedAt   time.Time `gorm:"column:created_at"`
+	CreatedBy   string    `gorm:"column:created_by"`
+}
+
+// TableName pins the gorm table name.
+func (NetworkResource) TableName() string { return "network_resources" }
 
 // Access rule kinds.
 const (
@@ -93,8 +112,21 @@ type AccessRequest struct {
 // TableName pins the gorm table name.
 func (AccessRequest) TableName() string { return "access_requests" }
 
-// AccessNodePrefix marks an [AccessRequest.Tag] naming one server.
-const AccessNodePrefix = "node:"
+// AccessNodePrefix marks an [AccessRequest.Tag] naming one server, and
+// AccessResourcePrefix one private resource.
+const (
+	AccessNodePrefix     = "node:"
+	AccessResourcePrefix = "resource:"
+)
+
+// AccessResourceTarget returns the resource ID r grants, if it grants one.
+func (r AccessRequest) AccessResourceTarget() (string, bool) {
+	if len(r.Tag) > len(AccessResourcePrefix) && r.Tag[:len(AccessResourcePrefix)] == AccessResourcePrefix {
+		return r.Tag[len(AccessResourcePrefix):], true
+	}
+
+	return "", false
+}
 
 // AccessNodeTarget returns the node ID r grants, if it grants one server.
 func (r AccessRequest) AccessNodeTarget() (string, bool) {

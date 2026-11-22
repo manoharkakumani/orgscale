@@ -12,6 +12,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var (
+	errSetupLinkUnavailable = errors.New("the admin console is not enabled on this server (admin.enabled), or it needs HTTPS (see the server log)")
+	errSetupLinkFailed      = errors.New("orgscale could not make a setup link")
+)
+
 func init() {
 	rootCmd.AddCommand(adminCmd)
 	adminCmd.AddCommand(setupLinkCmd)
@@ -61,11 +66,11 @@ itself, over the local socket.`,
 		defer resp.Body.Close()
 
 		if resp.StatusCode == http.StatusNotFound {
-			return errors.New("the admin console is not enabled on this server (admin.enabled), or it needs HTTPS (see the server log)")
+			return errSetupLinkUnavailable
 		}
 
 		if resp.StatusCode != http.StatusOK {
-			return fmt.Errorf("orgscale answered %s", resp.Status)
+			return fmt.Errorf("%w: %s", errSetupLinkFailed, resp.Status)
 		}
 
 		var out struct {
@@ -79,7 +84,7 @@ itself, over the local socket.`,
 		}
 
 		fmt.Fprintf(cmd.OutOrStdout(), "Open this link within 30 minutes (until %s). It works once:\n\n  %s\n",
-			out.ExpiresAt.Local().Format("15:04 MST"), out.URL)
+			out.ExpiresAt.Local().Format("15:04 MST"), out.URL) //nolint:gosmopolitan // the operator reads it on this machine's clock
 
 		return nil
 	},

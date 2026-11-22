@@ -54,15 +54,16 @@ body {
   -webkit-font-smoothing: antialiased;
   background:
     radial-gradient(1100px 520px at 15% -10%, rgba(10, 108, 255, 0.1), transparent 60%),
-    radial-gradient(800px 480px at 110% 110%, rgba(122, 79, 214, 0.08), transparent 60%),
-    var(--hs-bg) !important;
+    radial-gradient(800px 480px at 110% 110%, rgba(122, 79, 214, 0.08), transparent 60%), var(--hs-bg) !important;
 }
 
 /* Base Typography - 1rem (16px) avoids iOS auto-zoom on inputs */
 .md-typeset {
   background: var(--hs-card);
   border-radius: 16px;
-  box-shadow: 0 0 0 0.5px var(--hs-border), 0 18px 60px rgba(0, 0, 0, 0.12);
+  box-shadow:
+    0 0 0 0.5px var(--hs-border),
+    0 18px 60px rgba(0, 0, 0, 0.12);
   padding: 36px 40px 28px;
   box-sizing: border-box;
   font-size: 15px;
@@ -209,7 +210,9 @@ input:focus-visible {
   border-radius: 8px;
   cursor: pointer;
   min-height: 40px;
-  box-shadow: 0 0.5px 1px rgba(0, 0, 0, 0.15), inset 0 0.5px 0 rgba(255, 255, 255, 0.2);
+  box-shadow:
+    0 0.5px 1px rgba(0, 0, 0, 0.15),
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.2);
   transition:
     background-color 150ms ease-out,
     box-shadow 150ms ease-out;

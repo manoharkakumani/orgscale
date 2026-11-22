@@ -7,6 +7,8 @@ import { Badge, Button, ChipInput, Confirm, Empty, ErrorBox, Field, Icon, Modal,
 import { PolicyEditor } from "./Policy";
 
 const ruleKinds = ["everyone", "directory_group", "policy_group", "user", "tag", "device"] as const;
+// Private resources (behind subnet routers) can be reached, but cannot reach.
+const ruleDstKinds = [...ruleKinds, "resource"] as const;
 const sshWhoKinds = ["everyone", "directory_group", "policy_group", "user"] as const;
 const sshWhereKinds = ["tag", "self"] as const;
 
@@ -141,7 +143,7 @@ function RuleEditor({ initial, onClose, onSaved }: { initial: Draft; onClose: ()
         <div className="builder-col">
           <div className="field-label">{d.kind === "ssh" ? "Can SSH into" : "Can reach"}</div>
           <PrincipalPicker
-            kinds={d.kind === "ssh" ? [...sshWhereKinds] : [...ruleKinds]}
+            kinds={d.kind === "ssh" ? [...sshWhereKinds] : [...ruleDstKinds]}
             value={d.destinations}
             onChange={(destinations) => setD({ ...d, destinations })}
             placeholder={d.kind === "ssh" ? "Search server tags" : undefined}

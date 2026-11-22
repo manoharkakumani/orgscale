@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { get, type AdminDevice, type AdminGroup, type AdminUser, type Principal, type PrincipalKind, type ServerTag } from "../api";
+import { get, type AdminDevice, type AdminGroup, type AdminUser, type NetworksInfo, type Principal, type PrincipalKind, type ServerTag } from "../api";
 import { Icon, Spinner, useAsync } from "./ui";
 
 // The people, groups, tags and devices an administrator can pick from when
@@ -15,6 +15,7 @@ const icons: Record<PrincipalKind, string> = {
   device: "devices",
   everyone: "everyone",
   self: "user",
+  resource: "globe",
 };
 
 const sections: { kinds: PrincipalKind[]; title: string }[] = [
@@ -23,6 +24,7 @@ const sections: { kinds: PrincipalKind[]; title: string }[] = [
   { kinds: ["user"], title: "People" },
   { kinds: ["tag"], title: "Servers (by tag)" },
   { kinds: ["device"], title: "Devices" },
+  { kinds: ["resource"], title: "Private resources" },
 ];
 
 export const keyOf = (p: Principal) => `${p.kind}:${p.principal}`;
@@ -33,6 +35,7 @@ export function useDirectory(kinds: PrincipalKind[]) {
   const groups = useAsync(() => (need("directory_group") || need("policy_group") ? get<AdminGroup[]>("/admin/api/groups") : Promise.resolve([])));
   const tags = useAsync(() => (need("tag") ? get<ServerTag[]>("/admin/api/tags") : Promise.resolve([])));
   const devices = useAsync(() => (need("device") ? get<AdminDevice[]>("/admin/api/devices") : Promise.resolve([])));
+  const networks = useAsync(() => (need("resource") ? get<NetworksInfo>("/admin/api/networks") : Promise.resolve({ routers: [], resources: [] })));
 
   const options = useMemo(() => {
     const out: Option[] = [];
@@ -53,11 +56,14 @@ export function useDirectory(kinds: PrincipalKind[]) {
     for (const d of devices.data ?? []) {
       add({ kind: "device", principal: String(d.id), label: d.name, sub: d.owner === "tagged" ? d.tags.join(", ") : d.owner });
     }
+    for (const r of networks.data?.resources ?? []) {
+      add({ kind: "resource", principal: String(r.id), label: r.name, sub: r.address });
+    }
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [users.data, groups.data, tags.data, devices.data]);
+  }, [users.data, groups.data, tags.data, devices.data, networks.data]);
 
-  return { options, loading: users.loading || groups.loading || tags.loading || devices.loading };
+  return { options, loading: users.loading || groups.loading || tags.loading || devices.loading || networks.loading };
 }
 
 export function PrincipalChip({ p, onRemove }: { p: Principal; onRemove?: () => void }) {

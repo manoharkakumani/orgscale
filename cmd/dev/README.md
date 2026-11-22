@@ -39,7 +39,7 @@ go tool mts node1 status
 
 | Flag     | Default | Description                  |
 | -------- | ------- | ---------------------------- |
-| `--port` | 8080    | Orgscale listen port        |
+| `--port` | 8080    | Orgscale listen port         |
 | `--keep` | false   | Keep state directory on exit |
 
 The metrics/debug port is `port + 1010` (default 9090).

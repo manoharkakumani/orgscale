@@ -504,6 +504,8 @@ func (ns *noiseServer) SSHActionHandler(
 		return
 	}
 
+	action = ns.orgscale.state.RecordSSHAction(action)
+
 	writer.Header().Set("Content-Type", "application/json; charset=utf-8")
 	writer.WriteHeader(http.StatusOK)
 

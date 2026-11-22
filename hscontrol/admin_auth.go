@@ -230,6 +230,8 @@ func (aa *adminAuth) LoginHandler(w http.ResponseWriter, r *http.Request) {
 			opts = append(opts,
 				oauth2.SetAuthURLParam("code_challenge_method", "plain"),
 				oauth2.SetAuthURLParam("code_challenge", pending.Verifier))
+		case types.PKCEMethodS256:
+			opts = append(opts, oauth2.S256ChallengeOption(pending.Verifier))
 		default:
 			opts = append(opts, oauth2.S256ChallengeOption(pending.Verifier))
 		}
@@ -285,7 +287,11 @@ func (aa *adminAuth) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.SetCookie(w, &http.Cookie{Name: adminStateCookie, Path: adminCallbackPath, MaxAge: -1})
+	//nolint:gosec // G124: Secure from server_url scheme; HttpOnly and SameSite set
+	http.SetCookie(w, &http.Cookie{
+		Name: adminStateCookie, Path: adminCallbackPath, MaxAge: -1,
+		Secure: aa.secureCookies(r), HttpOnly: true, SameSite: http.SameSiteLaxMode,
+	})
 
 	if r.URL.Query().Get("error") != "" || code == "" {
 		adminLoginError(w, http.StatusForbidden, "The identity provider did not sign you in.")
@@ -435,7 +441,11 @@ func (aa *adminAuth) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 		aa.audit(types.AuditEvent{Actor: sess.label(), ActorKind: types.AuditActorAdmin, Action: "admin.logout"})
 	}
 
-	http.SetCookie(w, &http.Cookie{Name: adminSessionCookie, Path: "/", MaxAge: -1})
+	//nolint:gosec // G124: Secure from server_url scheme; HttpOnly and SameSite set
+	http.SetCookie(w, &http.Cookie{
+		Name: adminSessionCookie, Path: "/", MaxAge: -1,
+		Secure: aa.secureCookies(r), HttpOnly: true, SameSite: http.SameSiteStrictMode,
+	})
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -631,7 +641,7 @@ var errAdminCSRF = errors.New("missing or wrong " + adminCSRFHeader + " header")
 func (aa *adminAuth) authenticate(r *http.Request) (*adminSession, int, error) {
 	sess, key := aa.sessionFromRequest(r)
 	if sess == nil {
-		return nil, http.StatusUnauthorized, errors.New("not signed in")
+		return nil, http.StatusUnauthorized, userError("not signed in")
 	}
 
 	// Decide the role again: the admin and viewer lists may have changed
@@ -640,7 +650,7 @@ func (aa *adminAuth) authenticate(r *http.Request) (*adminSession, int, error) {
 	if !ok {
 		aa.dropSessions(key)
 
-		return nil, http.StatusUnauthorized, errors.New("your console access was removed")
+		return nil, http.StatusUnauthorized, userError("your console access was removed")
 	}
 
 	now := time.Now()
@@ -665,7 +675,7 @@ func (aa *adminAuth) authenticate(r *http.Request) (*adminSession, int, error) {
 	}
 
 	if role != AdminRoleAdmin && r.Method != http.MethodGet && r.Method != http.MethodHead {
-		return nil, http.StatusForbidden, errors.New("your role is read-only")
+		return nil, http.StatusForbidden, userError("your role is read-only")
 	}
 
 	return sess, 0, nil
@@ -685,7 +695,8 @@ func (aa *adminAuth) APIMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		if _, err := r.Cookie(adminSessionCookie); err != nil {
+		_, err := r.Cookie(adminSessionCookie)
+		if err != nil {
 			next.ServeHTTP(w, r)
 
 			return

@@ -62,10 +62,10 @@ func TestAdminSetupFlow(t *testing.T) {
 	require.NoError(t, err)
 
 	token := link[strings.Index(link, "#")+1:]
-	require.True(t, strings.HasPrefix(token, "oskey-setup-"))
+	require.True(t, strings.HasPrefix(token, "oskey-setup-")) //nolint:gosec // G101: a made-up token
 
 	// A wrong token is refused; the right one opens a setup session once.
-	assert.Equal(t, http.StatusForbidden, b.do(t, http.MethodPost, "/admin/setup/api/session", map[string]string{"token": "oskey-setup-nope"}, nil))
+	assert.Equal(t, http.StatusForbidden, b.do(t, http.MethodPost, "/admin/setup/api/session", map[string]string{"token": "oskey-setup-nope"}, nil)) //nolint:gosec // G101: a made-up token
 
 	var sess map[string]string
 	require.Equal(t, http.StatusOK, b.do(t, http.MethodPost, "/admin/setup/api/session", map[string]string{"token": token}, &sess))
@@ -108,6 +108,7 @@ func TestAdminSetupFlow(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, b.do(t, http.MethodGet, "/admin/setup/api/state", nil, nil))
 
 	var tok types.SetupToken
+
 	found, err := h.app.state.GetSettingJSON(types.SettingSetupToken, &tok)
 	require.NoError(t, err)
 	assert.False(t, found)
@@ -158,10 +159,10 @@ func TestAdminSetupLinkRateLimitAndHTTPS(t *testing.T) {
 	b := h.browser(t)
 
 	for range 10 {
-		b.do(t, http.MethodPost, "/admin/setup/api/session", map[string]string{"token": "oskey-setup-guess"}, nil)
+		b.do(t, http.MethodPost, "/admin/setup/api/session", map[string]string{"token": "oskey-setup-guess"}, nil) //nolint:gosec // G101: a made-up token
 	}
 
-	assert.Equal(t, http.StatusTooManyRequests, b.do(t, http.MethodPost, "/admin/setup/api/session", map[string]string{"token": "oskey-setup-guess"}, nil))
+	assert.Equal(t, http.StatusTooManyRequests, b.do(t, http.MethodPost, "/admin/setup/api/session", map[string]string{"token": "oskey-setup-guess"}, nil)) //nolint:gosec // G101: a made-up token
 
 	for _, tc := range []struct {
 		url  string

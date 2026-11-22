@@ -1,6 +1,8 @@
 package servertest_test
 
 import (
+	"context"
+	"net/netip"
 	"slices"
 	"strconv"
 	"testing"
@@ -9,8 +11,10 @@ import (
 	hsdb "github.com/manoharkakumani/orgscale/hscontrol/db"
 	"github.com/manoharkakumani/orgscale/hscontrol/servertest"
 	"github.com/manoharkakumani/orgscale/hscontrol/types"
+	"github.com/manoharkakumani/orgscale/hscontrol/types/change"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
+	"tailscale.com/tailcfg"
 	"tailscale.com/types/netmap"
 )
 
@@ -20,7 +24,7 @@ func nodeIDOf(t *testing.T, c *servertest.TestClient) types.NodeID {
 	nm := c.Netmap()
 	require.NotNil(t, nm)
 
-	return types.NodeID(nm.SelfNode.ID())
+	return types.NodeID(nm.SelfNode.ID()) //nolint:gosec // G115: node IDs are positive
 }
 
 // waitPeers waits until c sees exactly the peers named want.
@@ -447,6 +451,7 @@ func TestOrgscaleConsoleDNS(t *testing.T) {
 
 	c.WaitForCondition(t, "console DNS", 15*time.Second, func(nm *netmap.NetworkMap) bool {
 		d := nm.DNS
+
 		return len(d.Resolvers) == 1 && d.Resolvers[0].Addr == "10.0.0.53" &&
 			len(d.Routes["corp.example.com"]) == 1 &&
 			slices.Contains(d.Domains, "corp.example.com") &&
@@ -494,7 +499,7 @@ func TestOrgscaleTempAccessOneServer(t *testing.T) {
 	until := now.Add(time.Hour)
 
 	id, err := st.CreateAccessRequest(types.AccessRequest{
-		UserID: uint(alice.ID), Requester: "alice", Tag: types.AccessNodePrefix + strconv.FormatUint(uint64(nodeIDOf(t, db1)), 10),
+		UserID: alice.ID, Requester: "alice", Tag: types.AccessNodePrefix + strconv.FormatUint(uint64(nodeIDOf(t, db1)), 10),
 		Minutes: 60, Status: types.AccessRequestPending, CreatedAt: now,
 		GrantKind: types.PrincipalUser, GrantPrincipal: strconv.FormatUint(uint64(alice.ID), 10),
 	})
@@ -513,4 +518,280 @@ func TestOrgscaleTempAccessOneServer(t *testing.T) {
 	srv.App.Change(changes...)
 
 	waitPeers(t, laptop)
+}
+
+// TestOrgscalePrivateResource checks a private resource behind a subnet
+// router: with access control on, a rule naming the resource lets the
+// person reach it through the router (the router's packet filter accepts
+// them for that address only), and deleting the resource takes it away.
+func TestOrgscalePrivateResource(t *testing.T) {
+	t.Parallel()
+
+	srv := servertest.NewServer(t)
+	st := srv.State()
+
+	alice := srv.CreateUser(t, "alice")
+
+	changes, err := st.SaveServerTag(types.ServerTag{Name: "tag:router"}, nil)
+	require.NoError(t, err)
+	srv.App.Change(changes...)
+
+	exp := time.Now().Add(time.Hour)
+	k, err := st.CreatePreAuthKey(nil, true, false, &exp, []string{"tag:router"})
+	require.NoError(t, err)
+
+	laptop := servertest.NewClient(t, srv, "alice-laptop", servertest.WithUser(alice))
+	router := servertest.NewClient(t, srv, "vpc-router", servertest.WithAuthKey(k.Key))
+
+	vpc := netip.MustParsePrefix("10.20.0.0/16")
+	router.Direct().SetHostinfo(&tailcfg.Hostinfo{BackendLogID: "servertest-vpc-router", Hostname: "vpc-router", RoutableIPs: []netip.Prefix{vpc}})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_ = router.Direct().SendUpdate(ctx)
+
+	_, routeChange, err := st.SetApprovedRoutes(nodeIDOf(t, router), []netip.Prefix{vpc})
+	require.NoError(t, err)
+	srv.App.Change(routeChange)
+
+	changes, err = st.SetDeviceRestriction(true, "test")
+	require.NoError(t, err)
+	srv.App.Change(changes...)
+
+	waitPeers(t, laptop)
+
+	db := "10.20.1.25/32"
+	id, changes, err := st.SaveNetworkResource(types.NetworkResource{Name: "orders-db", Address: db})
+	require.NoError(t, err)
+	srv.App.Change(changes...)
+
+	_, changes, err = st.SaveAccessRule(types.AccessRule{
+		Name: "alice to orders-db", Protocol: "tcp", Ports: "5432", Enabled: true,
+		Sources:      []types.RulePrincipal{{Kind: types.PrincipalUser, Principal: strconv.FormatUint(uint64(alice.ID), 10)}},
+		Destinations: []types.RulePrincipal{{Kind: types.PrincipalResource, Principal: strconv.FormatUint(id, 10)}},
+	})
+	require.NoError(t, err)
+	srv.App.Change(changes...)
+
+	// Alice now has the router as a peer, carrying the VPC route.
+	laptop.WaitForCondition(t, "alice reaches the VPC through the router", 15*time.Second, func(nm *netmap.NetworkMap) bool {
+		for _, p := range nm.Peers {
+			for i := range p.AllowedIPs().Len() {
+				if p.AllowedIPs().At(i) == vpc {
+					return true
+				}
+			}
+		}
+
+		return false
+	})
+
+	// The router lets her in to the database's address only.
+	routerAllows := func(nm *netmap.NetworkMap) (bool, bool) {
+		var dbAllowed, otherAllowed bool
+
+		for _, m := range nm.PacketFilter {
+			for _, d := range m.Dsts {
+				if d.Net.String() == db && d.Ports.First <= 5432 && 5432 <= d.Ports.Last {
+					dbAllowed = true
+				} else if vpc.Overlaps(d.Net) {
+					otherAllowed = true
+				}
+			}
+		}
+
+		return dbAllowed, otherAllowed
+	}
+
+	router.WaitForCondition(t, "router accepts alice for the database", 15*time.Second, func(nm *netmap.NetworkMap) bool {
+		ok, _ := routerAllows(nm)
+		return ok
+	})
+
+	_, other := routerAllows(router.Netmap())
+	require.False(t, other, "only the database's address is open, not the whole VPC")
+
+	changes, err = st.DeleteNetworkResource(id)
+	require.NoError(t, err)
+	srv.App.Change(changes...)
+
+	waitPeers(t, laptop)
+}
+
+// TestPeerCapabilityVersionIsThePeers checks that peers are described with
+// their own capability version, not the viewer's. Tailscale 1.105 and later
+// start hybrid post-quantum WireGuard handshakes with peers reported at 152
+// or above, so describing an older peer with a newer viewer's version left
+// the two unable to connect.
+func TestPeerCapabilityVersionIsThePeers(t *testing.T) {
+	t.Parallel()
+
+	srv := servertest.NewServer(t)
+	st := srv.State()
+
+	alice := srv.CreateUser(t, "alice")
+	a := servertest.NewClient(t, srv, "a", servertest.WithUser(alice))
+	servertest.NewClient(t, srv, "b", servertest.WithUser(alice))
+
+	a.WaitForPeers(t, 1, 15*time.Second)
+
+	peer, ok := st.GetNodeByID(nodeIDOf(t, a))
+	require.True(t, ok)
+
+	// A viewer much newer than the peer still sees the peer's own version.
+	require.Equal(t, tailcfg.CurrentCapabilityVersion, st.PeerCapabilityVersion(peer, 999))
+
+	// And the map a client receives carries each peer's own version, once
+	// the peer has told the server (a newly joined peer is announced first
+	// with a cautious version, then updated).
+	a.WaitForCondition(t, "peer b at its own capability version", 15*time.Second, func(nm *netmap.NetworkMap) bool {
+		return len(nm.Peers) == 1 && nm.Peers[0].Cap() == tailcfg.CurrentCapabilityVersion
+	})
+}
+
+// TestOrgscalePostureCutsOff checks that a device blocked by device posture
+// loses every peer while it stays registered, and gets them back once
+// unblocked.
+func TestOrgscalePostureCutsOff(t *testing.T) {
+	t.Parallel()
+
+	srv := servertest.NewServer(t)
+	st := srv.State()
+
+	alice := srv.CreateUser(t, "alice")
+
+	laptop := servertest.NewClient(t, srv, "alice-laptop", servertest.WithUser(alice))
+	phone := servertest.NewClient(t, srv, "alice-phone", servertest.WithUser(alice))
+
+	changes, err := st.SetDeviceRestriction(true, "test")
+	require.NoError(t, err)
+	srv.App.Change(changes...)
+
+	waitPeers(t, laptop, "alice-phone")
+	waitPeers(t, phone, "alice-laptop")
+
+	phoneID := nodeIDOf(t, phone)
+	laptopID := nodeIDOf(t, laptop)
+
+	// Enforced, and only the laptop passed: the phone is cut off.
+	srv.App.Change(st.SetPosture(true, map[types.NodeID]struct{}{laptopID: {}}))
+
+	waitPeers(t, laptop)
+	waitPeers(t, phone)
+	require.True(t, st.PostureBlocked(phoneID))
+
+	_, ok := st.GetNodeByID(phoneID)
+	require.True(t, ok, "a blocked device stays registered")
+
+	// A device that joins while posture is enforced has passed no check
+	// yet, so it starts cut off.
+	tablet := servertest.NewClient(t, srv, "alice-tablet", servertest.WithUser(alice))
+	require.True(t, st.PostureBlocked(nodeIDOf(t, tablet)))
+	waitPeers(t, tablet)
+	waitPeers(t, laptop)
+
+	srv.App.Change(st.SetPosture(false, nil))
+
+	waitPeers(t, laptop, "alice-phone", "alice-tablet")
+	waitPeers(t, phone, "alice-laptop", "alice-tablet")
+}
+
+// TestOrgscaleSSHRecording checks that with recording on, SSH servers are
+// told to send sessions to the recorders and may reach them, and that
+// enforced recording without a recorder refuses sessions.
+func TestOrgscaleSSHRecording(t *testing.T) {
+	t.Parallel()
+
+	srv := servertest.NewServer(t)
+	st := srv.State()
+
+	alice := srv.CreateUser(t, "alice")
+
+	for _, tag := range []string{"tag:prod", types.RecorderTag} {
+		changes, err := st.SaveServerTag(types.ServerTag{Name: tag}, nil)
+		require.NoError(t, err)
+		srv.App.Change(changes...)
+	}
+
+	exp := time.Now().Add(time.Hour)
+	prodKey, err := st.CreatePreAuthKey(nil, true, false, &exp, []string{"tag:prod"})
+	require.NoError(t, err)
+
+	servertest.NewClient(t, srv, "alice-laptop", servertest.WithUser(alice))
+	prod := servertest.NewClient(t, srv, "prod-1", servertest.WithAuthKey(prodKey.Key))
+
+	changes, err := st.SetDeviceRestriction(true, "test")
+	require.NoError(t, err)
+	srv.App.Change(changes...)
+
+	_, changes, err = st.SaveAccessRule(types.AccessRule{
+		Kind: types.RuleKindSSH, Name: "Alice SSH to prod", Enabled: true, SSHUsers: `["ubuntu"]`,
+		Sources:      []types.RulePrincipal{{Kind: types.PrincipalUser, Principal: strconv.FormatUint(uint64(alice.ID), 10)}},
+		Destinations: []types.RulePrincipal{{Kind: types.PrincipalTag, Principal: "tag:prod"}},
+	})
+	require.NoError(t, err)
+	srv.App.Change(changes...)
+
+	setRecording := func(rec types.RecordingSettings) {
+		t.Helper()
+
+		require.NoError(t, st.SetSettingJSON(types.SettingRecording, rec, "test"))
+		st.SetRecording(rec)
+
+		changes, err := st.ReloadPolicy()
+		require.NoError(t, err)
+		srv.App.Change(changes...)
+		srv.App.Change(change.PolicyChange())
+	}
+
+	acceptAction := func(nm *netmap.NetworkMap) *tailcfg.SSHAction {
+		if nm.SSHPolicy == nil {
+			return nil
+		}
+
+		for _, r := range nm.SSHPolicy.Rules {
+			if r.SSHUsers["ubuntu"] != "" && r.Action != nil {
+				return r.Action
+			}
+		}
+
+		return nil
+	}
+
+	// Enforced with no recorder: sessions are refused.
+	setRecording(types.RecordingSettings{Enabled: true, Enforce: true})
+
+	prod.WaitForCondition(t, "ssh refused", 15*time.Second, func(nm *netmap.NetworkMap) bool {
+		a := acceptAction(nm)
+
+		return a != nil && a.Reject && !a.Accept
+	})
+
+	// A recorder joins: sessions go to it, and prod may reach it.
+	recKey, err := st.CreatePreAuthKey(nil, true, false, &exp, []string{types.RecorderTag})
+	require.NoError(t, err)
+
+	recorder := servertest.NewClient(t, srv, "recorder", servertest.WithAuthKey(recKey.Key))
+	recIP := recorder.Netmap().SelfNode.Addresses().At(0).Addr()
+
+	prod.WaitForCondition(t, "ssh recorded", 15*time.Second, func(nm *netmap.NetworkMap) bool {
+		a := acceptAction(nm)
+
+		return a != nil && a.Accept && slices.Contains(a.Recorders, netip.AddrPortFrom(recIP, 80)) && a.OnRecordingFailure != nil
+	})
+	waitPeers(t, recorder, "prod-1")
+
+	pol, err := st.EffectivePolicy()
+	require.NoError(t, err)
+	require.Contains(t, string(pol), `"tag:recorder:80"`)
+
+	// Off: plain accept again.
+	setRecording(types.RecordingSettings{})
+
+	prod.WaitForCondition(t, "ssh unrecorded", 15*time.Second, func(nm *netmap.NetworkMap) bool {
+		a := acceptAction(nm)
+
+		return a != nil && a.Accept && len(a.Recorders) == 0
+	})
 }

@@ -175,7 +175,7 @@ WHERE user_id IS NULL
 						return nil
 					}
 
-					if tx.Name() != "sqlite" {
+					if tx.Name() != dialectSQLite {
 						return tx.AutoMigrate(&types.OAuthClient{}, &types.OAuthAccessToken{})
 					}
 
@@ -429,6 +429,14 @@ WHERE auth_key_id IN (
 				},
 				Rollback: func(db *gorm.DB) error { return nil },
 			},
+			{
+				// orgscale: private resources behind subnet routers.
+				ID: "202611190300-orgscale-network-resources",
+				Migrate: func(tx *gorm.DB) error {
+					return tx.Transaction(ensureNetworkResources)
+				},
+				Rollback: func(db *gorm.DB) error { return nil },
+			},
 		},
 	)
 
@@ -501,7 +509,12 @@ WHERE auth_key_id IN (
 			return err
 		}
 
-		return ensureAccessRequests(tx)
+		err = ensureAccessRequests(tx)
+		if err != nil {
+			return err
+		}
+
+		return ensureNetworkResources(tx)
 	})
 
 	err = runMigrations(cfg.Database, dbConn, migrations)

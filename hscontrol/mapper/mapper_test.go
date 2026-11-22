@@ -1745,7 +1745,7 @@ func (b *MapResponseBuilder) buildTailPeersCapMapsReference(peers views.Slice[ty
 		// in the viewer's netmap. The CapMap merge into tn.CapMap is
 		// overwritten by the PeerCapMap call below; only the address
 		// filtering side-effect inside TailNode survives.
-		tn, err := peer.TailNode(b.capVer, func(_ types.NodeID) []netip.Prefix {
+		tn, err := peer.TailNode(b.mapper.state.PeerCapabilityVersion(peer, b.capVer), func(_ types.NodeID) []netip.Prefix {
 			return b.mapper.state.RoutesForPeer(node, peer, matchers)
 		}, b.mapper.cfg, allCapMaps[peer.ID()])
 		if err != nil {

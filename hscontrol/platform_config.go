@@ -44,15 +44,17 @@ func (h *Orgscale) ConnectPage(w http.ResponseWriter, _ *http.Request) {
 // signs in to this server without a command line.
 func (h *Orgscale) WindowsRegistryFile(w http.ResponseWriter, _ *http.Request) {
 	url := strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(h.cfg.ServerURL)
+
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("Content-Disposition", `attachment; filename="orgscale.reg"`)
-	_, _ = fmt.Fprintf(w, "Windows Registry Editor Version 5.00\r\n\r\n[HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Tailscale]\r\n\"LoginURL\"=\"%s\"\r\n", url)
+	_, _ = fmt.Fprintf(w, "Windows Registry Editor Version 5.00\r\n\r\n[HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Tailscale]\r\n\"LoginURL\"=\"%s\"\r\n\"PostureChecking\"=\"always\"\r\n", url)
 }
 
 // LinuxConnectScript installs Tailscale when missing and signs in to this
 // server.
 func (h *Orgscale) LinuxConnectScript(w http.ResponseWriter, _ *http.Request) {
 	url := strings.ReplaceAll(h.cfg.ServerURL, "'", "")
+
 	w.Header().Set("Content-Type", "text/x-shellscript; charset=utf-8")
 	_, _ = fmt.Fprintf(w, `#!/bin/sh
 # Connects this machine to %[1]s
@@ -94,6 +96,7 @@ func (h *Orgscale) ApplePlatformConfig(
 	}
 
 	var payload bytes.Buffer
+
 	for _, payloadType := range payloadTypes {
 		platformConfig.PayloadType = payloadType
 		platformConfig.UUID = uuid.NewV4()
@@ -184,5 +187,7 @@ var payloadTemplate = textTemplate.Must(textTemplate.New("payloadTemplate").Pars
 
         <key>ControlURL</key>
         <string>{{.URL}}</string>
+        <key>PostureChecking</key>
+        <string>always</string>
     </dict>
 `))

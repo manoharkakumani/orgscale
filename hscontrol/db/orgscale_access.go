@@ -3,12 +3,16 @@ package db
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/manoharkakumani/orgscale/hscontrol/types"
 	"gorm.io/gorm"
 )
+
+// dialectSQLite is gorm's name for the SQLite dialect.
+const dialectSQLite = "sqlite"
 
 // Tables for server tags and the access rules built in the console. The
 // SQLite DDL must match schema.sql.
@@ -215,7 +219,7 @@ func ensureAccessRequests(tx *gorm.DB) error {
 	}
 
 	ddl := accessRequestsDDLSQLite
-	if tx.Name() != "sqlite" {
+	if tx.Name() != dialectSQLite {
 		ddl = accessRequestsDDLPostgres
 	}
 
@@ -228,6 +232,111 @@ func ensureAccessRequests(tx *gorm.DB) error {
 		if err != nil {
 			return fmt.Errorf("creating access_requests: %w", err)
 		}
+	}
+
+	return nil
+}
+
+const networkResourcesDDLSQLite = `
+CREATE TABLE network_resources(
+  id integer PRIMARY KEY AUTOINCREMENT,
+  name text NOT NULL,
+  address text NOT NULL,
+  description text,
+  created_at datetime,
+  created_by text
+);
+`
+
+const networkResourcesDDLPostgres = `
+CREATE TABLE network_resources(
+  id bigserial PRIMARY KEY,
+  name text NOT NULL,
+  address text NOT NULL,
+  description text,
+  created_at timestamptz,
+  created_by text
+);
+`
+
+// ensureNetworkResources creates the private resource table unless it
+// exists. It runs from InitSchema and as a migration.
+func ensureNetworkResources(tx *gorm.DB) error {
+	if tx.Migrator().HasTable("network_resources") {
+		return nil
+	}
+
+	ddl := networkResourcesDDLSQLite
+	if tx.Name() != dialectSQLite {
+		ddl = networkResourcesDDLPostgres
+	}
+
+	err := tx.Exec(strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(ddl), ";"))).Error
+	if err != nil {
+		return fmt.Errorf("creating network_resources: %w", err)
+	}
+
+	return nil
+}
+
+// ErrNetworkResourceNotFound is returned for an unknown private resource.
+var ErrNetworkResourceNotFound = errors.New("private resource not found")
+
+// ListNetworkResources returns the private resources by name.
+func ListNetworkResources(rx *gorm.DB) ([]types.NetworkResource, error) {
+	var rows []types.NetworkResource
+
+	err := rx.Order("name, id").Find(&rows).Error
+	if err != nil {
+		return nil, fmt.Errorf("listing private resources: %w", err)
+	}
+
+	return rows, nil
+}
+
+// SaveNetworkResource creates (ID 0) or updates a private resource and
+// returns its ID.
+func SaveNetworkResource(tx *gorm.DB, r types.NetworkResource) (uint64, error) {
+	if r.ID == 0 {
+		r.CreatedAt = time.Now().UTC()
+
+		err := tx.Create(&r).Error
+		if err != nil {
+			return 0, fmt.Errorf("creating private resource: %w", err)
+		}
+
+		return r.ID, nil
+	}
+
+	res := tx.Model(&types.NetworkResource{}).Where("id = ?", r.ID).Updates(map[string]any{
+		"name": r.Name, "address": r.Address, "description": r.Description,
+	})
+	if res.Error != nil {
+		return 0, res.Error
+	}
+
+	if res.RowsAffected == 0 {
+		return 0, ErrNetworkResourceNotFound
+	}
+
+	return r.ID, nil
+}
+
+// DeleteNetworkResource removes a private resource and every rule entry
+// naming it.
+func DeleteNetworkResource(tx *gorm.DB, id uint64) error {
+	err := deletePrincipalEverywhere(tx, types.PrincipalResource, strconv.FormatUint(id, 10))
+	if err != nil {
+		return err
+	}
+
+	res := tx.Where("id = ?", id).Delete(&types.NetworkResource{})
+	if res.Error != nil {
+		return res.Error
+	}
+
+	if res.RowsAffected == 0 {
+		return ErrNetworkResourceNotFound
 	}
 
 	return nil
@@ -366,7 +475,7 @@ func ensureOrgscaleSessionsTable(tx *gorm.DB) error {
 	}
 
 	ddl := orgscaleSessionsDDLSQLite
-	if tx.Name() != "sqlite" {
+	if tx.Name() != dialectSQLite {
 		ddl = orgscaleSessionsDDLPostgres
 	}
 
@@ -431,7 +540,7 @@ func ensureOrgscaleAccessTables(tx *gorm.DB) error {
 	}
 
 	ddl := orgscaleAccessDDLSQLite
-	if tx.Name() != "sqlite" {
+	if tx.Name() != dialectSQLite {
 		ddl = orgscaleAccessDDLPostgres
 	}
 

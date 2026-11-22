@@ -64,6 +64,17 @@ func CapabilityVersion(ver string) tailcfg.CapabilityVersion {
 	return 0
 }
 
+// LatestCapabilityVersion is the capability version of the newest Tailscale
+// release Orgscale knows.
+func LatestCapabilityVersion() tailcfg.CapabilityVersion {
+	var latest tailcfg.CapabilityVersion
+	for _, cv := range tailscaleToCapVer {
+		latest = max(latest, cv)
+	}
+
+	return latest
+}
+
 // TailscaleLatestMajorMinor returns the n latest Tailscale versions (e.g. 1.80).
 func TailscaleLatestMajorMinor(n int, stripV bool) []string {
 	if n <= 0 {

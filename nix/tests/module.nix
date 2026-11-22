@@ -177,6 +177,9 @@ let
           system = "${pkgs.stdenv.hostPlatform.system}";
           modules = [
             ${self}/nix/module.nix
+            # The bare module has no package default (nixpkgs has no
+            # orgscale); this only evaluates, so any package stands in.
+            ({ pkgs, ... }: { services.orgscale.package = pkgs.hello; })
             (builtins.fromJSON (builtins.readFile case))
           ];
         })

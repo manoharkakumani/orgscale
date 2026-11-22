@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -238,7 +239,7 @@ func (l *ipLimiter) blocked(ip string) bool {
 }
 
 func tooManyRequests(w http.ResponseWriter, window time.Duration) {
-	w.Header().Set("Retry-After", fmt.Sprint(int(window.Seconds())))
+	w.Header().Set("Retry-After", strconv.Itoa(int(window.Seconds())))
 	http.Error(w, "too many requests; try again later", http.StatusTooManyRequests)
 }
 
@@ -295,7 +296,7 @@ func (aa *adminAuth) announceSetup() {
 		"\n\n  orgscale is not set up yet. To finish setup, open\n\n      %s\n\n"+
 			"  within 30 minutes (until %s). The link works once. On the server,\n"+
 			"  `orgscale admin setup-link` makes a new one.\n",
-		link, exp.Local().Format("15:04 MST"))
+		link, exp.Local().Format("15:04 MST")) //nolint:gosmopolitan // read in the server's log, on its clock
 }
 
 // SetupLinkHandler makes a new setup link. It is served only on the local
@@ -499,18 +500,18 @@ func (aa *adminAuth) applySSO(ctx context.Context, req ssoRequest, by string) er
 
 	u, err := url.Parse(req.Issuer)
 	if err != nil || u.Host == "" {
-		return errors.New("the issuer must be a URL, e.g. https://accounts.google.com")
+		return userError("the issuer must be a URL, e.g. https://accounts.google.com")
 	}
 
 	if u.Scheme != "https" {
 		ip := net.ParseIP(u.Hostname())
 		if u.Scheme != "http" || (u.Hostname() != "localhost" && (ip == nil || !ip.IsLoopback())) {
-			return errors.New("the issuer must use https://")
+			return userError("the issuer must use https://")
 		}
 	}
 
 	if req.ClientID == "" {
-		return errors.New("enter the client ID from your identity provider")
+		return userError("enter the client ID from your identity provider")
 	}
 
 	var prev types.StoredOIDC
@@ -522,7 +523,7 @@ func (aa *adminAuth) applySSO(ctx context.Context, req ssoRequest, by string) er
 
 	if req.ClientSecret == "" {
 		if prev.ClientSecret == "" || prev.ClientID != req.ClientID || prev.Issuer != req.Issuer {
-			return errors.New("enter the client secret from your identity provider")
+			return userError("enter the client secret from your identity provider")
 		}
 
 		req.ClientSecret = prev.ClientSecret
@@ -697,12 +698,11 @@ func (aa *adminAuth) handleEndSession(w http.ResponseWriter, r *http.Request) {
 	me := sessionFrom(r)
 	_, myKey := aa.sessionFromRequest(r)
 
-	var (
-		drop  []string
-		names []string
-	)
-
 	aa.mu.Lock()
+
+	drop := make([]string, 0, len(aa.sessions))
+	names := make([]string, 0, len(aa.sessions))
+
 	for k, s := range aa.sessions {
 		switch {
 		case id == "others" && k != myKey && s.label() == me.label():
@@ -729,11 +729,11 @@ func (aa *adminAuth) handleEndSession(w http.ResponseWriter, r *http.Request) {
 
 // sessionRecord is how s is stored.
 func sessionRecord(key string, s *adminSession) types.AdminSessionRecord {
-	groups, _ := json.Marshal(s.roleGroups)
+	groups := mustJSON(s.roleGroups)
 
 	return types.AdminSessionRecord{
 		ID: key, CSRF: s.CSRF, UserID: s.UserID, Email: s.Email, Name: s.Name, Picture: s.Picture,
-		RoleEmail: s.roleEmail, RoleGroups: string(groups), Subject: s.subject,
+		RoleEmail: s.roleEmail, RoleGroups: groups, Subject: s.subject,
 		RemoteAddr: s.remoteAddr, UserAgent: s.userAgent,
 		CreatedAt: s.createdAt.UTC(), LastSeenAt: s.lastSeen.UTC(), ExpiresAt: s.ExpiresAt.UTC(),
 	}
@@ -741,6 +741,7 @@ func sessionRecord(key string, s *adminSession) types.AdminSessionRecord {
 
 func sessionFromRecord(rec types.AdminSessionRecord) *adminSession {
 	var groups []string
+
 	_ = json.Unmarshal([]byte(rec.RoleGroups), &groups)
 
 	return &adminSession{

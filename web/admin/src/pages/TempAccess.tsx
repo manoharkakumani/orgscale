@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { get, post, type Principal, type ServerTag, type TempAccess } from "../api";
+import { get, post, type NetworksInfo, type Principal, type ServerTag, type TempAccess } from "../api";
 import { useCanEdit } from "../App";
 import { PrincipalPicker } from "../components/principals";
 import { Badge, Button, Confirm, Empty, ErrorBox, Field, Icon, Modal, PageHeader, Segmented, Spinner, Toggle, timeAgo, useAsync, useToast } from "../components/ui";
@@ -54,8 +54,12 @@ function GrantForm({ onClose, onDone }: { onClose: () => void; onDone: () => voi
   const managed = (tags.data ?? []).filter((t) => t.managed);
   const [to, setTo] = useState<Principal[]>([]);
   const [tag, setTag] = useState("");
-  const [scope, setScope] = useState<"tag" | "server">("tag");
+  const [scope, setScope] = useState<"tag" | "server" | "resource">("tag");
   const [server, setServer] = useState(0);
+  const [resource, setResource] = useState(0);
+  const nets = useAsync(() => get<NetworksInfo>("/admin/api/networks"));
+  const resources = nets.data?.resources ?? [];
+  const resourceID = resource || resources[0]?.id || 0;
   const [minutes, setMinutes] = useState(60);
   const [ssh, setSSH] = useState(false);
   const [reason, setReason] = useState("");
@@ -75,7 +79,7 @@ function GrantForm({ onClose, onDone }: { onClose: () => void; onDone: () => voi
   }, [tags.data]);
   const serverID = server || servers[0]?.id || 0;
   const sshUsers = scope === "tag" ? (chosen?.tempSSHUsers ?? []) : [];
-  const ready = scope === "tag" ? !!chosen : serverID > 0;
+  const ready = scope === "tag" ? !!chosen : scope === "server" ? serverID > 0 : resourceID > 0;
 
   return (
     <Modal
@@ -96,7 +100,7 @@ function GrantForm({ onClose, onDone }: { onClose: () => void; onDone: () => voi
               try {
                 await post("/admin/api/temp-access", {
                   to: to.map(({ kind, principal }) => ({ kind, principal })),
-                  ...(scope === "tag" ? { tag: chosen!.name } : { server: serverID }),
+                  ...(scope === "tag" ? { tag: chosen!.name } : scope === "server" ? { server: serverID } : { resource: resourceID }),
                   minutes,
                   reason: reason.trim(),
                   ssh: ssh && sshUsers.length > 0,
@@ -126,6 +130,7 @@ function GrantForm({ onClose, onDone }: { onClose: () => void; onDone: () => voi
           options={[
             { value: "tag", label: "A whole tag" },
             { value: "server", label: "One server" },
+            { value: "resource", label: "A private resource" },
           ]}
         />
       </Field>
@@ -145,6 +150,22 @@ function GrantForm({ onClose, onDone }: { onClose: () => void; onDone: () => voi
               </select>
             ) : (
               <span className="muted">Create a server tag on the Servers page first.</span>
+            )}
+          </Field>
+        ) : scope === "resource" ? (
+          <Field label="Private resource" hint="An RDS database or other address behind a subnet router (Networks page), on every port.">
+            {nets.loading && !nets.data ? (
+              <Spinner />
+            ) : resources.length ? (
+              <select value={resourceID} onChange={(e) => setResource(Number(e.target.value))}>
+                {resources.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name} ({r.address})
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span className="muted">Add private resources on the Networks page first.</span>
             )}
           </Field>
         ) : (
@@ -182,7 +203,9 @@ function GrantForm({ onClose, onDone }: { onClose: () => void; onDone: () => voi
           <div className="prow-label">
             <div>Also SSH in</div>
             <div className="muted small">
-              {scope === "server" ? (
+              {scope === "resource" ? (
+                <>Keyless SSH needs Tailscale on the machine; private resources are reached over the network only.</>
+              ) : scope === "server" ? (
                 <>Keyless SSH is given per tag. To SSH into just this server without keys, give it its own tag. Their own SSH keys still work.</>
               ) : sshUsers.length ? (
                 <>As {sshUsers.join(" or ")}. No keys needed.</>
@@ -206,7 +229,7 @@ function GrantRow({ g, now, onEnd }: { g: TempAccess; now: number; onEnd?: () =>
       <div className="request-head">
         <div className="cell-stack grow">
           <span>
-            <Icon name={g.kind === "directory_group" ? "users" : "user"} className="inline-icon" /> <b>{g.grantee}</b> → {g.server ? <><Icon name="server" className="inline-icon" /> {g.tag}</> : <code>{g.tag}</code>} for {duration(g.minutes)}
+            <Icon name={g.kind === "directory_group" ? "users" : "user"} className="inline-icon" /> <b>{g.grantee}</b> → {g.server ? <><Icon name="server" className="inline-icon" /> {g.tag}</> : g.resource ? <><Icon name="globe" className="inline-icon" /> {g.tag}</> : <code>{g.tag}</code>} for {duration(g.minutes)}
             {g.ssh && g.sshUsers.length ? <> · SSH as {g.sshUsers.join(", ")}</> : null}
           </span>
           <span className="muted small">
@@ -253,7 +276,7 @@ export default function TempAccessPage() {
     <>
       <PageHeader
         title="Temporary access"
-        description="Give people or groups access to one server or a whole tag for a set time, for an incident or a one-off task. It ends on its own, and every grant is in the audit log."
+        description="Give people or groups access to a server, a whole tag or a private resource for a set time, for an incident or a one-off task. It ends on its own, and every grant is in the audit log."
         actions={
           <>
             <Segmented value={filter} onChange={setFilter} options={[{ value: "active", label: `Active (${active.length})` }, { value: "history", label: "History" }]} />

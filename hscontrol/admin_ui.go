@@ -32,7 +32,8 @@ func adminConsoleHandler() http.HandlerFunc {
 		p = strings.TrimPrefix(p, "/")
 
 		if p != "" && p != "index.html" {
-			if _, err := fs.Stat(files, p); err == nil {
+			_, err := fs.Stat(files, p)
+			if err == nil {
 				if strings.HasPrefix(p, "assets/") {
 					// Vite names assets by content hash.
 					w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
@@ -126,6 +127,8 @@ func collapseSlashes(next http.Handler) http.Handler {
 		u := *r.URL
 		u.Path, u.RawPath = p, ""
 
-		http.Redirect(w, r, u.RequestURI(), http.StatusMovedPermanently)
+		// p has no "//", so the target is a path on this server, never
+		// another host.
+		http.Redirect(w, r, u.RequestURI(), http.StatusMovedPermanently) //nolint:gosec // G710: same-host path, see above
 	})
 }

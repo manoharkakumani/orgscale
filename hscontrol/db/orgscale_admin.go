@@ -121,13 +121,18 @@ CREATE TABLE device_access(
 
 // ensureOrgscaleAdminTables creates the admin console tables unless they
 // exist. It runs both from InitSchema (fresh databases) and as a migration.
+
+// ErrDirectoryGroupName is returned for a directory group no policy name can
+// be made for.
+var ErrDirectoryGroupName = errors.New("directory group has no usable name")
+
 func ensureOrgscaleAdminTables(tx *gorm.DB) error {
 	if tx.Migrator().HasTable("settings") {
 		return nil
 	}
 
 	ddl := orgscaleAdminDDLSQLite
-	if tx.Name() != "sqlite" {
+	if tx.Name() != dialectSQLite {
 		ddl = orgscaleAdminDDLPostgres
 	}
 
@@ -236,7 +241,7 @@ func UpsertDirectoryGroup(tx *gorm.DB, source, externalID, displayName string) (
 	}
 
 	if name == "" {
-		return nil, fmt.Errorf("directory group %q has no usable name", externalID)
+		return nil, fmt.Errorf("%w: %q", ErrDirectoryGroupName, externalID)
 	}
 
 	var g types.DirectoryGroup
@@ -311,7 +316,7 @@ func uniqueDirectoryGroupName(tx *gorm.DB, base, source string, self uint64) (st
 		}
 	}
 
-	return "", fmt.Errorf("no free name for directory group %q", base)
+	return "", fmt.Errorf("%w: no free name for %q", ErrDirectoryGroupName, base)
 }
 
 // GetDirectoryGroup returns a group with its members.

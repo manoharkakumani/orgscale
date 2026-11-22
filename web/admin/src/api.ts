@@ -109,7 +109,8 @@ export interface AdminUser {
   roleFrom: "" | "console" | "config" | "group";
 }
 
-export type PrincipalKind = "user" | "directory_group" | "policy_group" | "tag" | "device" | "everyone" | "self";
+export type PrincipalKind =
+  "user" | "directory_group" | "policy_group" | "tag" | "device" | "everyone" | "self" | "resource";
 
 export interface Principal {
   kind: PrincipalKind;
@@ -139,6 +140,7 @@ export interface TempAccess {
   kind: "user" | "directory_group";
   tag: string;
   server: boolean;
+  resource: boolean;
   reason: string;
   minutes: number;
   ssh: boolean;
@@ -193,6 +195,7 @@ export interface AdminDevice {
   announcedRoutes: string[];
   approvedRoutes: string[];
   access: DeviceGrant[];
+  postureBlocked: boolean;
 }
 
 export interface AdminGroup {
@@ -358,4 +361,89 @@ export interface DNSSettings {
   baseDomain: string;
   source: "file" | "console";
   recordsFromFile: boolean;
+}
+
+export interface SubnetRouter {
+  id: number;
+  name: string;
+  online: boolean;
+  tags: string[];
+  announced: string[];
+  approved: string[];
+  pending: string[];
+}
+
+export interface PrivateResource {
+  id: number;
+  name: string;
+  address: string;
+  description: string;
+  createdAt: string;
+  coveredBy: string[];
+}
+
+export interface NetworksInfo {
+  routers: SubnetRouter[];
+  resources: PrivateResource[];
+}
+
+export type PostureMode = "off" | "monitor" | "enforce";
+
+export interface OSRequirement {
+  blocked: boolean;
+  minVersion: string;
+}
+
+export interface PostureRules {
+  mode: PostureMode;
+  minTailscaleVersion: string;
+  os: Record<string, OSRequirement>;
+  requireIntune: boolean;
+}
+
+export interface DevicePosture {
+  id: number;
+  name: string;
+  user: string;
+  os: string;
+  osLabel: string;
+  osVersion: string;
+  tailscaleVersion: string;
+  intune?: string;
+  serialKnown: boolean;
+  online: boolean;
+  passing: boolean;
+  blocked: boolean;
+  reasons: string[];
+}
+
+export interface PostureInfo {
+  rules: PostureRules;
+  accessControl: boolean;
+  entraReady: boolean;
+  intuneError?: string;
+  intuneAt?: string;
+  intuneDevices: number;
+  checkedAt?: string;
+  devices: DevicePosture[];
+}
+
+export interface SessionRecorder {
+  id: number;
+  name: string;
+  address: string;
+  online: boolean;
+}
+
+export interface RecordingInfo {
+  enabled: boolean;
+  enforce: boolean;
+  accessControl: boolean;
+  tag: string;
+  recorders: SessionRecorder[];
+}
+
+export interface TailnetLink {
+  name: string;
+  url: string;
 }
