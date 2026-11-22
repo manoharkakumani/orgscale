@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"net"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -15,7 +16,13 @@ import (
 // tolerates a not-yet-created socket (the server-still-starting race) by
 // retrying until it appears, rather than failing immediately like a bare dial.
 func TestDialOrgscaleSocketRetriesUntilPresent(t *testing.T) {
-	sock := filepath.Join(t.TempDir(), "orgscale.sock")
+	// Not t.TempDir(): its path under macOS's $TMPDIR, plus this test's name,
+	// exceeds the 104-byte sun_path limit and bind fails with EINVAL.
+	dir, err := os.MkdirTemp("", "hs-sock") //nolint:usetesting // t.TempDir() path is too long for a unix socket on macOS
+	require.NoError(t, err)
+	t.Cleanup(func() { os.RemoveAll(dir) })
+
+	sock := filepath.Join(dir, "orgscale.sock")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
